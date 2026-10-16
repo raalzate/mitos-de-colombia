@@ -1,0 +1,4 @@
+images
+tests
+.playwright-mcp
+node_modules
