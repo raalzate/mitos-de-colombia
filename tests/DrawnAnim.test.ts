@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWN_ANIM } from '../src/art/drawnAnimManifest';
-import { WALK_STRIDE_PX, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance } from '../src/art/DrawnAnim';
+import { WALK_STRIDE_PX, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance, walkPhase } from '../src/art/DrawnAnim';
 import { FIGHTER_IDS } from '../src/data/fighters';
 
 const files = import.meta.glob('../public/assets/anim/*.png');
@@ -69,5 +69,26 @@ describe('animación dibujada', () => {
     for (let d = 0; d < 200; d += 1) seen.add(drawnFrame('mohan', { ...base, anim: 'walk', walkDistance: d })!.index);
     expect(seen.size).toBe(n);
     expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(2);
+  });
+
+  it('la fase de andar es continua: el fundido avanza sin saltos y hay pisada en los fotogramas de contacto', () => {
+    const n = DRAWN_ANIM.mohan.walk.frames;
+    let prev = walkPhase(0, n);
+    let footfalls = 0;
+    for (let d = 0.5; d <= WALK_STRIDE_PX * n * 2; d += 0.5) {
+      const ph = walkPhase(d, n);
+      // t avanza como máximo 0.5 px / zancada por paso de 0.5 px; al cambiar de fotograma vuelve a 0
+      if (ph.index === prev.index) expect(ph.t - prev.t).toBeCloseTo(0.5 / WALK_STRIDE_PX, 6);
+      else expect(ph.t).toBeLessThan(0.5 / WALK_STRIDE_PX + 1e-6);
+      expect(ph.next).toBe((ph.index + 1) % n);
+      expect(ph.bob).toBeLessThanOrEqual(0);
+      expect(ph.bob).toBeGreaterThanOrEqual(-1.5);
+      if (ph.footfall) footfalls++;
+      prev = ph;
+    }
+    expect(footfalls).toBe(4); // dos ciclos completos, dos pisadas por ciclo
+    const back = walkPhase(WALK_STRIDE_PX * 2, n, WALK_STRIDE_PX, true);
+    expect(back.index).toBe(n - 2);
+    expect(back.next).toBe(n - 3);
   });
 });

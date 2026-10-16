@@ -46,6 +46,26 @@ export function walkFrameByDistance(distance: number, frames: number, stride = W
 }
 
 /**
+ * Fase continua del ciclo de andar: fotograma actual, siguiente y avance `t` (0..1) entre ambos.
+ * Permite fundir el siguiente fotograma de forma continua (60 Hz) en lugar de cortar cada zancada,
+ * y sincronizar balanceo y pisadas. `bob` es el balanceo vertical (px, negativo = arriba), máximo en
+ * mitad de cada paso; `footfall` es true justo al entrar en un fotograma de contacto (inicio y mitad del ciclo).
+ */
+export function walkPhase(distance: number, frames: number, stride = WALK_STRIDE_PX, backward = false): { index: number; next: number; t: number; bob: number; footfall: boolean } {
+  const d = Math.max(0, distance);
+  const k = Math.floor(d / stride);
+  const t = d / stride - k;
+  const dir = backward ? -1 : 1;
+  const index = ((k * dir) % frames + frames) % frames;
+  const next = ((index + dir) % frames + frames) % frames;
+  const stepLen = stride * frames / 2;
+  const phase = (d % stepLen) / stepLen;
+  const bob = -Math.round(Math.sin(phase * Math.PI) * 1.5 * 10) / 10;
+  const footfall = t < 1e-6 && (index === 0 || index === Math.floor(frames / 2));
+  return { index, next, t, bob, footfall };
+}
+
+/**
  * Devuelve la tira y el fotograma para cualquier estado: todo el personaje sale de las
  * mismas tres tiras, así nunca cambia de "dibujo" entre acciones (estilo Mortal Kombat).
  * null solo si el personaje no tiene tiras.
@@ -65,7 +85,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       return { action: 'walk', index: 0 };
     case 'walk': {
       const stride = m.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;
-      const k = i.walkDistance !== undefined ? walkFrameByDistance(i.walkDistance, walkN, stride) : Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
+      if (i.walkDistance !== undefined) return { action: 'walk', index: walkPhase(i.walkDistance, walkN, stride, i.backward).index };
+      const k = Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
       return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
     }
     case 'jump':

@@ -16,7 +16,8 @@ import { CombatHUD } from '../ui/CombatHUD';
 import { FIGHTERS, specialHint } from '../data/fighters';
 import { ORIGIN_Y } from '../art/CharacterArtist';
 import { splashPose, splashPoseIndex, type SplashPose } from '../art/SplashPose';
-import { drawnAnimKey, drawnFrame } from '../art/DrawnAnim';
+import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, walkPhase } from '../art/DrawnAnim';
+import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
@@ -37,6 +38,9 @@ interface FighterView {
   pose: SplashPose;
   /** fundido del fotograma anterior al cambiar de fotograma (modo dibujado) */
   ghost: Phaser.GameObjects.Sprite | null;
+  /** fundido cruzado continuo del siguiente fotograma al andar (modo dibujado) */
+  blend: Phaser.GameObjects.Sprite | null;
+  lastFootfallIndex: number;
   /** distancia andada acumulada para el ciclo de andar por distancia */
   walkDist: number;
   lastX: number;
@@ -305,10 +309,11 @@ export class FightScene extends Phaser.Scene {
       if (splash) {
         const sprite = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11 : 10);
         const ghost = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 10.5 : 9.5).setAlpha(0);
-        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, walkDist: 0, lastX: 0 };
+        const blend = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11.1 : 10.1).setAlpha(0);
+        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, blend, walkDist: 0, lastX: 0, lastFootfallIndex: -1 };
       }
       const sprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, ORIGIN_Y).setDepth(slot === 1 ? 11 : 10);
-      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, walkDist: 0, lastX: 0 };
+      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, blend: null, walkDist: 0, lastX: 0, lastFootfallIndex: -1 };
     };
     const mirror = this.settings.p1 === this.settings.p2;
     this.views = { 1: mk(1), 2: mk(2) };
@@ -817,6 +822,7 @@ export class FightScene extends Phaser.Scene {
       case 'dust': {
         const sp = this.add.sprite(e.x, e.y + 1, 'fx_dust').setOrigin(0.5, 1).setDepth(9);
         if (e.data?.big) sp.setScale(2);
+        if (e.data?.small) sp.setScale(0.6).setAlpha(0.7);
         sp.play('fx_dust');
         sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
         break;
@@ -911,6 +917,20 @@ export class FightScene extends Phaser.Scene {
             snap = true;
           }
           target = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
+          // andar: fundido cruzado continuo hacia el siguiente fotograma + balanceo + polvo en las pisadas
+          if (f.anim === 'walk' && v.blend) {
+            const m = DRAWN_ANIM[v.id].walk;
+            const ph = walkPhase(v.walkDist, m.frames, m.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX, input.backward);
+            target.dy = ph.bob;
+            v.blend.setTexture(animKey, ph.next).setAlpha(Math.min(0.5, ph.t * 0.5));
+            if (ph.footfall && v.lastFootfallIndex !== ph.index && f.grounded) {
+              v.lastFootfallIndex = ph.index;
+              this.spawnEffect({ kind: 'dust', x: f.x - f.facing * 6, y: f.y, facing: f.facing, data: { small: true } }, v.id);
+            }
+          } else if (v.blend) {
+            v.blend.setAlpha(0);
+            v.lastFootfallIndex = -1;
+          }
           if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.012; // respiración
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
           else if (f.anim === 'hit') target.dx = -2;
@@ -941,6 +961,9 @@ export class FightScene extends Phaser.Scene {
         v.sprite.setPosition(Math.round(f.x + cp.dx * f.facing) + shake, Math.round(f.y + cp.dy));
         v.sprite.setAngle(cp.rot * f.facing);
         v.sprite.setScale(cp.sx, cp.sy);
+        if (v.blend && v.blend.alpha > 0) {
+          v.blend.setPosition(v.sprite.x, v.sprite.y).setFlipX(v.sprite.flipX).setAngle(v.sprite.angle).setScale(cp.sx, cp.sy);
+        }
       } else {
         const table = ANIM_TABLES[v.key];
         const frames = table[f.anim] ?? table.idle;
@@ -950,6 +973,7 @@ export class FightScene extends Phaser.Scene {
       }
       v.sprite.setAlpha(f.alpha);
       if (v.ghost && f.alpha < 1) v.ghost.setAlpha(0);
+      if (v.blend && f.alpha < 1) v.blend.setAlpha(0);
       if (v.flash > 0) v.sprite.setTintFill(0xffffff);
       else if (f.invuln > 0 && f.state === 'getup') v.sprite.setTint(0xa0c0ff);
       else v.sprite.clearTint();

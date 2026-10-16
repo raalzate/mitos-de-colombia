@@ -212,7 +212,12 @@ ambos definitivos.
   `attack`, daño/caída/levantarse/victoria desde `hurt`, agachado = fotograma de
   levantarse, bloqueo = preparación de golpe, salto = patada preparada. Los
   fotogramas se alinean por el centroide del torso para que el cuerpo no se
-  desplace al cambiar de fotograma. Los efectos de habilidades usan `fx/`
+  desplace al cambiar de fotograma. Fluidez: el ciclo de andar avanza por
+  distancia recorrida (una zancada cada 7 px, sin patinar), el siguiente
+  fotograma se funde de forma continua a 60 Hz sobre el actual (sin cortes),
+  balanceo vertical sincronizado con la zancada, polvo en cada pisada, fundido
+  del fotograma anterior en golpes y daño, y anticipación/extensión
+  interpoladas en los ataques. Los efectos de habilidades usan `fx/`
   animados por transformación (`DrawnFx.ts`). La imagen base y las poses de
   `splash/` se usan en selección, VS y resultado.
 - **Sprites procedimentales**: esqueleto con cinemática directa + rasgos por
