@@ -1,0 +1,23 @@
+{
+  "name": "mitos-de-colombia",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "MITOS DE COLOMBIA: SANGRE DE LEYENDA - juego de lucha 2D en pixel art de 16 bits",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7",
+    "vitest": "^3.2.7"
+  }
+}
