@@ -9,7 +9,7 @@ const base = { state: 'idle' as const, anim: 'idle', animFrame: 0, frame: 0, gro
 describe('animación dibujada', () => {
   it('cada personaje tiene las tres tiras con archivo en disco', () => {
     for (const id of FIGHTER_IDS) {
-      for (const action of ['walk', 'attack', 'hurt'] as const) {
+      for (const action of ['walk', 'attack', 'hurt', 'idle'] as const) {
         const m = DRAWN_ANIM[id][action];
         expect(m.frames).toBeGreaterThanOrEqual(4);
         expect(m.w).toBeGreaterThan(0);
@@ -33,7 +33,9 @@ describe('animación dibujada', () => {
           expect(r!.index).toBeLessThan(n);
         }
       }
-      expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'walk', index: 0 });
+      expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'idle', index: 0 });
+      expect(DRAWN_ANIM[id].idle.frames).toBe(6);
+      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(1);
       expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
       expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe('hurt');
     }

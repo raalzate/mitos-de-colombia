@@ -82,7 +82,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
   const getup = hurtN >= 6 ? 4 : hurtN - 2;
   switch (i.anim) {
     case 'idle':
-      return { action: 'walk', index: 0 };
+      // postura de guardia: ciclo de 6 fotogramas (sube y baja la guardia), 12 fps como la postura de MK II
+      return m.idle ? { action: 'idle', index: Math.floor(i.frame / 5) % m.idle.frames } : { action: 'walk', index: 0 };
     case 'walk': {
       const stride = m.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;
       if (i.walkDistance !== undefined) return { action: 'walk', index: walkPhase(i.walkDistance, walkN, stride, i.backward).index };
@@ -123,6 +124,6 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'victory':
       return { action: 'hurt', index: hurtN - 1 };
     default:
-      return { action: 'walk', index: 0 };
+      return m.idle ? { action: 'idle', index: 0 } : { action: 'walk', index: 0 };
   }
 }

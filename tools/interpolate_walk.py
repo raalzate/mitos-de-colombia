@@ -15,8 +15,8 @@ def frames_of(strip, n):
     cw = strip.width // n
     return [strip.crop((i*cw, 0, (i+1)*cw, strip.height)) for i in range(n)], cw
 
-def inbetween(a, b):
-    """Fotograma a mitad de camino entre a y b (RGBA PIL, mismo tamaño)."""
+def inbetween(a, b, t=0.5):
+    """Fotograma a fracción t del camino entre a y b (RGBA PIL, mismo tamaño)."""
     A = np.array(a); B = np.array(b)
     h, w = A.shape[:2]
     def prep(X):
@@ -44,8 +44,8 @@ def inbetween(a, b):
     # píxeles sin transparencia como imagen RGBA grande
     rgba_a = np.dstack([cv2.resize(A[:, :, :3], (W, H), interpolation=cv2.INTER_NEAREST), aa])
     rgba_b = np.dstack([cv2.resize(B[:, :, :3], (W, H), interpolation=cv2.INTER_NEAREST), ab])
-    wa = warp(rgba_a, fa, 0.5)   # a avanzada medio camino hacia b
-    wb = warp(rgba_b, fb, 0.5)   # b retrocedida medio camino hacia a
+    wa = warp(rgba_a, fa, t)        # a avanzada una fracción t hacia b
+    wb = warp(rgba_b, fb, 1 - t)    # b retrocedida el resto hacia a
     # combinar sin promediar (mantiene píxeles nítidos): A deformada manda; B rellena huecos
     oa = wa[:, :, 3] > 127; ob = wb[:, :, 3] > 127
     out = np.zeros_like(wa)
@@ -74,7 +74,33 @@ def inbetween(a, b):
 
 # Solo personajes cuyo intermedio queda limpio (los de mucho detalle interno se emborronan)
 INTERP = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else set(manifest_ids := json.load(open(f"{OUT}/manifest.json")).keys())
+def make_idle(out_dir, manifest, ids):
+    """Ciclo de reposo (6 fotogramas) sintetizado: guardia en alto (primer fotograma de golpe) que
+    baja y sube suavemente hacia la postura de andar: a0, 20 %, 40 %, 60 %, 40 %, 20 %."""
+    for cid in ids:
+        meta = manifest[cid]
+        for slot in ("p1", "p2"):
+            atk = Image.open(f"{out_dir}/{cid}_attack_{slot}.png").convert("RGBA")
+            wlk = Image.open(f"{out_dir}/{cid}_walk_{slot}.png").convert("RGBA")
+            a0 = atk.crop((0, 0, meta["attack"]["w"], atk.height))
+            w0 = wlk.crop((0, 0, meta["walk"]["w"], wlk.height))
+            cw = max(a0.width, w0.width); ch = max(a0.height, w0.height)
+            def cell(f):
+                c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.paste(f, ((cw - f.width) // 2, ch - f.height), f); return c
+            A, W = cell(a0), cell(w0)
+            seq = [A, inbetween(A, W, 0.2), inbetween(A, W, 0.4), inbetween(A, W, 0.6)]
+            seq = seq + [seq[2], seq[1]]
+            strip = Image.new("RGBA", (cw * len(seq), ch), (0, 0, 0, 0))
+            for i, f in enumerate(seq): strip.paste(f, (i * cw, 0), f)
+            strip.save(f"{out_dir}/{cid}_idle_{slot}.png")
+        meta["idle"] = {"frames": 6, "w": cw, "h": ch, "interpolated": True}
+        print(cid, "idle 6")
+
 manifest = json.load(open(f"{OUT}/manifest.json"))
+if CONTACT == "idle":
+    make_idle(OUT, manifest, list(manifest.keys()))
+    json.dump(manifest, open(f"{OUT}/manifest.json", "w"), indent=1)
+    sys.exit(0)
 contact = []
 for cid, meta in manifest.items():
     n = meta["walk"]["frames"]

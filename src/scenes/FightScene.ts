@@ -909,7 +909,7 @@ export class FightScene extends Phaser.Scene {
           // todos los estados salen de las tiras: el fotograma ya lleva la pose, sin giro
           if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
             // fundido: el fotograma anterior se queda 2-3 frames desvaneciéndose (suaviza el cambio)
-            if (v.ghost && v.sprite.alpha > 0 && f.anim !== 'idle') {
+            if (v.ghost && v.sprite.alpha > 0 && f.anim !== 'idle' && f.anim !== 'walk') {
               v.ghost.setTexture(v.sprite.texture.key, v.sprite.frame.name).setPosition(v.sprite.x, v.sprite.y)
                 .setFlipX(v.sprite.flipX).setScale(v.sprite.scaleX, v.sprite.scaleY).setAngle(v.sprite.angle).setAlpha(0.45);
             }
@@ -931,7 +931,7 @@ export class FightScene extends Phaser.Scene {
             v.blend.setAlpha(0);
             v.lastFootfallIndex = -1;
           }
-          if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.012; // respiración
+          if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.008; // respiración sutil sobre el ciclo de guardia
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
           else if (f.anim === 'hit') target.dx = -2;
           else if (f.state === 'attack' || f.state === 'special') {

@@ -201,7 +201,8 @@ ambos definitivos.
   de `images/`; la variante `p2` es un giro de tono para el espejo):
   - `portraits/`: caras (selección, HUD, VS, resultado).
   - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
-  - `anim/`: tiras de animación por personaje (`walk` 12–14 fotogramas, `attack`
+  - `anim/`: tiras de animación por personaje (`idle` 6 fotogramas de guardia
+    sintetizados entre la preparación de golpe y la postura de andar, `walk` 12–14 fotogramas, `attack`
     5–6: puño y patada, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
     cortadas de `images/Retro Folklore Character Sprite Sheet.png`
     (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera). Los
@@ -211,8 +212,8 @@ ambos definitivos.
     perder nitidez.
   - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
   En modo `ARTE: DIBUJADO` **todo** el combate sale de las tres tiras
-  (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = primer fotograma de andar
-  con respiración, andar (en reversa al retroceder), golpes y habilidades desde
+  (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = ciclo de guardia de 6
+  fotogramas a 12 fps (la postura de MK II tiene 7 a 12,5 fps), andar (en reversa al retroceder), golpes y habilidades desde
   `attack`, daño/caída/levantarse/victoria desde `hurt`, agachado = fotograma de
   levantarse, bloqueo = preparación de golpe, salto = patada preparada. Los
   fotogramas se alinean por el centroide del torso para que el cuerpo no se
