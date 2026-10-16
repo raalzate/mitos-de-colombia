@@ -35,6 +35,11 @@ interface FighterView {
   drawn: boolean;
   /** pose suavizada actual (modo dibujado) */
   pose: SplashPose;
+  /** fundido del fotograma anterior al cambiar de fotograma (modo dibujado) */
+  ghost: Phaser.GameObjects.Sprite | null;
+  /** distancia andada acumulada para el ciclo de andar por distancia */
+  walkDist: number;
+  lastX: number;
   /** identificador y paleta del arte dibujado (para elegir la textura de pose) */
   id: FighterId;
   pal: 'p1' | 'p2';
@@ -296,12 +301,14 @@ export class FightScene extends Phaser.Scene {
       const id = slot === 1 ? this.settings.p1 : this.settings.p2;
       const pal = slot === 2 && mirror ? 'p2' : 'p1';
       const splash = this.settings.art === 'drawn' ? splashKey(this, id, pal, 72) : null;
+      const pose = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
       if (splash) {
         const sprite = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11 : 10);
-        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose: { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 } };
+        const ghost = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 10.5 : 9.5).setAlpha(0);
+        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, walkDist: 0, lastX: 0 };
       }
       const sprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, ORIGIN_Y).setDepth(slot === 1 ? 11 : 10);
-      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose: { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 } };
+      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, walkDist: 0, lastX: 0 };
     };
     const mirror = this.settings.p1 === this.settings.p2;
     this.views = { 1: mk(1), 2: mk(2) };
@@ -881,9 +888,12 @@ export class FightScene extends Phaser.Scene {
       const shake = f.hitstop > 0 ? (f.hitstop % 2 === 0 ? 1 : -1) : 0;
       v.sprite.setFlipX(f.facing === -1);
       if (v.drawn) {
+        if (f.anim === 'walk') v.walkDist += Math.abs(f.x - v.lastX);
+        else v.walkDist = 0;
+        v.lastX = f.x;
         const input = {
           state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
-          backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5,
+          backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
         };
         const df = drawnFrame(v.id, input);
         const animKey = df ? drawnAnimKey(v.id, v.pal, df.action) : null;
@@ -892,6 +902,11 @@ export class FightScene extends Phaser.Scene {
         if (animKey && this.textures.exists(animKey)) {
           // todos los estados salen de las tiras: el fotograma ya lleva la pose, sin giro
           if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
+            // fundido: el fotograma anterior se queda 2-3 frames desvaneciéndose (suaviza el cambio)
+            if (v.ghost && v.sprite.alpha > 0 && f.anim !== 'idle') {
+              v.ghost.setTexture(v.sprite.texture.key, v.sprite.frame.name).setPosition(v.sprite.x, v.sprite.y)
+                .setFlipX(v.sprite.flipX).setScale(v.sprite.scaleX, v.sprite.scaleY).setAngle(v.sprite.angle).setAlpha(0.45);
+            }
             v.sprite.setTexture(animKey, df!.index);
             snap = true;
           }
@@ -899,6 +914,11 @@ export class FightScene extends Phaser.Scene {
           if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.012; // respiración
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
           else if (f.anim === 'hit') target.dx = -2;
+          else if (f.state === 'attack' || f.state === 'special') {
+            // impulso: anticipación atrás, extensión adelante (interpolado por el lerp de abajo)
+            target.dx = f.animFrame === 0 ? -2 : f.animFrame === 1 ? 4 : 1;
+            snap = false;
+          }
         } else {
           target = splashPose(input);
           const n = splashPoseIndex(f.anim, f.animFrame);
@@ -911,6 +931,7 @@ export class FightScene extends Phaser.Scene {
         }
         // transición suave entre poses (lerp); al cambiar de fotograma dibujado se salta directo
         const k = snap ? 1 : f.anim === 'hit' || f.anim === 'knockdown' ? 0.6 : 0.35;
+        if (v.ghost && v.ghost.alpha > 0) v.ghost.setAlpha(Math.max(0, v.ghost.alpha - 0.18));
         const cp = v.pose;
         cp.dx += (target.dx - cp.dx) * k;
         cp.dy += (target.dy - cp.dy) * k;
@@ -928,6 +949,7 @@ export class FightScene extends Phaser.Scene {
         v.sprite.setPosition(Math.round(f.x) + shake, Math.round(f.y));
       }
       v.sprite.setAlpha(f.alpha);
+      if (v.ghost && f.alpha < 1) v.ghost.setAlpha(0);
       if (v.flash > 0) v.sprite.setTintFill(0xffffff);
       else if (f.invuln > 0 && f.state === 'getup') v.sprite.setTint(0xa0c0ff);
       else v.sprite.clearTint();

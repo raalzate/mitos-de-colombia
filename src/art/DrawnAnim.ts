@@ -21,6 +21,8 @@ export interface DrawnFrameInput {
   grounded: boolean;
   /** caminando hacia atrás (vx opuesto a facing): el ciclo se reproduce en reversa */
   backward?: boolean;
+  /** distancia recorrida andando (px); si se da, el ciclo avanza por distancia y no por tiempo */
+  walkDistance?: number;
   /** subiendo en el salto */
   rising?: boolean;
 }
@@ -33,8 +35,15 @@ export function drawnAnimFile(id: FighterId, slot: 'p1' | 'p2', action: DrawnAct
   return `anim/${id}_${action}_${slot}.png`;
 }
 
-/** Velocidad del ciclo de andar (fotogramas lógicos por fotograma dibujado). */
+/** Velocidad del ciclo de andar (fotogramas lógicos por fotograma dibujado) cuando no hay distancia. */
 export const WALK_FRAME_TICKS = 5;
+/** Píxeles recorridos por fotograma de andar: los pies no patinan sobre el suelo. */
+export const WALK_STRIDE_PX = 7;
+
+/** Fotograma del ciclo de andar según la distancia recorrida (sin deslizamiento de pies). */
+export function walkFrameByDistance(distance: number, frames: number, stride = WALK_STRIDE_PX): number {
+  return Math.floor(Math.max(0, distance) / stride) % frames;
+}
 
 /**
  * Devuelve la tira y el fotograma para cualquier estado: todo el personaje sale de las
@@ -55,7 +64,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'idle':
       return { action: 'walk', index: 0 };
     case 'walk': {
-      const k = Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
+      const k = i.walkDistance !== undefined ? walkFrameByDistance(i.walkDistance, walkN) : Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
       return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
     }
     case 'jump':

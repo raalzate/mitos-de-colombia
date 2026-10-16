@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWN_ANIM } from '../src/art/drawnAnimManifest';
-import { drawnAnimFile, drawnAnimKey, drawnFrame } from '../src/art/DrawnAnim';
+import { WALK_STRIDE_PX, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance } from '../src/art/DrawnAnim';
 import { FIGHTER_IDS } from '../src/data/fighters';
 
 const files = import.meta.glob('../public/assets/anim/*.png');
@@ -52,5 +52,19 @@ describe('animación dibujada', () => {
     const back = [5, 10, 15].map((f) => drawnFrame('mohan', { ...base, anim: 'walk', frame: f, backward: true })!.index);
     const n = DRAWN_ANIM.mohan.walk.frames;
     expect(back).toEqual(fwd.map((k) => (n - k) % n));
+  });
+
+  it('el ciclo de andar avanza por distancia: un fotograma cada zancada, sin patinar', () => {
+    const n = DRAWN_ANIM.mohan.walk.frames;
+    expect(walkFrameByDistance(0, n)).toBe(0);
+    expect(walkFrameByDistance(WALK_STRIDE_PX - 0.1, n)).toBe(0);
+    expect(walkFrameByDistance(WALK_STRIDE_PX, n)).toBe(1);
+    expect(walkFrameByDistance(WALK_STRIDE_PX * n, n)).toBe(0);
+    // a velocidad de andar real (≈2 px/frame) el fotograma cambia cada ~3-4 frames lógicos (≈15-20 fps)
+    let dist = 0; let changes = 0; let last = 0;
+    for (let t = 0; t < 120; t++) { dist += 2; const k = walkFrameByDistance(dist, n); if (k !== last) { changes++; last = k; } }
+    expect(changes).toBeGreaterThanOrEqual(30);
+    expect(changes).toBeLessThanOrEqual(40);
+    expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(2);
   });
 });
