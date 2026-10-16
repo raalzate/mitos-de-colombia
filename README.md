@@ -201,10 +201,14 @@ ambos definitivos.
   de `images/`; la variante `p2` es un giro de tono para el espejo):
   - `portraits/`: caras (selección, HUD, VS, resultado).
   - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
-  - `anim/`: tiras de animación por personaje (`walk` 6–7 fotogramas, `attack`
+  - `anim/`: tiras de animación por personaje (`walk` 12–14 fotogramas, `attack`
     5–6: puño y patada, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
     cortadas de `images/Retro Folklore Character Sprite Sheet.png`
-    (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera).
+    (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera). Los
+    fotogramas intermedios del ciclo de andar los sintetiza
+    `tools/interpolate_walk.py` (flujo óptico DIS muy suavizado + deformación por
+    vecino más cercano, paleta del original): duplican los fotogramas clave sin
+    perder nitidez.
   - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
   En modo `ARTE: DIBUJADO` **todo** el combate sale de las tres tiras
   (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = primer fotograma de andar
@@ -213,7 +217,7 @@ ambos definitivos.
   levantarse, bloqueo = preparación de golpe, salto = patada preparada. Los
   fotogramas se alinean por el centroide del torso para que el cuerpo no se
   desplace al cambiar de fotograma. Fluidez: el ciclo de andar avanza por
-  distancia recorrida (una zancada cada 7 px, sin patinar), el siguiente
+  distancia recorrida (un fotograma cada 3,5 px, sin patinar), el siguiente
   fotograma se funde de forma continua a 60 Hz sobre el actual (sin cortes),
   balanceo vertical sincronizado con la zancada, polvo en cada pisada, fundido
   del fotograma anterior en golpes y daño, y anticipación/extensión

@@ -65,10 +65,14 @@ describe('animación dibujada', () => {
     for (let t = 0; t < 120; t++) { dist += 2; const k = walkFrameByDistance(dist, n); if (k !== last) { changes++; last = k; } }
     expect(changes).toBeGreaterThanOrEqual(30);
     expect(changes).toBeLessThanOrEqual(40);
+    for (const id of FIGHTER_IDS) {
+      expect(DRAWN_ANIM[id].walk.interpolated).toBe(true);
+      expect(DRAWN_ANIM[id].walk.frames).toBeGreaterThanOrEqual(12);
+    }
     const seen = new Set<number>();
     for (let d = 0; d < 200; d += 1) seen.add(drawnFrame('mohan', { ...base, anim: 'walk', walkDistance: d })!.index);
     expect(seen.size).toBe(n);
-    expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(2);
+    expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(4); // con intermedios la zancada es la mitad
   });
 
   it('la fase de andar es continua: el fundido avanza sin saltos y hay pisada en los fotogramas de contacto', () => {

@@ -1,7 +1,7 @@
-"""EXPERIMENTAL (no se usa en el juego): duplica los fotogramas del ciclo de andar sintetizando
-intermedios por flujo óptico (OpenCV). Los intermedios salen emborronados (caras y ropa pierden
-detalle), por eso el juego usa solo fotogramas clave + fundido de movimiento. Para probarlo:
-Uso: python3 -I tools/interpolate_walk.py public/assets/anim <contacto.png> id1,id2,...
+"""Duplica los fotogramas del ciclo de andar sintetizando intermedios por flujo óptico DIS muy
+suavizado (las extremidades se desplazan en bloque) y deformación por vecino más cercano: los
+fotogramas intermedios conservan los píxeles nítidos del original. Se ejecuta tras extract_anim.py.
+Uso: python3 -I tools/interpolate_walk.py public/assets/anim <contacto.png> [id1,id2,...]
 Lee {id}_walk_{p1,p2}.png + manifest.json, escribe los mismos archivos con el doble de fotogramas."""
 import sys, os, json
 import numpy as np
@@ -27,8 +27,15 @@ def inbetween(a, b):
         big = cv2.resize(filled, (w*UP, h*UP), interpolation=cv2.INTER_CUBIC)
         return cv2.GaussianBlur(big, (0, 0), 1.5), cv2.resize(al, (w*UP, h*UP), interpolation=cv2.INTER_NEAREST)
     ga, aa = prep(A); gb, ab = prep(B)
-    fa = cv2.calcOpticalFlowFarneback(cv2.cvtColor(ga, cv2.COLOR_RGB2GRAY), cv2.cvtColor(gb, cv2.COLOR_RGB2GRAY), None, 0.5, 4, 25, 5, 7, 1.5, 0)
-    fb = cv2.calcOpticalFlowFarneback(cv2.cvtColor(gb, cv2.COLOR_RGB2GRAY), cv2.cvtColor(ga, cv2.COLOR_RGB2GRAY), None, 0.5, 4, 25, 5, 7, 1.5, 0)
+    dis = cv2.DISOpticalFlow_create(cv2.DISOPTICAL_FLOW_PRESET_MEDIUM)
+    dis.setVariationalRefinementIterations(10)
+    dis.setFinestScale(1)
+    g1 = cv2.cvtColor(ga, cv2.COLOR_RGB2GRAY); g2 = cv2.cvtColor(gb, cv2.COLOR_RGB2GRAY)
+    fa = dis.calc(g1, g2, None); fb = dis.calc(g2, g1, None)
+    # flujo muy suavizado: las extremidades se mueven en bloque, sin ruido píxel a píxel
+    for fl in (fa, fb):
+        fl[:, :, 0] = cv2.medianBlur(fl[:, :, 0].astype(np.float32), 5); fl[:, :, 1] = cv2.medianBlur(fl[:, :, 1].astype(np.float32), 5)
+        fl[:, :, 0] = cv2.GaussianBlur(fl[:, :, 0], (0, 0), UP * 2); fl[:, :, 1] = cv2.GaussianBlur(fl[:, :, 1], (0, 0), UP * 2)
     H, W = fa.shape[:2]
     gy, gx = np.mgrid[0:H, 0:W].astype(np.float32)
     def warp(img, flow, t):
@@ -47,8 +54,7 @@ def inbetween(a, b):
     out[:, :, 3] = np.where(oa | ob, 255, 0)
     # reducir a tamaño original (mayoría por bloque) y paleta de a∪b
     small = cv2.resize(out, (w, h), interpolation=cv2.INTER_NEAREST)
-    # limpieza: mediana de color (quita píxeles sueltos) y apertura/cierre del alfa (bordes sin ruido)
-    small[:, :, :3] = cv2.medianBlur(small[:, :, :3], 3)
+    # limpieza: solo apertura/cierre del alfa (bordes sin ruido); el color se conserva nítido
     k = np.ones((2, 2), np.uint8)
     al8 = (small[:, :, 3] > 127).astype(np.uint8)
     al8 = cv2.morphologyEx(cv2.morphologyEx(al8, cv2.MORPH_OPEN, k), cv2.MORPH_CLOSE, k)
@@ -67,7 +73,7 @@ def inbetween(a, b):
     return Image.fromarray(res, "RGBA")
 
 # Solo personajes cuyo intermedio queda limpio (los de mucho detalle interno se emborronan)
-INTERP = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else set()
+INTERP = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else set(manifest_ids := json.load(open(f"{OUT}/manifest.json")).keys())
 manifest = json.load(open(f"{OUT}/manifest.json"))
 contact = []
 for cid, meta in manifest.items():
