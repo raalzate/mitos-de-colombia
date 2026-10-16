@@ -3,7 +3,7 @@ import type {
   AttackDef, AttackKind, Facing, FighterState, FighterStats, HitResult, InputState, PlayerSlot, WorldBox,
 } from '../combat/CombatTypes';
 import { toWorldBox } from '../combat/HitboxSystem';
-import { addMeter, applyDamage, canUseSpecial, canUseUltimate, facingToward } from '../combat/CombatRules';
+import { addMeter, applyDamage, attackCooldownTotal, canUseSpecial, canUseUltimate, facingToward } from '../combat/CombatRules';
 import type { ProjectileSpawn } from './Projectile';
 import type { SfxName } from '../audio/Sfx';
 
@@ -324,7 +324,7 @@ export class Fighter {
     this.attackAirborne = this.airborne;
     if (this.grounded) this.vx = 0;
     if (def.meterCost > 0) this.meter = addMeter(this.meter, -def.meterCost);
-    if (def.cooldown > 0) this.cooldowns[def.kind] = def.cooldown + def.startup + def.active + def.recovery;
+    if (def.cooldown > 0) this.cooldowns[def.kind] = attackCooldownTotal(def);
     this.behavior.onAttackStart(this, def);
     if (def.kind === 'light' || def.kind === 'lightkick' || def.kind === 'heavy' || def.kind === 'heavykick') {
       this.events.sound('whoosh');

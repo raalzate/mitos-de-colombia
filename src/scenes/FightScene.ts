@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import {
   ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_ROUNDS, ROUND_TIME_SECONDS,
 } from '../config/game-config';
-import type { Facing, InputState, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
+import type { Facing, FighterId, InputState, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
 import { EMPTY_INPUT } from '../combat/CombatTypes';
 import {
   applyRoundResult, emptyScore, forcedWinner, framesToDisplaySeconds, matchWinner, resolveHit, resolveRoundEnd, type Score,
@@ -15,7 +15,9 @@ import { FighterAI } from '../ai/FighterAI';
 import { CombatHUD } from '../ui/CombatHUD';
 import { FIGHTERS, specialHint } from '../data/fighters';
 import { ORIGIN_Y } from '../art/CharacterArtist';
-import { splashPose } from '../art/SplashPose';
+import { splashPose, splashPoseIndex, type SplashPose } from '../art/SplashPose';
+import { drawnAnimKey, drawnFrame } from '../art/DrawnAnim';
+import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
@@ -31,6 +33,11 @@ interface FighterView {
   flash: number;
   /** true: arte dibujado de cuerpo entero animado por transformaciones */
   drawn: boolean;
+  /** pose suavizada actual (modo dibujado) */
+  pose: SplashPose;
+  /** identificador y paleta del arte dibujado (para elegir la textura de pose) */
+  id: FighterId;
+  pal: 'p1' | 'p2';
 }
 
 interface Cinematic {
@@ -47,6 +54,18 @@ interface Cinematic {
 interface TimedFx {
   obj: Phaser.GameObjects.GameObject;
   frames: number;
+}
+
+/** Efecto dibujado (imagen fija animada por transformación). */
+interface DrawnFxView {
+  sp: Phaser.GameObjects.Image;
+  kind: DrawnFxKind;
+  frame: number;
+  total: number;
+  flip: boolean;
+  scale: number;
+  /** si sigue a un proyectil, no se destruye por tiempo */
+  projectile: boolean;
 }
 
 const START_X: Record<PlayerSlot, number> = { 1: 190, 2: 370 };
@@ -76,7 +95,8 @@ export class FightScene extends Phaser.Scene {
   private cinematic: Cinematic | null = null;
   private overlayTarget = 0;
   private timedFx: TimedFx[] = [];
-  private projectileSprites = new Map<number, Phaser.GameObjects.Sprite>();
+  private drawnFx: DrawnFxView[] = [];
+  private projectileSprites = new Map<number, Phaser.GameObjects.Sprite | Phaser.GameObjects.Image>();
   private debugHitboxes = false;
 
   private stageId: StageId = 'ribera';
@@ -123,6 +143,7 @@ export class FightScene extends Phaser.Scene {
       this.anims.resumeAll();
       this.projectileSprites.clear();
       this.timedFx = [];
+      this.drawnFx = [];
       this.cinematic = null;
     });
 
@@ -142,6 +163,7 @@ export class FightScene extends Phaser.Scene {
     this.cinematic = null;
     this.overlayTarget = 0;
     this.timedFx = [];
+    this.drawnFx = [];
     this.projectileSprites = new Map();
     this.debugHitboxes = false;
     this.menu = new MenuInput();
@@ -255,7 +277,7 @@ export class FightScene extends Phaser.Scene {
       f.behavior = new SpecBehavior();
       f.events = {
         sound: (n) => sfx.play(n),
-        effect: (e) => this.spawnEffect(e),
+        effect: (e) => this.spawnEffect(e, f.stats.id),
         projectile: (p) => this.combat.spawnProjectile(p),
       };
     }
@@ -276,10 +298,10 @@ export class FightScene extends Phaser.Scene {
       const splash = this.settings.art === 'drawn' ? splashKey(this, id, pal, 72) : null;
       if (splash) {
         const sprite = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11 : 10);
-        return { sprite, shadow, key, flash: 0, drawn: true };
+        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose: { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 } };
       }
       const sprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, ORIGIN_Y).setDepth(slot === 1 ? 11 : 10);
-      return { sprite, shadow, key, flash: 0, drawn: false };
+      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose: { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 } };
     };
     const mirror = this.settings.p1 === this.settings.p2;
     this.views = { 1: mk(1), 2: mk(2) };
@@ -452,6 +474,12 @@ export class FightScene extends Phaser.Scene {
       }
     }
     for (const v of [this.views[1], this.views[2]]) if (v.flash > 0) v.flash--;
+    for (const f of this.drawnFx) {
+      const m = drawnFxMotion(f.kind, f.frame++);
+      f.sp.setAngle(m.rot * (f.flip ? -1 : 1)).setScale(f.scale * m.sx, f.scale * m.sy).setAlpha(f.projectile ? 1 : m.alpha);
+      if (!f.projectile && f.frame > f.total) f.sp.destroy();
+    }
+    this.drawnFx = this.drawnFx.filter((f) => f.sp.active);
 
     switch (this.phase) {
       case 'intro': {
@@ -556,6 +584,7 @@ export class FightScene extends Phaser.Scene {
 
   private startCinematic(attacker: Fighter, defender: Fighter): void {
     const spec = attacker.stats.ultimateSpec;
+    this.combat.clearProjectiles();
     attacker.setState('cinematic');
     attacker.anim = 'ultimate';
     attacker.animFrame = 1;
@@ -726,9 +755,27 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
+  private addDrawnFx(key: string, kind: DrawnFxKind, anchor: 'center' | 'bottom' | 'left', x: number, y: number, flip: boolean, depth: number, scale: number, projectile: boolean): Phaser.GameObjects.Image {
+    const ox = anchor === 'left' ? (flip ? 1 : 0) : 0.5;
+    const oy = anchor === 'bottom' ? 1 : 0.5;
+    const sp = this.add.image(x, anchor === 'bottom' ? GROUND_Y : y, key).setOrigin(ox, oy).setDepth(depth).setFlipX(flip).setScale(scale);
+    const m = drawnFxMotion(kind, 0);
+    sp.setScale(scale * m.sx, scale * m.sy).setAlpha(projectile ? 1 : m.alpha);
+    this.drawnFx.push({ sp, kind, frame: 0, total: DRAWN_FX_FRAMES[kind], flip, scale, projectile });
+    return sp;
+  }
+
   private onProjectileSpawn(p: Projectile): void {
     const owner = p.owner === 1 ? this.p1 : this.p2;
     const spec = owner.stats.special1.type === 'projectile' ? owner.stats.special1 : owner.stats.special2;
+    if (this.settings.art === 'drawn') {
+      const d = drawnFxFor({ fx: p.kind, type: 'projectile' }, owner.stats.id);
+      if (d && this.textures.exists(d.key)) {
+        const img = this.addDrawnFx(d.key, d.kind, 'center', p.x, p.y, p.facing === -1, 19, 1, true);
+        this.projectileSprites.set(p.id, img);
+        return;
+      }
+    }
     const sp = this.add.sprite(p.x, p.y, p.kind).setOrigin(0.5, p.kind === 'fx_wave' ? 1 : 0.5).setDepth(19).setFlipX(p.facing === -1).setTint(spec.tint);
     sp.play(p.kind);
     this.projectileSprites.set(p.id, sp);
@@ -741,14 +788,23 @@ export class FightScene extends Phaser.Scene {
     if (reason === 'cancelled') this.sparkEmitter.explode(12, p.x, p.y - 12);
   }
 
-  private spawnEffect(e: EffectRequest): void {
+  private spawnEffect(e: EffectRequest, ownerId: FighterId): void {
     const flip = e.facing === -1;
+    const drawn = this.settings.art === 'drawn';
     const tint = Number(e.data?.tint ?? 0xffffff);
     const oneShot = (key: string, x: number, y: number, ox: number, oy: number, depth = 12) => {
       const sp = this.add.sprite(x, y, key).setOrigin(ox, oy).setDepth(depth).setFlipX(flip).setTint(tint);
       sp.play(key);
       sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
       return sp;
+    };
+    /** Versión dibujada del efecto (modo dibujado); false si no hay imagen para este efecto. */
+    const spawnDrawn = (fx: string, type: string | undefined, x: number, y: number, depth = 12, scale = 1): boolean => {
+      if (!drawn) return false;
+      const d = drawnFxFor({ fx, type }, ownerId);
+      if (!d || !this.textures.exists(d.key)) return false;
+      this.addDrawnFx(d.key, d.kind, d.anchor, x, y, flip, depth, scale, false);
+      return true;
     };
     switch (e.kind) {
       case 'dust': {
@@ -760,6 +816,7 @@ export class FightScene extends Phaser.Scene {
       }
       case 'strikefx': {
         const key = String(e.data?.fx ?? 'fx_slash');
+        if (key === 'fx_rootwhip' && spawnDrawn(key, 'eruption', e.x - e.facing * 20, GROUND_Y, 12)) break;
         if (key === 'fx_rootwhip' || key === 'fx_whip') {
           // látigos: nacen en el luchador y se extienden hacia delante
           const w = Number(e.data?.w ?? 80);
@@ -779,7 +836,9 @@ export class FightScene extends Phaser.Scene {
         break;
       }
       case 'eruption': {
-        oneShot(String(e.data?.fx ?? 'fx_eruption'), e.x, GROUND_Y, 0.5, 1, 12);
+        if (!spawnDrawn(String(e.data?.fx ?? 'fx_eruption'), 'eruption', e.x, GROUND_Y, 12)) {
+          oneShot(String(e.data?.fx ?? 'fx_eruption'), e.x, GROUND_Y, 0.5, 1, 12);
+        }
         this.emitterFor(String(e.data?.particle ?? 'none') as 'leaf')?.explode(10, e.x, GROUND_Y - 30);
         break;
       }
@@ -789,6 +848,8 @@ export class FightScene extends Phaser.Scene {
       case 'ultwind': {
         const style = String(e.data?.style ?? 'bloom');
         const key = style === 'vortex' ? 'fx_vortex' : style === 'storm' ? 'fx_ring' : style === 'slash' ? 'fx_slash' : 'fx_rootwhip';
+        if (style === 'vortex' && spawnDrawn('fx_vortex', undefined, e.x, e.y, 12, 1.2)) break;
+        if (key === 'fx_rootwhip' && spawnDrawn('fx_rootwhip', 'eruption', e.x, GROUND_Y, 12, 1.2)) break;
         if (key === 'fx_rootwhip') {
           const sp = this.add.sprite(e.x - e.facing * 30, e.y + 20, key).setOrigin(flip ? 1 : 0, 0.5).setDepth(12).setFlipX(flip).setTint(tint).setScale(1, 2);
           sp.play(key);
@@ -820,10 +881,39 @@ export class FightScene extends Phaser.Scene {
       const shake = f.hitstop > 0 ? (f.hitstop % 2 === 0 ? 1 : -1) : 0;
       v.sprite.setFlipX(f.facing === -1);
       if (v.drawn) {
-        const p = splashPose({ state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded });
-        v.sprite.setPosition(Math.round(f.x + p.dx * f.facing) + shake, Math.round(f.y + p.dy));
-        v.sprite.setAngle(p.rot * f.facing);
-        v.sprite.setScale(p.sx, p.sy);
+        const input = { state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded };
+        const df = drawnFrame(v.id, input);
+        const animKey = df ? drawnAnimKey(v.id, v.pal, df.action) : null;
+        let target: SplashPose;
+        let snap = false;
+        if (animKey && this.textures.exists(animKey)) {
+          // fotograma dibujado: sin giro ni escala; el fotograma ya lleva la pose
+          if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
+            v.sprite.setTexture(animKey, df!.index);
+            snap = true;
+          }
+          target = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
+        } else {
+          target = splashPose(input);
+          const n = splashPoseIndex(f.anim, f.animFrame);
+          const poseKey = n === null ? null : `splash_${v.id}_${v.pal}_pose${n}_72`;
+          const tex = poseKey && this.textures.exists(poseKey) ? poseKey : `splash_${v.id}_${v.pal}_72`;
+          if (v.sprite.texture.key !== tex) {
+            v.sprite.setTexture(tex);
+            snap = v.sprite.texture.key.includes('_pose');
+          }
+        }
+        // transición suave entre poses (lerp); al cambiar de fotograma dibujado se salta directo
+        const k = snap ? 1 : f.anim === 'hit' || f.anim === 'knockdown' ? 0.6 : 0.35;
+        const cp = v.pose;
+        cp.dx += (target.dx - cp.dx) * k;
+        cp.dy += (target.dy - cp.dy) * k;
+        cp.rot += (target.rot - cp.rot) * k;
+        cp.sx += (target.sx - cp.sx) * k;
+        cp.sy += (target.sy - cp.sy) * k;
+        v.sprite.setPosition(Math.round(f.x + cp.dx * f.facing) + shake, Math.round(f.y + cp.dy));
+        v.sprite.setAngle(cp.rot * f.facing);
+        v.sprite.setScale(cp.sx, cp.sy);
       } else {
         const table = ANIM_TABLES[v.key];
         const frames = table[f.anim] ?? table.idle;

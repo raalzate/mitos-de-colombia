@@ -116,7 +116,11 @@ export class SpecBehavior implements FighterBehavior {
 
   onAttackEnd(f: Fighter, attack: AttackDef): void {
     const s = this.spec(f, attack);
-    if (s?.type === 'teleport') f.alpha = 1;
+    if (s?.type === 'teleport') {
+      // Si el teletransporte se interrumpe (p. ej. aterrizar en pleno salto) no debe quedar invulnerable.
+      f.alpha = 1;
+      f.invuln = 0;
+    }
   }
 
   hitboxOverride(f: Fighter, attack: AttackDef): WorldBox | null {

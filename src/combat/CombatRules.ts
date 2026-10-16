@@ -60,6 +60,19 @@ export function canUseUltimate(meter: number): boolean {
   return meter >= ULTIMATE_COST;
 }
 
+/** Frames totales de enfriamiento que se fijan al usar un ataque (0 si no enfría). */
+export function attackCooldownTotal(attack: AttackDef): number {
+  if (attack.cooldown <= 0) return 0;
+  return attack.cooldown + attack.startup + attack.active + attack.recovery;
+}
+
+/** Fracción restante de enfriamiento en [0, 1]; 0 = lista. Segura ante ataques sin enfriamiento. */
+export function cooldownFraction(remaining: number, attack: AttackDef): number {
+  const total = attackCooldownTotal(attack);
+  if (total <= 0 || remaining <= 0) return 0;
+  return Math.min(1, remaining / total);
+}
+
 /**
  * Determina si la ronda terminó y quién la ganó.
  * Devuelve null si la ronda sigue.

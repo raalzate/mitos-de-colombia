@@ -30,9 +30,9 @@ const base = (partial: Partial<AttackDef> & Pick<AttackDef, 'id' | 'name' | 'kin
 type Archetype = 'heavy' | 'balanced' | 'fast';
 
 const ARCH: Record<Archetype, { dmg: number; spd: number; reach: number; kb: number }> = {
-  heavy: { dmg: 1.15, spd: 1.25, reach: 1.1, kb: 1.15 },
+  heavy: { dmg: 1.1, spd: 1.25, reach: 1.1, kb: 1.15 },
   balanced: { dmg: 1, spd: 1, reach: 1, kb: 1 },
-  fast: { dmg: 0.85, spd: 0.8, reach: 0.92, kb: 0.9 },
+  fast: { dmg: 0.9, spd: 0.8, reach: 0.92, kb: 0.9 },
 };
 
 function normals(prefix: string, arch: Archetype, names: [string, string, string, string]): Pick<Record<AttackKind, AttackDef>, 'light' | 'heavy' | 'lightkick' | 'heavykick'> {
@@ -154,7 +154,7 @@ const DEFS: Def[] = [
     description: 'Veloz y feroz. Salta sobre su única pierna y desgarra.',
     arch: 'fast', walkSpeed: 1.7, backSpeed: 1.3, jumpForce: -8.2, weight: 0.85, height: 62,
     normals: ['Garra', 'Desgarro', 'Patada única', 'Salto de pata'],
-    s1: S.dash('pa_claw', 'Zarpazo sangriento', { damage: 12 }),
+    s1: S.dash('pa_claw', 'Zarpazo sangriento', { damage: 14, cooldown: 70 }),
     s1spec: { type: 'strike', short: 'ZARPAZO', fx: 'fx_slash', tint: 0xff4060, sound: 'slash', particle: 'spark' },
     s2: S.ring('pa_scream', 'Grito del monte'),
     s2spec: { type: 'strike', short: 'GRITO', fx: 'fx_ring', tint: 0xff80a0, sound: 'scream', particle: 'none' },
@@ -202,7 +202,7 @@ const DEFS: Def[] = [
     description: 'Velocidad y engaño. Proyectiles y niebla.',
     arch: 'fast', walkSpeed: 1.55, backSpeed: 1.2, jumpForce: -7.9, weight: 0.9, height: 62,
     normals: ['Garra de río', 'Golpe de anzuelo', 'Coletazo', 'Patada de remolino'],
-    s1: S.projectile('mo_wave', 'Oleada del Magdalena'),
+    s1: S.projectile('mo_wave', 'Oleada del Magdalena', { damage: 9 }),
     s1spec: { type: 'projectile', short: 'OLEADA', fx: 'fx_wave', tint: 0xffffff, sound: 'wave', particle: 'drop', speed: 3.2, life: 140, offsetY: 0 },
     s2: S.teleport('mo_mist', 'Niebla encantada'),
     s2spec: { type: 'teleport', short: 'NIEBLA', fx: 'fx_mist', tint: 0xffffff, sound: 'mist', particle: 'drop', distance: 110 },
@@ -214,9 +214,9 @@ const DEFS: Def[] = [
     description: 'Agresiva. Sus mordiscos le devuelven vida.',
     arch: 'balanced', walkSpeed: 1.5, backSpeed: 1.2, jumpForce: -7.7, weight: 0.9, height: 64,
     normals: ['Arañazo', 'Dentellada', 'Taconazo', 'Patada voraz'],
-    s1: S.dash('mu_bite', 'Mordisco', { damage: 10, startup: 9, forwardStep: 4 }),
+    s1: S.dash('mu_bite', 'Mordisco', { damage: 11, startup: 9, forwardStep: 4 }),
     s1spec: { type: 'strike', short: 'MORDISCO', fx: 'fx_slash', tint: 0xff2040, sound: 'heavy', particle: 'spark', drain: 0.6 },
-    s2: S.ring('mu_laugh', 'Risa macabra', { damage: 6 }),
+    s2: S.ring('mu_laugh', 'Risa macabra'),
     s2spec: { type: 'strike', short: 'RISA', fx: 'fx_ring', tint: 0xff6080, sound: 'scream', particle: 'none' },
     ult: S.ultimate('mu_feast', 'Festín de dientes'),
     ultSpec: { style: 'bloom', short: 'FESTÍN', tint: 0xff3050, particle: 'spark', sound: 'heavy' },

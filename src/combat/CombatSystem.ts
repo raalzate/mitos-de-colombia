@@ -158,7 +158,7 @@ export class CombatSystem {
         this.listener.onProjectileEnd(p, 'hit');
         continue;
       }
-      // choque entre proyectiles de distintos dueños: se anulan
+      // choque entre proyectiles de distintos dueños: se anulan (uno por uno, sin notificar dos veces)
       for (const q of this.projectiles) {
         if (q === p || q.dead || q.owner === p.owner) continue;
         if (boxesOverlap(box, q.worldBox())) {
@@ -166,6 +166,7 @@ export class CombatSystem {
           q.dead = true;
           this.listener.onProjectileEnd(p, 'cancelled');
           this.listener.onProjectileEnd(q, 'cancelled');
+          break;
         }
       }
     }

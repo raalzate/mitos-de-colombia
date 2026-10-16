@@ -82,8 +82,8 @@ N-key rollover.
 - La barra de energía (abajo) sube al golpear y, algo menos, al recibir golpes.
   Con la barra llena se puede usar el definitivo, que la consume entera aunque
   falle.
-- Las habilidades tienen enfriamiento propio (indicado en la lógica, no en el
-  HUD en este prototipo).
+- Las habilidades tienen enfriamiento propio: dos segmentos sobre la barra de
+  energía muestran cuándo están listas (parpadean al recargarse).
 
 ### Plantel (10 leyendas)
 
@@ -176,7 +176,7 @@ tests/                        Vitest: reglas, hitboxes, luchador, IA, entrada, e
 
 ## Pruebas
 
-`pnpm test` ejecuta 77 pruebas: cálculo de daño y bloqueo, resolución de golpes,
+`pnpm test` ejecuta 100 pruebas: cálculo de daño y bloqueo, resolución de golpes,
 energía y enfriamientos, transición de rondas y condiciones de victoria, máquina
 de estados (caminar, saltar, atacar, hitboxes activas, no duplicar impactos,
 derribo, KO, reinicio de ronda), proyectiles, niebla, IA en tres dificultades
@@ -184,7 +184,11 @@ derribo, KO, reinicio de ronda), proyectiles, niebla, IA en tres dificultades
 sprites y retrato de cada personaje, ambas habilidades y el definitivo de los 10,
 robo de vida de la Muelona, IA vs IA con cada personaje), los seis temas de
 escenario (todas las capas con su tamaño y contenido, cielos distintos) y las poses
-del arte dibujado (valores finitos, derribo tumbado, ataque inclinado).
+del arte dibujado (valores finitos, derribo tumbado, ataque inclinado), tiras de
+animación y efectos dibujados (manifiestos contra los archivos en disco, selección
+de fotograma en rango), regresiones de combate (IA sin alternar bloqueo, proyectiles
+que chocan, teletransporte interrumpido, enfriamientos) y balance IA vs IA (540
+combates deterministas; todos los personajes entre 25 % y 75 % de victorias).
 
 Además se verificó manualmente con Playwright en Chromium el flujo completo:
 menú → dificultad → selección → combate → KO → ronda 2 → victoria → pantalla de
@@ -193,13 +197,20 @@ ambos definitivos.
 
 ## Estado de los recursos
 
-- **Caras y cuerpo entero (dibujados)**: `public/assets/portraits` y
-  `public/assets/splash`, extraídos de las referencias pixel art de `images/`
-  (recorte, fondo transparente, reducción con paleta limitada; la variante `p2`
-  es un giro de tono para el espejo). Se usan en selección, HUD, VS, resultado y,
-  en modo `ARTE: DIBUJADO`, como sprite de combate animado por transformaciones
-  (`SplashPose.ts`: inclinación al golpear, agachado, derribo tumbado...).
-  Pendiente: fotogramas de animación dibujados a mano para cada acción.
+- **Arte dibujado** (`public/assets`, extraído con los scripts de `tools/` a partir
+  de `images/`; la variante `p2` es un giro de tono para el espejo):
+  - `portraits/`: caras (selección, HUD, VS, resultado).
+  - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
+  - `anim/`: tiras de animación por personaje (`walk` 6–7 fotogramas, `attack`
+    5–6: puño y patada, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
+    cortadas de `images/Retro Folklore Character Sprite Sheet.png`
+    (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera).
+  - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
+  En modo `ARTE: DIBUJADO` el combate usa las tiras para caminar, golpes y daño
+  (`DrawnAnim.ts`), las poses para habilidades y la imagen base para reposo,
+  salto, agachado y bloqueo, con transiciones interpoladas (`SplashPose.ts`); los
+  efectos de habilidades usan las imágenes de `fx/` animadas por transformación
+  (`DrawnFx.ts`).
 - **Sprites procedimentales**: esqueleto con cinemática directa + rasgos por
   personaje (pelo, sombreros, barbas, escamas, dientes, fuego...), 47
   fotogramas por luchador, paletas tomadas de las referencias. Se usan en modo
@@ -215,10 +226,9 @@ ambos definitivos.
 
 - Las animaciones son de 2-6 fotogramas por acción; faltan transiciones
   intermedias y animaciones de giro.
-- Sin indicador visual de enfriamiento de habilidades en el HUD.
-- En modo dibujado el luchador es una sola imagen animada por giro/escala; no
-  hay fotogramas de ataque dibujados. En modo procedimental los 10 personajes
-  comparten el mismo conjunto de poses base (cambian rasgos, proporciones y datos).
+- En modo dibujado faltan fotogramas propios para reposo, salto, agachado y
+  bloqueo (se usan la imagen base y transformaciones). En modo procedimental los
+  10 personajes comparten el mismo conjunto de poses base.
 - Sin remapeo de controles en pantalla (los mapas están en `InputManager.ts`).
 - Sin ataques en el aire con animación propia para los puños fuertes (usan la
   misma pose que los ligeros).
@@ -226,3 +236,15 @@ ambos definitivos.
 - La música es un bucle corto sintetizado.
 - No se ha probado en Firefox/Safari reales durante el desarrollo (solo
   Chromium vía Playwright); el código no usa API exclusivas de Chromium.
+
+## Despliegue
+
+Producción en Vercel: https://mitos-de-colombia.vercel.app (proyecto
+`mitos-de-colombia`, config en `vercel.json`). Para redesplegar desde el CLI:
+
+```bash
+vercel login          # una vez
+vercel deploy --prod  # build con pnpm y publica dist/
+```
+
+`images/`, `tests/` y las capturas quedan fuera del upload (`.vercelignore`).

@@ -7,6 +7,7 @@ import { MENU_KEYS, MenuInput, inputManager, toggleFullscreen } from '../utils/g
 import { ANIM_TABLES, addStageBackdrop, portraitKey, splashKey, text } from '../utils/textures';
 import type { StageId } from '../art/StageArtist';
 import { splashPose } from '../art/SplashPose';
+import { drawnAnimKey, drawnFrame } from '../art/DrawnAnim';
 
 export interface ResultData {
   winner: PlayerSlot;
@@ -56,9 +57,13 @@ export class ResultScene extends Phaser.Scene {
     else this.add.image(300, 120, portraitKey(this, winnerId, pal, 64)).setOrigin(0.5);
     const small = d.settings.art === 'drawn' ? splashKey(this, winnerId, pal, 72) : null;
     this.drawn = !!small;
-    this.sprite = small
-      ? this.add.sprite(96, 190, small).setOrigin(0.5, 1)
-      : this.add.sprite(96, 190, d.spriteKey, 0).setOrigin(0.5, 93 / 96);
+    const vf = small ? drawnFrame(winnerId, { state: 'victory', anim: 'victory', animFrame: 0, frame: 0, grounded: true }) : null;
+    const animKey = vf ? drawnAnimKey(winnerId, pal, vf.action) : null;
+    this.sprite = animKey && this.textures.exists(animKey)
+      ? this.add.sprite(96, 190, animKey, vf!.index).setOrigin(0.5, 1)
+      : small
+        ? this.add.sprite(96, 190, small).setOrigin(0.5, 1)
+        : this.add.sprite(96, 190, d.spriteKey, 0).setOrigin(0.5, 93 / 96);
     this.cursor = this.add.image(0, 0, 'cursor');
     ITEMS.forEach((label2, i) => this.items.push(text(this, GAME_WIDTH / 2, 150 + i * 14, label2, 1, 0xe8e8f0)));
     this.layout();

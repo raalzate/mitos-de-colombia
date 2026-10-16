@@ -66,6 +66,8 @@ export class FighterAI {
   private intent: Intent = 'wait';
   private intentFrames = 0;
   private intentAge = 0;
+  /** Bloqueo agachado decidido una vez por intención (no por frame) para no alternar la hurtbox. */
+  private blockLow = false;
   private nextThink = 0;
   private frame = 0;
   private rng: () => number;
@@ -145,7 +147,8 @@ export class FighterAI {
 
     if (p.oppAttacking && p.dist < 110 && !p.oppAirborne) {
       if (this.chance(P.blockChance)) return this.set('block', 14 + Math.floor(this.rng() * 10));
-      if (this.chance(0.25)) return this.set(atWall ? 'jumpBack' : 'retreat', 12);
+      // en la esquina no hay espacio para retroceder ni saltar hacia atrás: bloquea
+      if (this.chance(0.25)) return this.set(atWall ? 'block' : 'retreat', 12);
     }
     if (p.oppAirborne && p.dist < 90 && this.chance(P.antiAir)) {
       return this.set(this.chance(0.5) ? 'heavy' : 'heavykick', 6);
@@ -190,6 +193,7 @@ export class FighterAI {
     this.intent = intent;
     this.intentFrames = frames;
     this.intentAge = 0;
+    if (intent === 'block') this.blockLow = this.chance(0.3);
   }
 
   update(): InputState {
@@ -222,7 +226,7 @@ export class FighterAI {
         break;
       case 'block':
         input.block = true;
-        if (this.chance(0.3)) input.down = true;
+        if (this.blockLow) input.down = true;
         break;
       case 'light':
       case 'heavy':

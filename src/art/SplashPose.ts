@@ -25,6 +25,39 @@ export interface PoseInput {
   grounded: boolean;
 }
 
+/**
+ * Elige qué pose dibujada (fila 0..3 de la hoja de referencia) muestra el sprite, o null para
+ * la imagen base. Las hojas siguen el mismo orden por personaje: fila 0 = ataque de mano
+ * (puñetazo/chorro), fila 1 = golpe pesado o de suelo, fila 2 = patada/embestida o invocación,
+ * fila 3 = disparo/definitivo. Mapa:
+ *  - light/airlight → 0 solo en el fotograma activo (1); el anticipo y la recuperación usan la base.
+ *  - heavy → 1, lightkick/airkick → 2, heavykick → 3 (toda la animación).
+ *  - special1 → 0 (proyectil o golpe con la mano), special2 → 2, ultimate → 3.
+ *  - idle/walk/jump/crouch/block/hit/knockdown/getup y el resto → null (base animada por giro/escala).
+ */
+export function splashPoseIndex(anim: string, animFrame: number): number | null {
+  switch (anim) {
+    case 'light':
+    case 'airlight':
+      return animFrame === 1 ? 0 : null;
+    case 'heavy':
+      return 1;
+    case 'lightkick':
+    case 'airkick':
+      return 2;
+    case 'heavykick':
+      return 3;
+    case 'special1':
+      return 0;
+    case 'special2':
+      return 2;
+    case 'ultimate':
+      return 3;
+    default:
+      return null;
+  }
+}
+
 const pose = (o: Partial<SplashPose> = {}): SplashPose => ({ dx: 0, dy: 0, rot: 0, sx: 1, sy: 1, ...o });
 
 export function splashPose(i: PoseInput): SplashPose {

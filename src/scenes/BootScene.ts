@@ -6,6 +6,9 @@ import {
 } from '../art/EffectsArtist';
 import { buildCursor, buildLogo, buildWhite } from '../art/UiArtist';
 import { FIGHTER_IDS } from '../data/fighters';
+import { DRAWN_ANIM } from '../art/drawnAnimManifest';
+import { drawnAnimFile, drawnAnimKey } from '../art/DrawnAnim';
+import { preloadDrawnFx } from '../art/DrawnFx';
 import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage } from '../utils/textures';
 
 /**
@@ -24,8 +27,14 @@ export class BootScene extends Phaser.Scene {
       for (const slot of ['p1', 'p2'] as const) {
         for (const size of [24, 48, 64, 96]) this.load.image(`face_${id}_${slot}_${size}`, `portraits/${id}_${slot}_${size}.png`);
         for (const size of [72, 128]) this.load.image(`splash_${id}_${slot}_${size}`, `splash/${id}_${slot}_${size}.png`);
+        for (let n = 0; n < 4; n++) this.load.image(`splash_${id}_${slot}_pose${n}_72`, `splash/${id}_${slot}_pose${n}_72.png`);
+        for (const action of ['walk', 'attack', 'hurt'] as const) {
+          const m = DRAWN_ANIM[id][action];
+          this.load.spritesheet(drawnAnimKey(id, slot, action), drawnAnimFile(id, slot, action), { frameWidth: m.w, frameHeight: m.h });
+        }
       }
     }
+    preloadDrawnFx(this.load);
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
       console.warn(`Recurso no disponible, se usa arte procedimental: ${file.key}`);
     });

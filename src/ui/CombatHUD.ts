@@ -1,7 +1,12 @@
 import Phaser from 'phaser';
 import { COLORS, GAME_WIDTH, MAX_HP, MAX_METER, ROUNDS_TO_WIN } from '../config/game-config';
 import type { Fighter } from '../entities/Fighter';
+import { cooldownFraction } from '../combat/CombatRules';
 import { text } from '../utils/textures';
+
+type SpecialKey = 'special1' | 'special2';
+const SPECIAL_KEYS: SpecialKey[] = ['special1', 'special2'];
+const READY_FLASH_FRAMES = 6;
 
 /** HUD arcade: barras de vida con daño retardado, energía, retratos, temporizador y rondas. */
 export class CombatHUD {
@@ -14,6 +19,9 @@ export class CombatHUD {
   private portraits: Phaser.GameObjects.Image[];
   private delayedHp = { 1: MAX_HP, 2: MAX_HP };
   private meterPulse = 0;
+  /** Enfriamiento visto en el frame anterior y parpadeo pendiente al quedar lista, por jugador y habilidad. */
+  private lastCooldown = { 1: { special1: 0, special2: 0 }, 2: { special1: 0, special2: 0 } };
+  private readyFlash = { 1: { special1: 0, special2: 0 }, 2: { special1: 0, special2: 0 } };
 
   private static BAR_W = 140;
   private static BAR_H = 8;
@@ -49,12 +57,25 @@ export class CombatHUD {
       } else {
         this.delayedHp[slot] = f.hp;
       }
+      for (const key of SPECIAL_KEYS) {
+        const remaining = f.cooldowns[key];
+        const flash = this.readyFlash[slot];
+        if (this.lastCooldown[slot][key] > 0 && remaining <= 0) flash[key] = READY_FLASH_FRAMES;
+        else if (flash[key] > 0) flash[key]--;
+        this.lastCooldown[slot][key] = remaining;
+      }
     }
     this.draw(score);
   }
 
   resetDelayed(): void {
     this.delayedHp = { 1: MAX_HP, 2: MAX_HP };
+    for (const slot of [1, 2] as const) {
+      for (const key of SPECIAL_KEYS) {
+        this.lastCooldown[slot][key] = 0;
+        this.readyFlash[slot][key] = 0;
+      }
+    }
   }
 
   private draw(score: { p1: number; p2: number }): void {
@@ -99,6 +120,23 @@ export class CombatHUD {
       g.fillStyle(pulse ? COLORS.meterFull : full ? 0xf8e048 : COLORS.meterBlue, 1);
       g.fillRect(slot === 1 ? mx0 : mx0 + mw - fill, my, fill, 4);
       g.lineStyle(1, COLORS.hudBorder, 1).strokeRect(mx0 - 0.5, my - 0.5, mw + 1, 5);
+      // enfriamiento de habilidades: dos segmentos sobre la barra de energía (y=190, sin tocar las pistas de abajo)
+      const cy = 190;
+      const ch = 3;
+      const cw = Math.floor((mw - 4) / 2);
+      SPECIAL_KEYS.forEach((key, i) => {
+        const fromLeft = mx0 + i * (cw + 4);
+        const cx0 = slot === 1 ? fromLeft : mx0 + mw - cw - i * (cw + 4);
+        const frac = cooldownFraction(f.cooldowns[key], f.stats.attacks[key]);
+        const ready = frac <= 0;
+        const flash = this.readyFlash[slot][key];
+        g.fillStyle(COLORS.hudFrame, 1).fillRect(cx0 - 1, cy - 1, cw + 2, ch + 2);
+        g.fillStyle(0x302028, 1).fillRect(cx0, cy, cw, ch);
+        const filled = ready ? cw : Math.round(cw * (1 - frac));
+        const color = flash > 0 && Math.floor(flash / 2) % 2 === 0 ? 0xffffff : ready ? 0xc8e8ff : 0x506880;
+        if (filled > 0) g.fillStyle(color, 1).fillRect(slot === 1 ? cx0 : cx0 + cw - filled, cy, filled, ch);
+        g.lineStyle(1, ready ? COLORS.hudBorder : 0x706050, 1).strokeRect(cx0 - 0.5, cy - 0.5, cw + 1, ch + 1);
+      });
     }
   }
 
