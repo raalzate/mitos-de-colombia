@@ -33,8 +33,9 @@ describe('animación dibujada', () => {
           expect(r!.index).toBeLessThan(n);
         }
       }
-      expect(drawnFrame(id, { ...base, anim: 'idle' })).toBeNull();
-      expect(drawnFrame(id, { ...base, anim: 'special1' })).toBeNull();
+      expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'walk', index: 0 });
+      expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
+      expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe('hurt');
     }
   });
 
@@ -46,5 +47,10 @@ describe('animación dibujada', () => {
     for (let f = 0; f < 200; f++) seen.add(drawnFrame('mohan', { ...base, anim: 'walk', frame: f })!.index);
     expect(seen.size).toBe(DRAWN_ANIM.mohan.walk.frames);
     expect(drawnFrame('mohan', { ...base, state: 'victory', anim: 'victory' })!.index).toBe(DRAWN_ANIM.mohan.hurt.frames - 1);
+    // andar hacia atrás recorre el ciclo en reversa
+    const fwd = [5, 10, 15].map((f) => drawnFrame('mohan', { ...base, anim: 'walk', frame: f })!.index);
+    const back = [5, 10, 15].map((f) => drawnFrame('mohan', { ...base, anim: 'walk', frame: f, backward: true })!.index);
+    const n = DRAWN_ANIM.mohan.walk.frames;
+    expect(back).toEqual(fwd.map((k) => (n - k) % n));
   });
 });

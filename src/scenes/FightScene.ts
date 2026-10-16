@@ -881,18 +881,24 @@ export class FightScene extends Phaser.Scene {
       const shake = f.hitstop > 0 ? (f.hitstop % 2 === 0 ? 1 : -1) : 0;
       v.sprite.setFlipX(f.facing === -1);
       if (v.drawn) {
-        const input = { state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded };
+        const input = {
+          state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
+          backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5,
+        };
         const df = drawnFrame(v.id, input);
         const animKey = df ? drawnAnimKey(v.id, v.pal, df.action) : null;
         let target: SplashPose;
         let snap = false;
         if (animKey && this.textures.exists(animKey)) {
-          // fotograma dibujado: sin giro ni escala; el fotograma ya lleva la pose
+          // todos los estados salen de las tiras: el fotograma ya lleva la pose, sin giro
           if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
             v.sprite.setTexture(animKey, df!.index);
             snap = true;
           }
           target = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
+          if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.012; // respiración
+          else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
+          else if (f.anim === 'hit') target.dx = -2;
         } else {
           target = splashPose(input);
           const n = splashPoseIndex(f.anim, f.animFrame);

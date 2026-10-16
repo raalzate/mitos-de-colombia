@@ -141,9 +141,20 @@ for cid in IDS:
         if cid == "patasola" and act == "hurt": frames = [one_leg(f) if i < 2 or i == len(frames) - 1 else f for i, f in enumerate(frames)]
         cw = max(f.width for f in frames); ch = max(f.height for f in frames)
         cw += cw % 2; ch += ch % 2
+        # alineación horizontal por el centroide del torso (filas superiores), no por la caja:
+        # así el cuerpo no se desplaza al cambiar de fotograma aunque brazos o piernas se extiendan
+        cw = int(cw * 1.3) + (int(cw * 1.3) % 2)
         strip = Image.new("RGBA", (cw*len(frames), ch), (0,0,0,0))
         for i,f in enumerate(frames):
-            strip.paste(f, (i*cw + (cw-f.width)//2, ch-f.height), f)   # centrado, pies abajo
+            al = np.array(f)[:,:,3] > 0
+            top = al[: max(1, int(al.shape[0] * 0.55))]
+            ys, xs = np.where(top)
+            cxm = xs.mean() if xs.size else f.width / 2
+            if act == "hurt" and i >= 2 and i < len(frames) - 1:
+                cxm = f.width / 2   # tumbado/levantándose: centrar por caja
+            px = int(round(i*cw + cw/2 - cxm))
+            px = min(max(px, i*cw), i*cw + cw - f.width)
+            strip.paste(f, (px, ch-f.height), f)   # pies abajo
         strip.save(f"{OUT}/{cid}_{act}_p1.png")
         hue_shift(strip, 150).save(f"{OUT}/{cid}_{act}_p2.png")
         meta[act] = {"frames": len(frames), "w": cw, "h": ch}

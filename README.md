@@ -206,11 +206,15 @@ ambos definitivos.
     cortadas de `images/Retro Folklore Character Sprite Sheet.png`
     (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera).
   - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
-  En modo `ARTE: DIBUJADO` el combate usa las tiras para caminar, golpes y daño
-  (`DrawnAnim.ts`), las poses para habilidades y la imagen base para reposo,
-  salto, agachado y bloqueo, con transiciones interpoladas (`SplashPose.ts`); los
-  efectos de habilidades usan las imágenes de `fx/` animadas por transformación
-  (`DrawnFx.ts`).
+  En modo `ARTE: DIBUJADO` **todo** el combate sale de las tres tiras
+  (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = primer fotograma de andar
+  con respiración, andar (en reversa al retroceder), golpes y habilidades desde
+  `attack`, daño/caída/levantarse/victoria desde `hurt`, agachado = fotograma de
+  levantarse, bloqueo = preparación de golpe, salto = patada preparada. Los
+  fotogramas se alinean por el centroide del torso para que el cuerpo no se
+  desplace al cambiar de fotograma. Los efectos de habilidades usan `fx/`
+  animados por transformación (`DrawnFx.ts`). La imagen base y las poses de
+  `splash/` se usan en selección, VS y resultado.
 - **Sprites procedimentales**: esqueleto con cinemática directa + rasgos por
   personaje (pelo, sombreros, barbas, escamas, dientes, fuego...), 47
   fotogramas por luchador, paletas tomadas de las referencias. Se usan en modo
@@ -226,9 +230,9 @@ ambos definitivos.
 
 - Las animaciones son de 2-6 fotogramas por acción; faltan transiciones
   intermedias y animaciones de giro.
-- En modo dibujado faltan fotogramas propios para reposo, salto, agachado y
-  bloqueo (se usan la imagen base y transformaciones). En modo procedimental los
-  10 personajes comparten el mismo conjunto de poses base.
+- En modo dibujado reposo, salto, agachado y bloqueo reutilizan fotogramas de
+  las tiras de andar/golpes/daño (no hay fotogramas propios). En modo
+  procedimental los 10 personajes comparten el mismo conjunto de poses base.
 - Sin remapeo de controles en pantalla (los mapas están en `InputManager.ts`).
 - Sin ataques en el aire con animación propia para los puños fuertes (usan la
   misma pose que los ligeros).

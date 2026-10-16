@@ -19,6 +19,10 @@ export interface DrawnFrameInput {
   /** fotograma global del combate (para ciclos) */
   frame: number;
   grounded: boolean;
+  /** caminando hacia atrás (vx opuesto a facing): el ciclo se reproduce en reversa */
+  backward?: boolean;
+  /** subiendo en el salto */
+  rising?: boolean;
 }
 
 export function drawnAnimKey(id: FighterId, slot: 'p1' | 'p2', action: DrawnAction): string {
@@ -29,9 +33,13 @@ export function drawnAnimFile(id: FighterId, slot: 'p1' | 'p2', action: DrawnAct
   return `anim/${id}_${action}_${slot}.png`;
 }
 
+/** Velocidad del ciclo de andar (fotogramas lógicos por fotograma dibujado). */
+export const WALK_FRAME_TICKS = 5;
+
 /**
- * Devuelve la tira y el fotograma, o null si el estado se dibuja con la imagen base
- * (reposo, salto, agachado, bloqueo y habilidades, que usan `SplashPose`).
+ * Devuelve la tira y el fotograma para cualquier estado: todo el personaje sale de las
+ * mismas tres tiras, así nunca cambia de "dibujo" entre acciones (estilo Mortal Kombat).
+ * null solo si el personaje no tiene tiras.
  */
 export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null {
   const m = DRAWN_ANIM[id];
@@ -39,25 +47,39 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
   const walkN = m.walk.frames;
   const atkN = m.attack.frames;
   const hurtN = m.hurt.frames;
+  const half = Math.max(1, Math.floor(atkN / 2));
+  const punch = (f: number) => ({ action: 'attack' as const, index: [0, Math.min(half - 1, 1), Math.min(half - 1, 2)][Math.min(2, f)] });
+  const kick = (f: number) => ({ action: 'attack' as const, index: [half, Math.min(atkN - 1, half + 1), Math.min(atkN - 1, half + 2)][Math.min(2, f)] });
+  const getup = hurtN >= 6 ? 4 : hurtN - 2;
   switch (i.anim) {
-    case 'walk':
-      return { action: 'walk', index: Math.floor(i.frame / 5) % walkN };
+    case 'idle':
+      return { action: 'walk', index: 0 };
+    case 'walk': {
+      const k = Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
+      return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
+    }
+    case 'jump':
+      // subiendo: pierna recogida (preparación de patada); bajando: pierna extendida
+      return { action: 'attack', index: i.rising ? half : Math.min(atkN - 1, half + 1) };
+    case 'crouch':
+    case 'crouchblock':
+      return { action: 'hurt', index: getup };
+    case 'block':
+      return { action: 'attack', index: 0 };
+    case 'special1':
+      return punch(i.animFrame);
+    case 'special2':
+      return kick(i.animFrame);
+    case 'ultimate':
+      return [punch(1), kick(1), { action: 'hurt' as const, index: hurtN - 1 }][Math.min(2, i.animFrame)];
     case 'light':
     case 'airlight':
-    case 'heavy': {
-      // puño: primera mitad de la tira (preparación, extensión, recuperación)
-      const half = Math.max(1, Math.floor(atkN / 2));
-      const seq = [0, Math.min(half - 1, 1), Math.min(half - 1, 2)];
-      return { action: 'attack', index: seq[Math.min(2, i.animFrame)] };
-    }
+    case 'heavy':
+      return punch(i.animFrame);
     case 'lightkick':
     case 'airkick':
-    case 'heavykick': {
-      // patada: segunda mitad
-      const start = Math.floor(atkN / 2);
-      const seq = [start, Math.min(atkN - 1, start + 1), Math.min(atkN - 1, start + 2)];
-      return { action: 'attack', index: seq[Math.min(2, i.animFrame)] };
-    }
+    case 'heavykick':
+      return kick(i.animFrame);
     // tira de daño: [golpe, golpe fuerte, caída, tumbado, levantarse, victoria]; con 5 fotogramas
     // faltan uno de los intermedios, así que se cuenta desde el final.
     case 'hit':
@@ -66,10 +88,10 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       if (i.state === 'defeat' || i.grounded) return { action: 'hurt', index: hurtN >= 6 ? 3 : hurtN - 2 };
       return { action: 'hurt', index: Math.min(2, hurtN - 1) };
     case 'getup':
-      return { action: 'hurt', index: hurtN >= 6 ? 4 : hurtN - 2 };
+      return { action: 'hurt', index: getup };
     case 'victory':
       return { action: 'hurt', index: hurtN - 1 };
     default:
-      return null;
+      return { action: 'walk', index: 0 };
   }
 }
