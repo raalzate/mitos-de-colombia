@@ -37,7 +37,7 @@ export function drawnAnimFile(id: FighterId, slot: 'p1' | 'p2', action: DrawnAct
 
 /** Velocidad del ciclo de andar (fotogramas lógicos por fotograma dibujado) cuando no hay distancia. */
 export const WALK_FRAME_TICKS = 5;
-/** Píxeles recorridos por fotograma de andar: los pies no patinan sobre el suelo. */
+/** Píxeles recorridos por fotograma clave de andar: los pies no patinan. Con intermedios sintetizados, la mitad. */
 export const WALK_STRIDE_PX = 7;
 
 /** Fotograma del ciclo de andar según la distancia recorrida (sin deslizamiento de pies). */
@@ -64,7 +64,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'idle':
       return { action: 'walk', index: 0 };
     case 'walk': {
-      const k = i.walkDistance !== undefined ? walkFrameByDistance(i.walkDistance, walkN) : Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
+      const stride = m.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;
+      const k = i.walkDistance !== undefined ? walkFrameByDistance(i.walkDistance, walkN, stride) : Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
       return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
     }
     case 'jump':

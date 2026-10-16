@@ -60,11 +60,14 @@ describe('animación dibujada', () => {
     expect(walkFrameByDistance(WALK_STRIDE_PX - 0.1, n)).toBe(0);
     expect(walkFrameByDistance(WALK_STRIDE_PX, n)).toBe(1);
     expect(walkFrameByDistance(WALK_STRIDE_PX * n, n)).toBe(0);
-    // a velocidad de andar real (≈2 px/frame) el fotograma cambia cada ~3-4 frames lógicos (≈15-20 fps)
+    // a velocidad de andar real (≈2 px/frame) un fotograma clave cada ~3-4 frames lógicos; con intermedios, el doble
     let dist = 0; let changes = 0; let last = 0;
     for (let t = 0; t < 120; t++) { dist += 2; const k = walkFrameByDistance(dist, n); if (k !== last) { changes++; last = k; } }
     expect(changes).toBeGreaterThanOrEqual(30);
     expect(changes).toBeLessThanOrEqual(40);
+    const seen = new Set<number>();
+    for (let d = 0; d < 200; d += 1) seen.add(drawnFrame('mohan', { ...base, anim: 'walk', walkDistance: d })!.index);
+    expect(seen.size).toBe(n);
     expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(2);
   });
 });

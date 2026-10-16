@@ -2,7 +2,7 @@ import type { FighterId } from '../combat/CombatTypes';
 
 /** Generado por tools/extract_anim.py a partir de images/Retro Folklore Character Sprite Sheet.png. */
 export type DrawnAction = 'walk' | 'attack' | 'hurt';
-export interface DrawnStrip { frames: number; w: number; h: number }
+export interface DrawnStrip { frames: number; w: number; h: number; interpolated?: boolean }
 
 export const DRAWN_ANIM: Record<FighterId, Record<DrawnAction, DrawnStrip>> = {
   madremonte: { walk: { frames: 7, w: 58, h: 72 }, attack: { frames: 6, w: 78, h: 72 }, hurt: { frames: 6, w: 70, h: 74 } },
