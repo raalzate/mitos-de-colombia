@@ -11,7 +11,7 @@ describe('animación dibujada', () => {
     for (const id of FIGHTER_IDS) {
       for (const action of ['walk', 'attack', 'hurt', 'idle', 'trans'] as const) {
         const m = DRAWN_ANIM[id][action];
-        expect(m.frames).toBeGreaterThanOrEqual(action === 'trans' ? 3 : 4);
+        expect(m.frames).toBeGreaterThanOrEqual(action === 'idle' ? 1 : action === 'trans' ? 3 : 4);
         expect(m.w).toBeGreaterThan(0);
         for (const slot of ['p1', 'p2'] as const) {
           expect(Object.keys(files)).toContain(`../public/assets/${drawnAnimFile(id, slot, action)}`);
@@ -34,8 +34,9 @@ describe('animación dibujada', () => {
         }
       }
       expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'idle', index: 0 });
-      expect(DRAWN_ANIM[id].idle.frames).toBe(8);
-      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(1);
+      // reposo = primer fotograma de andar (sin cambio de imagen al arrancar); Patasola salta en el sitio
+      expect(DRAWN_ANIM[id].idle.frames).toBe(id === 'patasola' ? 8 : 1);
+      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(id === 'patasola' ? 1 : 0);
       expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
       expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe(id === 'patasola' ? 'attack' : 'hurt');
     }
@@ -68,13 +69,14 @@ describe('animación dibujada', () => {
     expect(changes).toBeGreaterThanOrEqual(30);
     expect(changes).toBeLessThanOrEqual(40);
     for (const id of FIGHTER_IDS) {
-      expect(DRAWN_ANIM[id].walk.interpolated).toBe(true);
-      expect(DRAWN_ANIM[id].walk.frames).toBeGreaterThanOrEqual(12);
+      // solo fotogramas dibujados originales: los intermedios sintetizados dejaban contornos dentro del cuerpo
+      expect(DRAWN_ANIM[id].walk.interpolated).toBeUndefined();
+      expect(DRAWN_ANIM[id].walk.frames).toBeGreaterThanOrEqual(6);
     }
     const seen = new Set<number>();
     for (let d = 0; d < 200; d += 1) seen.add(drawnFrame('mohan', { ...base, anim: 'walk', walkDistance: d })!.index);
     expect(seen.size).toBe(n);
-    expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(4); // con intermedios la zancada es la mitad
+    expect(drawnFrame('mohan', { ...base, anim: 'walk', frame: 999, walkDistance: WALK_STRIDE_PX * 2 })!.index).toBe(2);
   });
 
   it('la fase de andar es continua: el fundido avanza sin saltos y hay pisada en los fotogramas de contacto', () => {
@@ -108,15 +110,15 @@ describe('animación dibujada', () => {
     expect(new Set(seq).size).toBe(5); // usa los 5 fotogramas (clave + intermedios) del puño
     // en el juego: cada golpe pasa por sus fotogramas clave y por los intermedios entre ellos
     for (const id of ['mohan', 'madremonte', 'hombrecaiman'] as const) {
-      const keys = DRAWN_ANIM[id].attack.keys!;
+      const keys = DRAWN_ANIM[id].attack.keys ?? DRAWN_ANIM[id].attack.frames;
       const half = Math.floor(keys / 2);
       const punchIds = new Set<number>(); const kickIds = new Set<number>();
       for (let f = 0; f < 18; f++) {
         punchIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: f } })!.index);
         kickIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: f } })!.index);
       }
-      expect(punchIds.size).toBe(2 * Math.min(3, half) - 1);
-      expect(kickIds.size).toBe(2 * Math.min(3, keys - half) - 1);
+      expect(punchIds.size).toBe(Math.min(3, half));
+      expect(kickIds.size).toBe(Math.min(3, keys - half));
     }
   });
 

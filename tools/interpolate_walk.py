@@ -98,14 +98,14 @@ def make_idle(out_dir, manifest, ids):
                 keys = [cell(wlk.crop((ww * k * step, 0, ww * (k * step + 1), wlk.height))) for k in range(3)]
                 seq = [keys[0], keys[0], keys[1], keys[1], keys[2], keys[2], keys[1], keys[1]]
             else:
-                # guardia: 8 fotogramas, ida y vuelta entre la preparación de golpe y la postura de andar
-                mids = [inbetween(A, W, t) for t in (0.15, 0.3, 0.45, 0.6)]
-                seq = [A] + mids + [mids[2], mids[1], mids[0]]
+                # reposo = el primer fotograma de andar: al arrancar a caminar no cambia la imagen. Sin
+                # intermedios sintetizados: dejan líneas del contorno dentro del cuerpo (se ve una imagen detrás)
+                seq = [W]
             strip = Image.new("RGBA", (cw * len(seq), ch), (0, 0, 0, 0))
             for i, f in enumerate(seq): strip.paste(f, (i * cw, 0), f)
             strip.save(f"{out_dir}/{cid}_idle_{slot}.png")
-        meta["idle"] = {"frames": 8, "w": cw, "h": ch, "interpolated": cid not in IDLE_HOP}
-        print(cid, "idle 8")
+        meta["idle"] = {"frames": len(seq), "w": cw, "h": ch}
+        print(cid, "idle", len(seq))
 
 def make_attack(out_dir, manifest, ids):
     """Golpes: entre cada par de fotogramas clave se inserta un intermedio (2n-1 fotogramas);
@@ -144,11 +144,11 @@ def make_trans(out_dir, manifest, ids):
                 c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.paste(f, ((cw - f.width) // 2, ch - f.height), f); return c
             W, A, C = cell(w0), cell(a0), cell(c0)
             # Patasola: el pelo se deforma con la síntesis; sus transiciones usan solo fotogramas originales
-            seq = [W, A, A] if cid in IDLE_HOP else [inbetween(W, C, 0.33), inbetween(W, C, 0.66), inbetween(W, A, 0.5)]
+            seq = [W, A, A] if cid in IDLE_HOP else [W, C, A]
             out = Image.new("RGBA", (cw * 3, ch), (0, 0, 0, 0))
             for i, f in enumerate(seq): out.paste(f, (i * cw, 0), f)
             out.save(f"{out_dir}/{cid}_trans_{slot}.png")
-        m["trans"] = {"frames": 3, "w": cw, "h": ch, "interpolated": True}
+        m["trans"] = {"frames": 3, "w": cw, "h": ch}
         print(cid, "trans 3")
 
 manifest = json.load(open(f"{OUT}/manifest.json"))

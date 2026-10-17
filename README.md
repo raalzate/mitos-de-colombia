@@ -201,28 +201,28 @@ ambos definitivos.
   de `images/`; la variante `p2` es un giro de tono para el espejo):
   - `portraits/`: caras (selección, HUD, VS, resultado).
   - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
-  - `anim/`: tiras de animación por personaje (`idle` 8 fotogramas de guardia
-    sintetizados entre la preparación de golpe y la postura de andar, `walk` 12–14 fotogramas, `attack`
-    9–11: puño y patada con intermedios sintetizados, `trans` 3: entrada a agacharse y bloquear, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
-    cortadas de `images/Retro Folklore Character Sprite Sheet.png`
-    (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera). Los
-    fotogramas intermedios del ciclo de andar los sintetiza
-    `tools/interpolate_walk.py` (flujo óptico DIS muy suavizado + deformación por
-    vecino más cercano, paleta del original): duplican los fotogramas clave sin
-    perder nitidez.
+  - `anim/`: tiras de animación por personaje con **solo fotogramas dibujados
+    originales** (`walk` 6–7, `attack` 5–6: puño y patada, `hurt` 5–6: golpe,
+    caída, tumbado, levantarse, victoria; `idle` = primer fotograma de andar;
+    `trans` 3: entrada a agacharse y bloquear), cortadas de
+    `images/Retro Folklore Character Sprite Sheet.png` con `tools/build_anim.sh`
+    (a La Patasola se le borra la pierna trasera; `tools/clean_halo.py` quita los
+    restos claros del fondo blanco en los bordes). Los intermedios sintetizados por
+    flujo óptico (`tools/interpolate_walk.py`) se probaron y se retiraron: dejaban
+    líneas del contorno dentro del cuerpo, como una segunda imagen detrás.
   - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
   En modo `ARTE: DIBUJADO` **todo** el combate sale de las tres tiras
-  (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = ciclo de guardia de 8
-  fotogramas a 12 fps (la postura de MK II tiene 7 a 12,5 fps; Patasola salta en
-  el sitio con fotogramas originales de su andar), andar (en reversa al retroceder), golpes y habilidades desde
-  `attack`, daño/caída/levantarse/victoria desde `hurt`, agachado = fotograma de
-  levantarse, bloqueo = preparación de golpe, salto = patada preparada. Los
-  fotogramas se alinean por el centroide del torso para que el cuerpo no se
-  desplace al cambiar de fotograma. Fluidez: el ciclo de andar avanza por
-  distancia recorrida (un fotograma cada 3,5 px, sin patinar), el siguiente
-  fotograma se funde de forma continua a 60 Hz sobre el actual (sin cortes),
-  balanceo vertical sincronizado con la zancada, polvo en cada pisada, fundido
-  del fotograma anterior en golpes y daño, y anticipación/extensión
+  (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = primer fotograma de andar
+  con respiración (al arrancar a caminar no cambia la imagen; Patasola salta en el
+  sitio), andar (en reversa al retroceder), golpes y habilidades desde `attack`
+  siguiendo preparación → impacto → recuperación, daño/caída/levantarse/victoria
+  desde `hurt`, agachado con achatado progresivo, bloqueo con pose de entrada,
+  salto = patada recogida → extendida según la velocidad vertical, giro estrechando
+  la figura. Siempre se ve **un solo fotograma** (sin superponer el anterior ni el
+  siguiente). Los fotogramas se alinean por el centroide del torso para que el
+  cuerpo no se desplace al cambiar. El ciclo de andar avanza por distancia
+  recorrida (un fotograma cada 7 px, sin patinar), con balanceo por zancada, polvo
+  en cada pisada y anticipación/extensión
   interpoladas en los ataques. Los efectos de habilidades usan `fx/`
   animados por transformación (`DrawnFx.ts`). La imagen base y las poses de
   `splash/` se usan en selección, VS y resultado.
@@ -239,11 +239,11 @@ ambos definitivos.
 
 ## Limitaciones y pendientes
 
-- En modo dibujado andar tiene 12–14 fotogramas, reposo 8 y golpes 9–11; daño
-  tiene 5–6 (sus poses cambian demasiado para sintetizar intermedios) y no hay
-  animación de giro. Salto, agachado y bloqueo reutilizan fotogramas de las tiras
-  de golpes/daño con transiciones de entrada. En modo procedimental los 10 personajes comparten
-  el mismo conjunto de poses base.
+- En modo dibujado cada acción tiene los fotogramas de la hoja (andar 6–7, golpes
+  y daño 5–6); salto, agachado y bloqueo reutilizan fotogramas de golpes/daño. Más
+  fluidez necesita más fotogramas dibujados (prompts en
+  `images/PROMPTS_ANIMACION.md`). En modo procedimental los 10 personajes
+  comparten el mismo conjunto de poses base.
 - Sin remapeo de controles en pantalla (los mapas están en `InputManager.ts`).
 - Sin ataques en el aire con animación propia para los puños fuertes (usan la
   misma pose que los ligeros).
@@ -266,39 +266,30 @@ visiblemente entre pasos consecutivos.
 | MK II Scorpion | 16 % | 5 | 9,5 | 23,1 | 17,8 |
 | MK II Sub-Zero | 16 % | 5 | 9,5 | 21,4 | 18,7 |
 | MK II Reptile | 16 % | 5 | 9,5 | 24,9 | 18,2 |
-| La Madremonte | 98 % | 1 | 58,6 | 19,6 | 8,2 |
-| La Patasola | 100 % | 0 | 60 | 14,7 | 7,2 |
-| El Hombre Caimán | 91 % | 2 | 54,5 | 19,9 | 9,7 |
-| La Llorona | 98 % | 1 | 58,6 | 15,4 | 6,8 |
-| El Sombrerón | 98 % | 1 | 58,6 | 22,9 | 3,8 |
-| El Mohán | 95 % | 1 | 57,3 | 21,3 | 9,5 |
-| La Muelona | 100 % | 0 | 60 | 18,3 | 7,9 |
-| El Silbón | 100 % | 0 | 60 | 20,3 | 8,8 |
-| Juan Machete | 100 % | 0 | 60 | 19,0 | 9,0 |
-| Bachué | 93 % | 1 | 55,9 | 17,0 | 7,2 |
+| La Madremonte | 25 % | 6 | 15 | 17,9 | 13,7 |
+| La Patasola | 27 % | 4 | 16,4 | 12,6 | 10,2 |
+| El Hombre Caimán | 27 % | 5 | 16 | 19,7 | 14,2 |
+| La Llorona | 27 % | 4 | 16,4 | 12,8 | 11,1 |
+| El Sombrerón | 20 % | 4 | 12,3 | 4,2 | 3,2 |
+| El Mohán | 36 % | 4 | 21,3 | 15,4 | 13,2 |
+| La Muelona | 39 % | 4 | 23,2 | 14,8 | 12,6 |
+| El Silbón | 45 % | 4 | 27,3 | 14,8 | 11,7 |
+| Juan Machete | 20 % | 5 | 12,3 | 14,9 | 12,3 |
+| Bachué | 18 % | 5 | 10,9 | 9,8 | 8,6 |
 
-Golpes, agacharse y bloquear (capturas de Mohán, Madremonte y Caimán; la tira de
-golpes pasa de 5–6 a 9–11 fotogramas y el fotograma sigue la preparación, el
-impacto y la recuperación de cada ataque):
-
-| Acción | Fotogramas dibujados distintos | Salto máx. (% px) |
-|---|---|---|
-| Puño | 3–5 | 13,5–17,4 |
-| Patada fuerte | 5 | 15,9–21,1 |
-| Agacharse (achatado progresivo en 6 pasos) | 3 | 12,5–15,6 |
-| Bloquear | 2 | 14,1–17,4 |
-| Caída por derribo (giro + fundido de la pose tumbada) | 19 imágenes distintas en el aire | 9,7 (4,6 al aterrizar) |
+Con solo fotogramas originales y sin superposiciones, los 10 personajes muestran
+más imágenes por segundo al caminar que MK II (11–27 frente a 9,5), con saltos
+iguales o menores (4–20 % frente a 21–25 %). La cadencia depende de la velocidad
+de cada personaje, porque el ciclo avanza por distancia.
 
 La caída de MK II (Scorpion, GIF del sitio) son 7 fotogramas de 60 ms y la pose
-tumbada.
+tumbada; aquí la caída gira según la velocidad vertical sobre el fotograma de
+caída de la hoja.
 
 MK II no publica tiempos de sus golpes: en mortalkombatwarehouse solo hay
 fotogramas sueltos de cada golpe, así que aquí no se comparan ritmos.
 
-En MK II cada pose se mantiene 5 pasos y cambia de golpe; aquí el cambio se
-reparte en casi todos los pasos con saltos menores (fundido continuo hacia el
-siguiente fotograma). Los sprites de MK II solo se usaron para medir; no están
-en el repositorio.
+Los sprites de MK II solo se usaron para medir; no están en el repositorio.
 
 ## Despliegue
 

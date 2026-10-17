@@ -5,10 +5,9 @@ set -euo pipefail
 OUT=public/assets/anim
 TMP=$(mktemp -d)
 python3 -I tools/extract_anim.py "images/Retro Folklore Character Sprite Sheet.png" "$OUT" "$TMP/contact.png" > /dev/null
-python3 -I tools/interpolate_walk.py "$OUT" "$TMP/walk.png"      # andar ×2
-python3 -I tools/interpolate_walk.py "$OUT" trans                # agacharse / bloqueo (usa golpes originales)
-python3 -I tools/interpolate_walk.py "$OUT" idle                 # guardia de 8 fotogramas
-python3 -I tools/interpolate_walk.py "$OUT" attack               # golpes ×2
+python3 -I tools/interpolate_walk.py "$OUT" trans                # agacharse / bloqueo con fotogramas originales
+python3 -I tools/interpolate_walk.py "$OUT" idle                 # reposo = primer fotograma de andar (Patasola: salto)
+python3 -I tools/clean_halo.py "$OUT"                            # quita restos claros del fondo en los bordes
 python3 - <<'PY'
 import json
 m = json.load(open("public/assets/anim/manifest.json"))

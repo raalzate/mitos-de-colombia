@@ -44,6 +44,11 @@ interface FighterView {
   /** distancia andada acumulada para el ciclo de andar por distancia */
   walkDist: number;
   lastX: number;
+  /** giro: paso lógico en que empezó el estrechamiento al cambiar de lado (-1 = sin giro), y lado anterior */
+  turn: number;
+  lastFacing: number;
+  /** último paso lógico renderizado: los fundidos avanzan por paso lógico, no por refresco del monitor */
+  lastRenderLf: number;
   /** identificador y paleta del arte dibujado (para elegir la textura de pose) */
   id: FighterId;
   pal: 'p1' | 'p2';
@@ -310,10 +315,10 @@ export class FightScene extends Phaser.Scene {
         const sprite = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11 : 10);
         const ghost = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 10.5 : 9.5).setAlpha(0);
         const blend = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11.1 : 10.1).setAlpha(0);
-        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, blend, walkDist: 0, lastX: 0, lastFootfallIndex: -1 };
+        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, blend, walkDist: 0, lastX: 0, lastFootfallIndex: -1, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
       }
       const sprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, ORIGIN_Y).setDepth(slot === 1 ? 11 : 10);
-      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, blend: null, walkDist: 0, lastX: 0, lastFootfallIndex: -1 };
+      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, blend: null, walkDist: 0, lastX: 0, lastFootfallIndex: -1, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
     };
     const mirror = this.settings.p1 === this.settings.p2;
     this.views = { 1: mk(1), 2: mk(2) };
@@ -913,10 +918,7 @@ export class FightScene extends Phaser.Scene {
           // todos los estados salen de las tiras: el fotograma ya lleva la pose, sin giro
           if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
             // fundido: el fotograma anterior se queda 2-3 frames desvaneciéndose (suaviza el cambio)
-            if (v.ghost && v.sprite.alpha > 0 && f.anim !== 'idle' && f.anim !== 'walk') {
-              v.ghost.setTexture(v.sprite.texture.key, v.sprite.frame.name).setPosition(v.sprite.x, v.sprite.y)
-                .setFlipX(v.sprite.flipX).setScale(v.sprite.scaleX, v.sprite.scaleY).setAngle(v.sprite.angle).setAlpha(0.45);
-            }
+            // un solo fotograma visible: superponer dos se ve como un contorno o una mano de más
             v.sprite.setTexture(animKey, df!.index);
             snap = true;
           }
@@ -926,7 +928,7 @@ export class FightScene extends Phaser.Scene {
             const m = DRAWN_ANIM[v.id].walk;
             const ph = walkPhase(v.walkDist, m.frames, m.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX, input.backward);
             target.dy = ph.bob;
-            v.blend.setTexture(animKey, ph.next).setAlpha(Math.min(0.5, ph.t * 0.5));
+            v.blend.setAlpha(0);
             if (ph.footfall && v.lastFootfallIndex !== ph.index && f.grounded) {
               v.lastFootfallIndex = ph.index;
               this.spawnEffect({ kind: 'dust', x: f.x - f.facing * 6, y: f.y, facing: f.facing, data: { small: true } }, v.id);
@@ -935,8 +937,7 @@ export class FightScene extends Phaser.Scene {
             // caída en el aire: gira hacia atrás según la velocidad vertical y funde la pose tumbada al bajar
             const down = Math.min(1, Math.max(0, f.vy / 6));
             target.rot = -8 - down * 30;
-            const lying = drawnFrame(v.id, { ...input, grounded: true });
-            if (lying) v.blend.setTexture(drawnAnimKey(v.id, v.pal, lying.action), lying.index).setAlpha(down * 0.6);
+            v.blend.setAlpha(0);
             snap = false;
             v.lastFootfallIndex = -1;
           } else if (v.blend) {
@@ -949,7 +950,12 @@ export class FightScene extends Phaser.Scene {
             else target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.008;
           }
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
-          else if (f.anim === 'hit') target.dx = -2;
+          else if (f.anim === 'hit') {
+            // retroceso: la cabeza y el torso se van hacia atrás y vuelven al recuperarse
+            target.dx = -3;
+            target.rot = f.animFrame > 0 ? -9 : -4;
+            snap = false;
+          }
           else if ((f.anim === 'crouch' || f.anim === 'crouchblock') && f.stateFrame < 6) {
             // al agacharse la figura de pie se achata hacia los pies antes de pasar a la pose agachada
             target.sy = 1 - 0.38 * (f.stateFrame / 6);
@@ -973,18 +979,35 @@ export class FightScene extends Phaser.Scene {
         }
         // transición suave entre poses (lerp); al cambiar de fotograma dibujado se salta directo
         const k = snap ? 1 : f.anim === 'hit' || f.anim === 'knockdown' ? 0.6 : 0.35;
-        if (v.ghost && v.ghost.alpha > 0) v.ghost.setAlpha(Math.max(0, v.ghost.alpha - 0.18));
+        const newStep = v.lastRenderLf !== this.logicFrame;
+        v.lastRenderLf = this.logicFrame;
+        if (newStep && v.ghost && v.ghost.alpha > 0) v.ghost.setAlpha(Math.max(0, v.ghost.alpha - 0.18));
         const cp = v.pose;
-        cp.dx += (target.dx - cp.dx) * k;
-        cp.dy += (target.dy - cp.dy) * k;
-        cp.rot += (target.rot - cp.rot) * k;
-        cp.sx += (target.sx - cp.sx) * k;
-        cp.sy += (target.sy - cp.sy) * k;
+        const kk = snap ? 1 : newStep ? k : 0;
+        cp.dx += (target.dx - cp.dx) * kk;
+        cp.dy += (target.dy - cp.dy) * kk;
+        cp.rot += (target.rot - cp.rot) * kk;
+        cp.sx += (target.sx - cp.sx) * kk;
+        cp.sy += (target.sy - cp.sy) * kk;
+        // giro: al cambiar de lado la figura se estrecha hasta casi cero y se vuelve a abrir ya volteada
+        const TURN = 8;
+        if (f.facing !== v.lastFacing) { v.turn = this.logicFrame; v.lastFacing = f.facing; }
+        let turnSx = 1;
+        let turnFlip = f.facing === -1;
+        if (v.turn >= 0) {
+          const t = (this.logicFrame - v.turn) / TURN; // 0 → 1 en 8 pasos lógicos
+          if (t >= 1) v.turn = -1;
+          else {
+            turnSx = Math.max(0.08, Math.abs(Math.cos(t * Math.PI)));
+            if (t < 0.5) turnFlip = !turnFlip; // primera mitad: aún mirando al lado anterior
+          }
+        }
+        v.sprite.setFlipX(turnFlip);
         v.sprite.setPosition(Math.round(f.x + cp.dx * f.facing) + shake, Math.round(f.y + cp.dy));
         v.sprite.setAngle(cp.rot * f.facing);
-        v.sprite.setScale(cp.sx, cp.sy);
+        v.sprite.setScale(cp.sx * turnSx, cp.sy);
         if (v.blend && v.blend.alpha > 0) {
-          v.blend.setPosition(v.sprite.x, v.sprite.y).setFlipX(v.sprite.flipX).setAngle(v.sprite.angle).setScale(cp.sx, cp.sy);
+          v.blend.setPosition(v.sprite.x, v.sprite.y).setFlipX(v.sprite.flipX).setAngle(v.sprite.angle).setScale(v.sprite.scaleX, v.sprite.scaleY);
         }
       } else {
         const table = ANIM_TABLES[v.key];
