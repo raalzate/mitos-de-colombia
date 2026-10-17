@@ -156,6 +156,42 @@ passing. Arms swing naturally, hair and clothes move slightly. Looping cycle.
 Use exactly the character from the attached image.
 ```
 
+## ACCIONES ADICIONALES (para igualar a Mortal Kombat II)
+
+Mismo formato (REGLAS + PERSONAJE + ACCIÓN). Guardar como
+`images/anim/<id>_<accion>.png`.
+
+### hit (reacción al golpe, 6 fotogramas)
+```
+Animation: hit reaction, 6 frames. Frame 1 neutral guard. Frame 2 head snaps back
+from a punch to the face. Frame 3 torso bends backwards, arms flung out. Frame 4
+maximum recoil, one foot lifting. Frame 5 recovering balance. Frame 6 back in guard.
+```
+
+### fall (caída acrobática, 8 fotogramas, estilo Mortal Kombat II)
+```
+Animation: knocked off the feet by an uppercut, 8 frames. Frame 1 feet leave the
+ground, body arched backwards. Frames 2-4 body rotates backwards in the air like a
+backflip (horizontal at frame 3, upside down at frame 4). Frames 5-6 continues
+rotating and starts falling. Frame 7 hits the floor on the back. Frame 8 lying flat
+on the back. Keep the same character size; the whole rotation must fit inside the
+frame.
+```
+
+### getup (levantarse, 6 fotogramas)
+```
+Animation: getting up from lying on the back, 6 frames. Frame 1 lying on the back.
+Frame 2 rolls to one side. Frame 3 on hands and knees. Frame 4 on one knee. Frame 5
+rising. Frame 6 standing in guard.
+```
+
+### turn (giro, 4 fotogramas)
+```
+Animation: turning around to face the other direction, 4 frames. Frame 1 facing
+right in guard. Frame 2 three-quarter view. Frame 3 front view. Frame 4 three-quarter
+view towards the left. Feet stay in place.
+```
+
 ## Checklist antes de guardar
 
 - Fondo blanco sin degradado ni sombra bajo los pies.
