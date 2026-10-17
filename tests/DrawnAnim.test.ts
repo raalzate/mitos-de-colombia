@@ -34,7 +34,7 @@ describe('animación dibujada', () => {
         }
       }
       expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'idle', index: 0 });
-      expect(DRAWN_ANIM[id].idle.frames).toBe(6);
+      expect(DRAWN_ANIM[id].idle.frames).toBe(8);
       expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(1);
       expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
       expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe('hurt');

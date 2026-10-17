@@ -82,7 +82,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
   const getup = hurtN >= 6 ? 4 : hurtN - 2;
   switch (i.anim) {
     case 'idle':
-      // postura de guardia: ciclo de 6 fotogramas (sube y baja la guardia), 12 fps como la postura de MK II
+      // postura de guardia: ciclo de 8 fotogramas (sube y baja la guardia) a 12 fps; la postura de MK II tiene 7 a 12,5 fps
       return m.idle ? { action: 'idle', index: Math.floor(i.frame / 5) % m.idle.frames } : { action: 'walk', index: 0 };
     case 'walk': {
       const stride = m.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;

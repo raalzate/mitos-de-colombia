@@ -74,8 +74,9 @@ def inbetween(a, b, t=0.5):
 
 # Solo personajes cuyo intermedio queda limpio (los de mucho detalle interno se emborronan)
 INTERP = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else set(manifest_ids := json.load(open(f"{OUT}/manifest.json")).keys())
-# Patasola: el pelo y el vestido rasgado se deforman con cualquier síntesis; reposo = su postura de andar fija
-IDLE_STATIC = {"patasola"}
+# Patasola: el pelo se deforma con la síntesis; su reposo es un salto en el sitio con fotogramas
+# originales (clave) de su propio andar, sin intermedios generados
+IDLE_HOP = {"patasola"}
 
 def make_idle(out_dir, manifest, ids):
     """Ciclo de reposo (6 fotogramas) sintetizado: guardia en alto (primer fotograma de golpe) que
@@ -87,21 +88,24 @@ def make_idle(out_dir, manifest, ids):
             wlk = Image.open(f"{out_dir}/{cid}_walk_{slot}.png").convert("RGBA")
             ww = meta["walk"]["w"]
             w0 = wlk.crop((0, 0, ww, wlk.height))
-            a0 = w0 if cid in IDLE_STATIC else atk.crop((0, 0, meta["attack"]["w"], atk.height))
+            a0 = w0 if cid in IDLE_HOP else atk.crop((0, 0, meta["attack"]["w"], atk.height))
             cw = max(a0.width, w0.width); ch = max(a0.height, w0.height)
             def cell(f):
                 c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.paste(f, ((cw - f.width) // 2, ch - f.height), f); return c
             A, W = cell(a0), cell(w0)
-            if cid in IDLE_STATIC:
-                seq = [W] * 6
+            if cid in IDLE_HOP:
+                step = 2 if meta["walk"].get("interpolated") else 1   # índices de fotogramas clave
+                keys = [cell(wlk.crop((ww * k * step, 0, ww * (k * step + 1), wlk.height))) for k in range(3)]
+                seq = [keys[0], keys[0], keys[1], keys[1], keys[2], keys[2], keys[1], keys[1]]
             else:
-                seq = [A, inbetween(A, W, 0.2), inbetween(A, W, 0.4), inbetween(A, W, 0.6)]
-                seq = seq + [seq[2], seq[1]]
+                # guardia: 8 fotogramas, ida y vuelta entre la preparación de golpe y la postura de andar
+                mids = [inbetween(A, W, t) for t in (0.15, 0.3, 0.45, 0.6)]
+                seq = [A] + mids + [mids[2], mids[1], mids[0]]
             strip = Image.new("RGBA", (cw * len(seq), ch), (0, 0, 0, 0))
             for i, f in enumerate(seq): strip.paste(f, (i * cw, 0), f)
             strip.save(f"{out_dir}/{cid}_idle_{slot}.png")
-        meta["idle"] = {"frames": 6, "w": cw, "h": ch, "interpolated": True}
-        print(cid, "idle 6")
+        meta["idle"] = {"frames": 8, "w": cw, "h": ch, "interpolated": cid not in IDLE_HOP}
+        print(cid, "idle 8")
 
 manifest = json.load(open(f"{OUT}/manifest.json"))
 if CONTACT == "idle":
