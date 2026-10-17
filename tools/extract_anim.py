@@ -43,6 +43,8 @@ cols_all = [(int(W*0.098), int(W*0.395)), (int(W*0.400), int(W*0.690)), (int(W*0
 
 HOLE_LOG = []
 
+WHITE_CLOTHES = False   # se activa por personaje (Llorona, Silbón, Juan Machete)
+
 def background_mask(rgb):
     """Fondo de la hoja: blanco/casi blanco conectado con el borde del recorte. Se busca primero sobre
     la máscara clara erosionada (las rendijas finas del contorno no dejan pasar el relleno, así la camisa o
@@ -61,6 +63,16 @@ def background_mask(rgb):
         m = pl == k
         if m.sum() > rgb.shape[0] * rgb.shape[1] * 0.0008 and rgb[m].min(axis=1).mean() >= 253.5:
             bg |= ndi.binary_dilation(m, iterations=3) & light
+    if not WHITE_CLOTHES:
+        # huecos encerrados gris muy claro y sin color (fondo atrapado entre brazo y cuerpo o entre
+        # mechones); los personajes con ropa blanca de verdad se excluyen
+        sat = rgb.max(axis=2) - rgb.min(axis=2)
+        pocket = light & ~bg
+        ql, qn = ndi.label(pocket)
+        for k in range(1, qn + 1):
+            m = ql == k
+            if rgb[m].min(axis=1).mean() >= 232 and sat[m].mean() < 22:
+                bg |= ndi.binary_dilation(m, iterations=1) & light
     return bg
 
 def fill_inner_white(sil, rgb, cid="", act=""):
@@ -92,6 +104,7 @@ manifest = {}
 contact_frames = []
 for ri,(y0,y1) in enumerate(rows):
     cid = IDS[ri]
+    WHITE_CLOTHES = cid in ("llorona", "silbon", "juanmachete")
     manifest[cid] = {}
     for ai,(cx0,cx1) in enumerate(cols_all):
         act = ACTIONS[ai]

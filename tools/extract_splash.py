@@ -20,6 +20,8 @@ def spans(profile, thresh, min_len):
 
 import scipy.ndimage as ndi
 
+WHITE_CLOTHES = False   # Llorona, Silbón y Juan Machete tienen blancos de verdad
+
 def background_mask(rgb):
     """Fondo de la hoja: blanco/casi blanco conectado con el borde del recorte. Se busca primero sobre
     la máscara clara erosionada (las rendijas finas del contorno no dejan pasar el relleno, así la camisa o
@@ -38,6 +40,14 @@ def background_mask(rgb):
         m = pl == k
         if m.sum() > rgb.shape[0] * rgb.shape[1] * 0.0008 and rgb[m].min(axis=1).mean() >= 253.5:
             bg |= ndi.binary_dilation(m, iterations=3) & light
+    if not WHITE_CLOTHES:
+        # huecos encerrados gris muy claro y sin color: fondo atrapado (brazo-cuerpo, mechones)
+        sat = rgb.max(axis=2) - rgb.min(axis=2)
+        ql, qn = ndi.label(light & ~bg)
+        for k in range(1, qn + 1):
+            m = ql == k
+            if rgb[m].min(axis=1).mean() >= 232 and sat[m].mean() < 22:
+                bg |= ndi.binary_dilation(m, iterations=1) & light
     return bg
 
 def pixelize(img, target_h=None, target_w=None, colors=40):
@@ -99,6 +109,7 @@ BODIES = {
     "bachue": ("bachue.jpeg", (5, 970, 225, 1190)),
 }
 for name, (file, box) in BODIES.items():
+    WHITE_CLOTHES = name in ("llorona", "silbon", "juanmachete")
     im = Image.open(f"{IMG}/{file}").convert("RGB")
     k = im.height / 1200
     x0, y0, x1, y1 = [int(v * k) for v in box]
