@@ -34,43 +34,32 @@ modernos (WebGL o Canvas 2D).
 
 ## Controles
 
-| Acción            | Jugador 1 | Jugador 2 |
-|-------------------|-----------|-----------|
-| Moverse           | A / D     | ← / →     |
-| Saltar            | W         | ↑         |
-| Agacharse         | S         | ↓         |
-| Puño ligero       | F         | J         |
-| Puño fuerte       | G         | K         |
-| Patada ligera     | V         | U         |
-| Patada fuerte     | B         | I         |
-| Habilidad 1       | R         | O         |
-| Habilidad 2       | S + R     | ↓ + O     |
-| Definitivo        | T         | P         |
-| Bloquear          | Q         | L         |
+Un jugador contra la CPU (el modo de dos jugadores está oculto). Mano derecha en
+las flechas, mano izquierda en ESPACIO y las teclas cercanas:
 
-Flujo de partida: menú → (dificultad) → selección de luchador → selección de
-escenario (A/D o flechas, `F`/`Enter` confirma, incluye ALEATORIO) → pantalla VS →
-combate. En el menú, `ARTE: DIBUJADO / PROCEDIMENTAL` alterna entre el arte de
-cuerpo entero dibujado y los sprites generados por código.
+| Acción | Tecla |
+|---|---|
+| Moverse | ← / → |
+| Saltar / agacharse | ↑ / ↓ |
+| Puño (golpe principal) | ESPACIO |
+| Patada | Z |
+| Puño fuerte | X |
+| Patada fuerte | C |
+| Especial (↓ + A: especial 2) | A |
+| Definitivo | S |
+| Bloquear | D o SHIFT izquierdo |
 
 Teclas globales: `Enter` pausa/continúa, `Esc` pausa y, en pausa, vuelve al menú;
-`Z` alterna pantalla completa; `H` muestra hitboxes (rojo), hurtboxes (azul) y
-pushboxes (amarillo). Menús: W/S o flechas para moverse, F / J / Enter / Espacio
-para aceptar, Esc para volver.
+`F` pantalla completa; `H` muestra hitboxes. Menús: flechas para moverse,
+ESPACIO o ENTER para aceptar, ESC para volver. Los menús solo atienden pulsaciones
+nuevas de la propia pantalla (la tecla que confirmó la anterior no se arrastra).
 
-**Mandos:** se admite Gamepad API con disposición estándar. Primer mando → P1,
-segundo → P2 (en modo CPU el segundo mando se ignora). Cruceta o stick izquierdo
-para moverse, X puño ligero, Y puño fuerte, A patada ligera, B patada fuerte,
-RB/RT especial, LB/LT definitivo, Select bloquear.
+**Mando** (Gamepad API, disposición estándar): cruceta o stick para moverse,
+X puño, Y puño fuerte, A patada, B patada fuerte, RB/RT especial, LB/LT
+definitivo.
 
-**Keyboard ghosting:** la mayoría de teclados de membrana solo registran 2 o 3
-teclas simultáneas fuera de los modificadores. En modo dos jugadores pueden
-perderse pulsaciones cuando ambos mantienen dirección y botón a la vez (por
-ejemplo P1 con D+F y P2 con ← + J). Las combinaciones más propensas son las que
-comparten fila/columna de la matriz del teclado (W/S con las flechas suelen ir
-bien; F/G/V/B junto a J/K/U/I son las más conflictivas). Si se producen
-bloqueos de entrada, usa un mando para uno de los jugadores o un teclado con
-N-key rollover.
+Flujo: menú → dificultad → selección de luchador → selección de escenario (se oye
+el sonido de cada uno al recorrerlos) → combate.
 
 ## Cómo se juega
 
@@ -253,6 +242,14 @@ ambos definitivos.
   Chromium vía Playwright); el código no usa API exclusivas de Chromium.
 
 ## Terror
+
+**Sonido propio de cada escenario** (`src/audio/StageSound.ts`): además de la base
+común (latido por tensión, sustos), cada escenario tiene su zumbido, un lecho
+continuo y sucesos característicos al azar: la Ribera suena a río, ranas y búho;
+los Llanos, a viento, truenos y el silbido do-re-mi del Silbón; la Laguna, a viento
+frío, flauta lejana y goteo; la Ciénaga, a ranas, insectos y burbujas; el
+Cañaduzal, a fuego crepitando, bramidos de toro y gritos; el Callejón, a campana de
+iglesia, perros aullando y cascos de caballo.
 
 - **Advertencia** al arrancar (sustos, gritos fuertes, destellos) y opción
   `SUSTOS: SÍ/NO` en el menú.

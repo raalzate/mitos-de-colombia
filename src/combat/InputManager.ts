@@ -22,31 +22,33 @@ export type KeyMap = Record<Action, string[]>;
 
 /** Mapas por defecto. Se usan `event.code` para independencia de la distribución del teclado. */
 export const DEFAULT_KEYMAPS: Record<PlayerSlot, KeyMap> = {
+  // Un jugador contra la CPU: mano derecha en las flechas, mano izquierda en ESPACIO y Z X C / A S D.
   1: {
-    left: ['KeyA'],
-    right: ['KeyD'],
-    up: ['KeyW'],
-    down: ['KeyS'],
-    light: ['KeyF'],
-    heavy: ['KeyG'],
-    lightkick: ['KeyV'],
-    heavykick: ['KeyB'],
-    special: ['KeyR'],
-    ultimate: ['KeyT'],
-    block: ['KeyQ'],
-  },
-  2: {
     left: ['ArrowLeft'],
     right: ['ArrowRight'],
     up: ['ArrowUp'],
     down: ['ArrowDown'],
-    light: ['KeyJ'],
-    heavy: ['KeyK'],
-    lightkick: ['KeyU'],
-    heavykick: ['KeyI'],
-    special: ['KeyO'],
-    ultimate: ['KeyP'],
-    block: ['KeyL'],
+    light: ['Space'],
+    heavy: ['KeyX'],
+    lightkick: ['KeyZ'],
+    heavykick: ['KeyC'],
+    special: ['KeyA'],
+    ultimate: ['KeyS'],
+    block: ['KeyD', 'ShiftLeft'],
+  },
+  // Sin uso por teclado (el rival es la CPU); se deja en el teclado numérico para no chocar con P1.
+  2: {
+    left: ['Numpad4'],
+    right: ['Numpad6'],
+    up: ['Numpad8'],
+    down: ['Numpad5'],
+    light: ['Numpad1'],
+    heavy: ['Numpad2'],
+    lightkick: ['Numpad3'],
+    heavykick: ['Numpad0'],
+    special: ['Numpad7'],
+    ultimate: ['Numpad9'],
+    block: ['NumpadDecimal'],
   },
 };
 

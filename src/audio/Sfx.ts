@@ -6,6 +6,7 @@
  */
 
 import { heartbeatBpm } from '../combat/Fear';
+import { STAGE_SOUND, pickStageEvent, type SoundscapeId, type StageEvent, type StageSoundTheme } from './StageSound';
 
 export type SfxName =
   | 'hit' | 'heavy' | 'block' | 'whoosh' | 'jump' | 'land' | 'ko'
@@ -24,6 +25,12 @@ class Synth {
   private reverbIn: GainNode | null = null;
   /** fuentes continuas del ambiente (zumbido, LFO, tono agudo) para pararlas al detener la música */
   private ambientSources: OscillatorNode[] = [];
+  private droneOscs: OscillatorNode[] = [];
+  private bedSource: AudioBufferSourceNode | null = null;
+  private bedGain: GainNode | null = null;
+  private bedLfo: OscillatorNode | null = null;
+  private soundscape: SoundscapeId = 'menu';
+  private theme: StageSoundTheme = STAGE_SOUND.menu;
   private tensionLevel = 0;
   private nextBeat = 0;
   private nextEvent = 0;
@@ -275,7 +282,7 @@ class Synth {
     this.tensionLevel = Math.max(0, Math.min(1, t));
     if (this.ctx && this.droneFilter && this.droneHigh) {
       const now = this.ctx.currentTime;
-      this.droneFilter.frequency.setTargetAtTime(220 + this.tensionLevel * 900, now, 0.4);
+      this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + this.tensionLevel * 900, now, 0.4);
       this.droneHigh.gain.setTargetAtTime(this.tensionLevel * 0.05, now, 0.6);
     }
   }
@@ -316,13 +323,14 @@ class Synth {
     const droneG = ctx.createGain();
     droneG.gain.value = 0.16;
     this.droneFilter.connect(droneG).connect(this.musicGain);
-    for (const f of [55, 58.27, 27.5]) {
+    for (const f of this.theme.drone) {
       const o = ctx.createOscillator();
       o.type = f < 30 ? 'sine' : 'sawtooth';
       o.frequency.value = f;
       o.connect(this.droneFilter);
       o.start();
       this.ambientSources.push(o);
+      this.droneOscs.push(o);
     }
     const lfo = ctx.createOscillator();
     const lfoG = ctx.createGain();
@@ -368,7 +376,8 @@ class Synth {
         }
         this.nextBeat += 60 / heartbeatBpm(this.tensionLevel);
       }
-      // caja de música
+      // caja de música (solo en los paisajes que la usan)
+      if (this.nextBox < horizon && !this.theme.musicBox) this.nextBox = horizon + 5;
       if (this.nextBox < horizon) {
         const d0 = Math.max(0, this.nextBox - t0);
         box.forEach((f, i) => {
@@ -378,13 +387,14 @@ class Synth {
         });
         this.nextBox += 14 + Math.random() * 10;
       }
-      // sucesos al azar
+      // sucesos propios del escenario
       if (this.nextEvent < horizon) {
-        const r = Math.random();
-        this.play(r < 0.4 ? 'whisper' : r < 0.75 ? 'creak' : 'distantScream');
-        this.nextEvent += 5 + Math.random() * 9 - this.tensionLevel * 3;
+        this.stageEvent(pickStageEvent(this.theme, Math.random()));
+        const [a, b] = this.theme.every;
+        this.nextEvent = Math.max(this.nextEvent, t0) + a + Math.random() * (b - a) - this.tensionLevel * Math.min(2, a * 0.5);
       }
     };
+    this.startBed();
     schedule();
     this.musicTimer = window.setInterval(schedule, 150);
   }
@@ -402,9 +412,143 @@ class Synth {
       try { o.stop(); } catch { /* ya parado */ }
     }
     this.ambientSources = [];
+    this.droneOscs = [];
+    this.stopBed();
     this.droneFilter = null;
     this.droneHigh = null;
     this.reverbIn = null;
+  }
+
+  /** Cambia el paisaje sonoro (escenario o menú) con un fundido de unos segundos. */
+  setSoundscape(id: SoundscapeId): void {
+    if (this.soundscape === id) return;
+    this.soundscape = id;
+    this.theme = STAGE_SOUND[id];
+    if (!this.ctx || !this.droneFilter) return;
+    const now = this.ctx.currentTime;
+    this.theme.drone.forEach((f, i) => this.droneOscs[i]?.frequency.setTargetAtTime(f, now, 1.2));
+    this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + this.tensionLevel * 900, now, 0.8);
+    this.stopBed();
+    this.startBed();
+    this.nextEvent = now + 1.5;
+  }
+
+  /** Lecho continuo del escenario: ruido filtrado con volumen que respira (agua, viento, fuego…). */
+  private startBed(): void {
+    if (!this.ctx || !this.musicGain || !this.noiseBuffer) return;
+    const ctx = this.ctx;
+    const b = this.theme.bed;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = b.type;
+    f.frequency.value = b.freq;
+    f.Q.value = b.q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, ctx.currentTime);
+    g.gain.linearRampToValueAtTime(b.gain, ctx.currentTime + 2);
+    const lfo = ctx.createOscillator();
+    const lg = ctx.createGain();
+    lfo.frequency.value = b.lfoRate;
+    lg.gain.value = b.lfoDepth;
+    lfo.connect(lg).connect(g.gain);
+    src.connect(f).connect(g).connect(this.musicGain);
+    src.start();
+    lfo.start();
+    this.bedSource = src;
+    this.bedGain = g;
+    this.bedLfo = lfo;
+  }
+
+  private stopBed(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const src = this.bedSource;
+    const lfo = this.bedLfo;
+    if (this.bedGain) this.bedGain.gain.setTargetAtTime(0, t, 0.5);
+    if (src) { try { src.stop(t + 2); } catch { /* ya parado */ } }
+    if (lfo) { try { lfo.stop(t + 2); } catch { /* ya parado */ } }
+    this.bedSource = null;
+    this.bedGain = null;
+    this.bedLfo = null;
+  }
+
+  /** Sonidos característicos de cada escenario (todos suenan "lejos", con eco). */
+  private stageEvent(name: StageEvent): void {
+    if (!this.ready) return;
+    const far = this.reverbIn ?? undefined;
+    const r = Math.random;
+    switch (name) {
+      case 'whisper':
+      case 'creak':
+      case 'distantScream':
+        this.play(name);
+        break;
+      case 'frog': {
+        const base = 230 + r() * 120;
+        const n = 2 + Math.floor(r() * 3);
+        for (let i = 0; i < n; i++) this.tone('square', base, base * 0.75, 0.05, 0.05, i * 0.09, far);
+        break;
+      }
+      case 'owl':
+        this.tone('sine', 430, 385, 0.35, 0.07, 0, far);
+        this.tone('sine', 430, 360, 0.55, 0.07, 0.55, far);
+        break;
+      case 'thunder':
+        this.noise(2.6, 0.45, 500, 60, 0, 'lowpass', far);
+        this.tone('sine', 48, 28, 2.4, 0.4, 0.05, far);
+        break;
+      case 'whistleTune': {
+        // el silbido del Silbón: do-re-mi-fa-sol-la-si, cada vez más agudo
+        const notes = [523.25, 587.33, 659.25, 698.46, 783.99, 880, 987.77];
+        notes.forEach((f, i) => this.tone('sine', f * 0.97, f, 0.28, 0.05, i * 0.3, far));
+        break;
+      }
+      case 'crickets':
+        for (let i = 0; i < 6; i++) this.tone('sine', 4200 + r() * 300, 4100, 0.03, 0.02, i * 0.07 + (i > 2 ? 0.25 : 0), far);
+        break;
+      case 'flute': {
+        const pent = [392, 440, 523.25, 587.33, 659.25];
+        for (let i = 0; i < 4; i++) {
+          const f = pent[Math.floor(r() * pent.length)];
+          this.tone('sine', f * 1.01, f, 0.6, 0.04, i * 0.55, far);
+          this.tone('triangle', f * 2, f * 2, 0.4, 0.008, i * 0.55, far);
+        }
+        break;
+      }
+      case 'drip':
+        this.tone('sine', 1800 + r() * 600, 520, 0.07, 0.06, 0, far);
+        if (r() < 0.5) this.tone('sine', 1600, 480, 0.07, 0.04, 0.45, far);
+        break;
+      case 'bubbles':
+        for (let i = 0; i < 3 + Math.floor(r() * 3); i++) this.tone('sine', 180 + r() * 80, 520 + r() * 200, 0.06, 0.05, i * (0.08 + r() * 0.1), far);
+        break;
+      case 'splash':
+        this.noise(0.45, 0.12, 1400, 300, 0, 'bandpass', far);
+        break;
+      case 'crackle':
+        for (let i = 0; i < 9; i++) this.noise(0.015 + r() * 0.02, 0.18, 6000, 2500, r() * 0.7, 'highpass');
+        break;
+      case 'bull':
+        this.tone('sawtooth', 115, 70, 1.3, 0.07, 0, far);
+        this.tone('sawtooth', 118, 68, 1.3, 0.05, 0.02, far);
+        break;
+      case 'bell':
+        // campana de iglesia: parciales inarmónicas que se apagan despacio
+        for (const [k, v] of [[1, 0.07], [2, 0.04], [2.76, 0.03], [5.4, 0.015]]) this.tone('sine', 196 * k, 196 * k, 3.2, v, 0, far);
+        break;
+      case 'dogHowl':
+        this.tone('sawtooth', 480, 690, 0.6, 0.025, 0, far);
+        this.tone('sawtooth', 690, 430, 1.1, 0.025, 0.6, far);
+        break;
+      case 'hooves':
+        for (const t of [0, 0.17, 0.5, 0.67, 1.0, 1.17]) this.noise(0.04, 0.14, 900, 300, t, 'lowpass', far);
+        break;
+      case 'steps':
+        for (const t of [0, 0.55, 1.1]) this.noise(0.08, 0.16, 400, 120, t, 'lowpass', far);
+        break;
+    }
   }
 
   suspend(): void {

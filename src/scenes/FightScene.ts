@@ -209,6 +209,7 @@ export class FightScene extends Phaser.Scene {
     const choice = this.settings.stage;
     this.stageId = choice === 'random' ? STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)] : choice;
     this.theme = STAGES[this.stageId];
+    sfx.setSoundscape(this.stageId);
     const k = ensureStage(this, this.stageId);
     this.stageTex = k;
     this.add.image(0, 0, k.sky).setOrigin(0).setScrollFactor(0).setDepth(0);
@@ -353,7 +354,7 @@ export class FightScene extends Phaser.Scene {
   private buildUi(): void {
     const mirror = this.settings.p1 === this.settings.p2;
     this.hud = new CombatHUD(this, this.p1, this.p2, portraitKey(this, this.settings.p1, 'p1', 24), portraitKey(this, this.settings.p2, mirror ? 'p2' : 'p1', 24));
-    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, slot === 1 ? 'R' : 'O', slot === 1 ? 'T' : 'P');
+    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, 'A', 'S');
     this.hud.setHints(hint(1), this.settings.mode === 'cpu' ? 'CPU: ' + FIGHTERS[this.settings.p2].name : hint(2));
 
     this.overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05030a, 1).setOrigin(0).setScrollFactor(0).setDepth(15).setAlpha(0);

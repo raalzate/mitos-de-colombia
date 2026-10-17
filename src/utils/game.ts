@@ -8,7 +8,8 @@ export const inputManager = new InputManager();
 export const DEFAULT_SETTINGS: MatchSettings = { mode: 'cpu', difficulty: 'normal', p1: 'madremonte', p2: 'mohan', stage: 'random', art: 'drawn', scares: true };
 
 export function getSettings(scene: Phaser.Scene): MatchSettings {
-  return { ...DEFAULT_SETTINGS, ...((scene.registry.get('settings') as Partial<MatchSettings> | undefined) ?? {}) };
+  // un jugador contra la CPU: el modo de dos jugadores está oculto
+  return { ...DEFAULT_SETTINGS, ...((scene.registry.get('settings') as Partial<MatchSettings> | undefined) ?? {}), mode: 'cpu' };
 }
 
 export function setSettings(scene: Phaser.Scene, s: MatchSettings): void {
@@ -21,10 +22,10 @@ export const MENU_KEYS = {
   down: ['KeyS', 'ArrowDown'],
   left: ['KeyA', 'ArrowLeft'],
   right: ['KeyD', 'ArrowRight'],
-  confirm: ['KeyF', 'KeyJ', 'Enter', 'Space'],
+  confirm: ['Enter', 'Space'],
   back: ['Escape', 'Backspace'],
   pause: ['Enter', 'Escape'],
-  fullscreen: ['KeyZ'],
+  fullscreen: ['KeyF'],
   debug: ['KeyH'],
 };
 

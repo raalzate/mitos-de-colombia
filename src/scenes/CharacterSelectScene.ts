@@ -50,6 +50,8 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(): void {
     const s = getSettings(this);
+    sfx.setSoundscape('menu');
+    sfx.setTension(0);
     this.menu = new MenuInput();
     this.p1Index = Math.max(0, FIGHTER_IDS.indexOf(s.p1));
     this.p2Index = Math.max(0, FIGHTER_IDS.indexOf(s.p2));
@@ -90,9 +92,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.labelP2 = text(this, 0, 0, s.mode === 'cpu' ? 'CPU' : 'P2', 1, 0x80c8ff).setDepth(3);
     this.banner = text(this, GAME_WIDTH / 2, 186, '', 2, 0xf05060).setDepth(3);
 
-    text(this, GAME_WIDTH / 2, 214, s.mode === 'cpu'
-      ? 'WASD: ELEGIR   F/ENTER: CONFIRMAR   ESC: VOLVER'
-      : 'P1: WASD + F     P2: FLECHAS + J     ESC: VOLVER', 1, 0x9088b0).setAlpha(0.9);
+    text(this, GAME_WIDTH / 2, 214, 'FLECHAS: ELEGIR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setAlpha(0.9);
   }
 
   private move(index: number, dx: number, dy: number): number {
@@ -172,17 +172,17 @@ export class CharacterSelectScene extends Phaser.Scene {
         return;
       }
     }
-    const in1 = inputManager.snapshot(1);
-    const in2 = inputManager.snapshot(2);
+    // solo pulsaciones de menú: el búfer de combate (ESPACIO = puño) arrastraría la pulsación que
+    // confirmó la pantalla anterior y elegiría personaje sin querer
 
     if (!this.p1Locked) {
       let moved = false;
-      if (this.menu.pressed(['KeyA'])) { this.p1Index = this.move(this.p1Index, -1, 0); moved = true; }
-      if (this.menu.pressed(['KeyD'])) { this.p1Index = this.move(this.p1Index, 1, 0); moved = true; }
-      if (this.menu.pressed(['KeyW'])) { this.p1Index = this.move(this.p1Index, 0, -1); moved = true; }
-      if (this.menu.pressed(['KeyS'])) { this.p1Index = this.move(this.p1Index, 0, 1); moved = true; }
+      if (this.menu.pressed(['ArrowLeft'])) { this.p1Index = this.move(this.p1Index, -1, 0); moved = true; }
+      if (this.menu.pressed(['ArrowRight'])) { this.p1Index = this.move(this.p1Index, 1, 0); moved = true; }
+      if (this.menu.pressed(['ArrowUp'])) { this.p1Index = this.move(this.p1Index, 0, -1); moved = true; }
+      if (this.menu.pressed(['ArrowDown'])) { this.p1Index = this.move(this.p1Index, 0, 1); moved = true; }
       if (moved) sfx.play('select');
-      if (this.menu.pressed(['KeyF', 'Enter', 'Space']) || in1.pressed.light) {
+      if (this.menu.pressed(['Enter', 'Space'])) {
         this.p1Locked = true;
         sfx.play('confirm');
         if (s.mode === 'cpu') this.cpuTimer = 50;
@@ -195,7 +195,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       if (this.menu.pressed(['ArrowUp'])) { this.p2Index = this.move(this.p2Index, 0, -1); moved = true; }
       if (this.menu.pressed(['ArrowDown'])) { this.p2Index = this.move(this.p2Index, 0, 1); moved = true; }
       if (moved) sfx.play('select');
-      if (this.menu.pressed(['KeyJ']) || in2.pressed.light) {
+      if (this.menu.pressed(['KeyJ'])) {
         this.p2Locked = true;
         sfx.play('confirm');
       }

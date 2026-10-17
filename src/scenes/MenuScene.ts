@@ -10,9 +10,13 @@ import type { FighterId } from '../combat/CombatTypes';
 
 type Page = 'main' | 'difficulty' | 'controls';
 
-const MAIN_ITEMS = ['UN JUGADOR VS CPU', 'DOS JUGADORES', 'CONTROLES', 'ARTE: DIBUJADO', 'SUSTOS: SÍ', 'PANTALLA COMPLETA'];
-const ART_INDEX = 3;
-const SCARES_INDEX = 4;
+// Un jugador contra la CPU (el modo de dos jugadores está oculto)
+const MAIN_ITEMS = ['JUGAR', 'CONTROLES', 'ARTE: DIBUJADO', 'SUSTOS: SÍ', 'PANTALLA COMPLETA'];
+const PLAY_INDEX = 0;
+const CONTROLS_INDEX = 1;
+const ART_INDEX = 2;
+const SCARES_INDEX = 3;
+const FULLSCREEN_INDEX = 4;
 const SCARE_FACES: FighterId[] = ['llorona', 'muelona', 'patasola', 'silbon', 'sombreron'];
 const DIFF_ITEMS: { label: string; value: Difficulty }[] = [
   { label: 'FÁCIL', value: 'easy' },
@@ -41,6 +45,7 @@ export class MenuScene extends Phaser.Scene {
     this.idleFrames = 0;
     this.scaring = false;
     sfx.setTension(0);
+    sfx.setSoundscape('menu');
     this.page = 'main';
     this.menu = new MenuInput();
     this.index = 0;
@@ -55,29 +60,22 @@ export class MenuScene extends Phaser.Scene {
     this.buildControls();
     this.showPage('main');
 
-    text(this, GAME_WIDTH / 2, 206, 'W/S FLECHAS: MOVER   F/J/ENTER: ACEPTAR', 1, 0x9088b0).setAlpha(0.9);
-    text(this, GAME_WIDTH / 2, 216, 'Z: PANTALLA COMPLETA', 1, 0x9088b0).setAlpha(0.7);
+    text(this, GAME_WIDTH / 2, 206, 'FLECHAS: MOVER   ESPACIO/ENTER: ACEPTAR', 1, 0x9088b0).setAlpha(0.9);
+    text(this, GAME_WIDTH / 2, 216, 'F: PANTALLA COMPLETA', 1, 0x9088b0).setAlpha(0.7);
 
-    inputManager.setGamepadEnabled(2, true);
+    inputManager.setGamepadEnabled(2, false);
   }
 
   private buildControls(): void {
     const c = this.add.container(0, 0).setVisible(false);
-    const bg = this.add.rectangle(GAME_WIDTH / 2, 150, 340, 118, 0x100c18, 0.92).setStrokeStyle(1, 0xd8b070);
+    const bg = this.add.rectangle(GAME_WIDTH / 2, 145, 348, 108, 0x100c18, 1).setStrokeStyle(1, 0xd8b070);
     c.add(bg);
-    const p1 = [
-      'JUGADOR 1', 'A/D MOVER  W SALTAR  S AGACHAR',
-      'F PUÑO LIGERO  G PUÑO FUERTE', 'V PATADA LIG.  B PATADA FUERTE',
-      'R ESPECIAL  S+R ESPECIAL 2', 'T DEFINITIVO  Q BLOQUEAR',
-    ];
-    const p2 = [
-      'JUGADOR 2', 'FLECHAS MOVER/SALTAR/AGACHAR',
-      'J PUÑO LIGERO  K PUÑO FUERTE', 'U PATADA LIG.  I PATADA FUERTE',
-      'O ESPECIAL  ABAJO+O ESPECIAL 2', 'P DEFINITIVO  L BLOQUEAR',
-    ];
-    p1.forEach((line, i) => c.add(this.add.bitmapText(26, 100 + i * 10, 'font_plain', line).setTint(i === 0 ? 0xf8d048 : 0xe8e8f0)));
-    p2.forEach((line, i) => c.add(this.add.bitmapText(26, 160 + i * 10 - 60 + 60, 'font_plain', line).setTint(i === 0 ? 0x80c8ff : 0xe8e8f0).setY(100 + 62 + i * 10)));
-    c.add(this.add.bitmapText(GAME_WIDTH / 2, 199, 'font_plain', 'MANDOS: GAMEPAD API (DISPOSICIÓN ESTÁNDAR)').setOrigin(0.5, 0).setTint(0x9088b0));
+    const left = ['MOVERSE', 'SALTAR / AGACHARSE', 'PUÑO', 'PATADA', 'PUÑO FUERTE', 'PATADA FUERTE', 'ESPECIAL  (ABAJO+A: ESPECIAL 2)', 'DEFINITIVO', 'BLOQUEAR'];
+    const right = ['FLECHAS IZQ./DER.', 'FLECHA ARRIBA / ABAJO', 'ESPACIO', 'Z', 'X', 'C', 'A', 'S', 'D  O  SHIFT'];
+    c.add(this.add.bitmapText(GAME_WIDTH / 2, 94, 'font_plain', 'CONTROLES').setOrigin(0.5, 0).setTint(0xf8d048));
+    left.forEach((line, i) => c.add(this.add.bitmapText(28, 106 + i * 9, 'font_plain', line).setTint(0xe8e8f0)));
+    right.forEach((line, i) => c.add(this.add.bitmapText(GAME_WIDTH - 28, 106 + i * 9, 'font_plain', line).setOrigin(1, 0).setTint(0x80c8ff)));
+    c.add(this.add.bitmapText(GAME_WIDTH / 2, 188, 'font_plain', 'MANDO: X PUÑO  A PATADA  RB ESPECIAL  LB DEFINITIVO').setOrigin(0.5, 0).setTint(0x9088b0));
     this.controls = c;
   }
 
@@ -86,7 +84,8 @@ export class MenuScene extends Phaser.Scene {
     this.index = 0;
     for (const it of this.items) it.destroy();
     this.items = [];
-    this.controls.setVisible(page === 'controls');
+    this.controls.setVisible(page === 'controls').setDepth(10);
+    this.subtitle.setAlpha(page === 'controls' ? 0 : 1);
     this.cursor.setVisible(page !== 'controls');
     const art = getSettings(this).art === 'drawn' ? 'ARTE: DIBUJADO' : 'ARTE: PROCEDIMENTAL';
     const scares = getSettings(this).scares ? 'SUSTOS: SÍ' : 'SUSTOS: NO';
@@ -153,14 +152,10 @@ export class MenuScene extends Phaser.Scene {
     const s = getSettings(this);
     if (this.page === 'main') {
       switch (this.index) {
-        case 0:
+        case PLAY_INDEX:
           this.showPage('difficulty');
           break;
-        case 1:
-          setSettings(this, { ...s, mode: 'versus' });
-          this.scene.start('CharacterSelectScene');
-          break;
-        case 2:
+        case CONTROLS_INDEX:
           this.showPage('controls');
           break;
         case ART_INDEX: {
@@ -180,7 +175,7 @@ export class MenuScene extends Phaser.Scene {
           if (!s.scares) sfx.play('sting');
           break;
         }
-        case 5:
+        case FULLSCREEN_INDEX:
           toggleFullscreen(this);
           break;
       }

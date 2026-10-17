@@ -65,7 +65,7 @@ export class StageSelectScene extends Phaser.Scene {
     const mirror = s.p1 === s.p2;
     this.add.image(8, 8, portraitKey(this, s.p1, 'p1', 24)).setOrigin(0, 0).setDepth(11);
     this.add.image(GAME_WIDTH - 8, 8, portraitKey(this, s.p2, mirror ? 'p2' : 'p1', 24)).setOrigin(1, 0).setDepth(11).setFlipX(true);
-    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 13, 'A/D FLECHAS: CAMBIAR   F/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setDepth(11).setAlpha(0.9);
+    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 13, 'FLECHAS: CAMBIAR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setDepth(11).setAlpha(0.9);
     this.applyChoice();
   }
 
@@ -77,6 +77,7 @@ export class StageSelectScene extends Phaser.Scene {
     this.subtitle.setText((choice === 'random' ? 'EL DESTINO ELIGE EL CAMPO DE BATALLA' : t.subtitle).toUpperCase());
     if (this.shown !== id) {
       this.shown = id;
+      sfx.setSoundscape(id);
       const k = ensureStage(this, id);
       this.keys = k;
       const [sky, far, mid, ground, fore] = this.layers;
@@ -115,7 +116,7 @@ export class StageSelectScene extends Phaser.Scene {
         sfx.play('select');
         this.applyChoice();
       }
-      if (this.menu.pressed(MENU_KEYS.confirm) || inputManager.snapshot(1).pressed.light || inputManager.snapshot(2).pressed.light) {
+      if (this.menu.pressed(MENU_KEYS.confirm)) {
         const s = getSettings(this);
         setSettings(this, { ...s, stage: CHOICES[this.index] });
         this.startTimer = 50;
