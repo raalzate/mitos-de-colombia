@@ -74,6 +74,9 @@ def inbetween(a, b, t=0.5):
 
 # Solo personajes cuyo intermedio queda limpio (los de mucho detalle interno se emborronan)
 INTERP = set(sys.argv[3].split(",")) if len(sys.argv) > 3 else set(manifest_ids := json.load(open(f"{OUT}/manifest.json")).keys())
+# Patasola: el pelo y el vestido rasgado se deforman con cualquier síntesis; reposo = su postura de andar fija
+IDLE_STATIC = {"patasola"}
+
 def make_idle(out_dir, manifest, ids):
     """Ciclo de reposo (6 fotogramas) sintetizado: guardia en alto (primer fotograma de golpe) que
     baja y sube suavemente hacia la postura de andar: a0, 20 %, 40 %, 60 %, 40 %, 20 %."""
@@ -82,14 +85,18 @@ def make_idle(out_dir, manifest, ids):
         for slot in ("p1", "p2"):
             atk = Image.open(f"{out_dir}/{cid}_attack_{slot}.png").convert("RGBA")
             wlk = Image.open(f"{out_dir}/{cid}_walk_{slot}.png").convert("RGBA")
-            a0 = atk.crop((0, 0, meta["attack"]["w"], atk.height))
-            w0 = wlk.crop((0, 0, meta["walk"]["w"], wlk.height))
+            ww = meta["walk"]["w"]
+            w0 = wlk.crop((0, 0, ww, wlk.height))
+            a0 = w0 if cid in IDLE_STATIC else atk.crop((0, 0, meta["attack"]["w"], atk.height))
             cw = max(a0.width, w0.width); ch = max(a0.height, w0.height)
             def cell(f):
                 c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.paste(f, ((cw - f.width) // 2, ch - f.height), f); return c
             A, W = cell(a0), cell(w0)
-            seq = [A, inbetween(A, W, 0.2), inbetween(A, W, 0.4), inbetween(A, W, 0.6)]
-            seq = seq + [seq[2], seq[1]]
+            if cid in IDLE_STATIC:
+                seq = [W] * 6
+            else:
+                seq = [A, inbetween(A, W, 0.2), inbetween(A, W, 0.4), inbetween(A, W, 0.6)]
+                seq = seq + [seq[2], seq[1]]
             strip = Image.new("RGBA", (cw * len(seq), ch), (0, 0, 0, 0))
             for i, f in enumerate(seq): strip.paste(f, (i * cw, 0), f)
             strip.save(f"{out_dir}/{cid}_idle_{slot}.png")
@@ -98,7 +105,7 @@ def make_idle(out_dir, manifest, ids):
 
 manifest = json.load(open(f"{OUT}/manifest.json"))
 if CONTACT == "idle":
-    make_idle(OUT, manifest, list(manifest.keys()))
+    make_idle(OUT, manifest, sys.argv[3].split(",") if len(sys.argv) > 3 else list(manifest.keys()))
     json.dump(manifest, open(f"{OUT}/manifest.json", "w"), indent=1)
     sys.exit(0)
 contact = []

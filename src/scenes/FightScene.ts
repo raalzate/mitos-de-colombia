@@ -931,7 +931,11 @@ export class FightScene extends Phaser.Scene {
             v.blend.setAlpha(0);
             v.lastFootfallIndex = -1;
           }
-          if (f.anim === 'idle') target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.008; // respiración sutil sobre el ciclo de guardia
+          if (f.anim === 'idle') {
+            // respiración sutil sobre el ciclo de guardia; Patasola (reposo fijo) salta sobre su única pierna
+            if (v.id === 'patasola') target.dy = -Math.abs(Math.round(Math.sin(this.logicFrame / 9) * 2));
+            else target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.008;
+          }
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
           else if (f.anim === 'hit') target.dx = -2;
           else if (f.state === 'attack' || f.state === 'special') {
