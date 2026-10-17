@@ -41,6 +41,40 @@ assert len(rows) == 10, f"filas detectadas: {len(rows)} {rows}"
 # secciones fijas (fracción del ancho): walk, attack, hurt
 cols_all = [(int(W*0.098), int(W*0.395)), (int(W*0.400), int(W*0.690)), (int(W*0.700), int(W*0.995))]
 
+HOLE_LOG = []
+
+def background_mask(rgb):
+    """Fondo de la hoja: blanco/casi blanco conectado con el borde del recorte. Se busca primero sobre
+    la máscara clara erosionada (las rendijas finas del contorno no dejan pasar el relleno, así la camisa o
+    el vestido blancos quedan opacos) y luego se deja crecer 3 px dentro de lo claro para tragarse el halo
+    de antialias del generador. Los huecos encerrados de blanco puro (media >= 253.5) también son fondo."""
+    light = rgb.min(axis=2) >= 215
+    core = ndi.binary_erosion(light, iterations=2, border_value=1)
+    lab, _ = ndi.label(core)
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    bg = np.isin(lab, list(edge))
+    for _ in range(3):
+        bg = ndi.binary_dilation(bg) & light
+    pure = rgb.min(axis=2) >= 252
+    pl, pn = ndi.label(pure & ~bg)
+    for k in range(1, pn + 1):
+        m = pl == k
+        if m.sum() > rgb.shape[0] * rgb.shape[1] * 0.0008 and rgb[m].min(axis=1).mean() >= 253.5:
+            bg |= ndi.binary_dilation(m, iterations=3) & light
+    return bg
+
+def fill_inner_white(sil, rgb, cid="", act=""):
+    """Silueta del fotograma: la región del personaje menos el fondo de la hoja."""
+    region = ndi.binary_fill_holes(ndi.binary_dilation(sil, iterations=2))
+    out = region & ~background_mask(rgb)
+    ol, on = ndi.label(out)
+    if on > 1:
+        sizes = ndi.sum(out, ol, range(1, on + 1))
+        out = np.isin(ol, [i + 1 for i, z in enumerate(sizes) if z >= sizes.max() * 0.03])
+    return out
+
+HOLE_BG_MIN_FRAC = 0.002
+
 def pixelize(img, scale, colors=40):
     w,h = img.size
     nw, nh = max(1, round(w*scale)), max(1, round(h*scale))
@@ -93,7 +127,8 @@ for ri,(y0,y1) in enumerate(rows):
             gx0, gx1 = cx0+fx0+xs.min(), cx0+fx0+xs.max()+1
             gy0, gy1 = y0+ys.min(), y0+ys.max()+1
             crop = im.crop((gx0,gy0,gx1,gy1))
-            alpha = (keepm[ys.min():ys.max()+1, xs.min():xs.max()+1]*255).astype(np.uint8)
+            sil = keepm[ys.min():ys.max()+1, xs.min():xs.max()+1]
+            alpha = (fill_inner_white(sil, np.array(crop).astype(int), cid, act) * 255).astype(np.uint8)
             frames.append(Image.fromarray(np.dstack([np.array(crop), alpha]).astype(np.uint8), "RGBA"))
         # celda común: alto máximo de la fila completa se calcula después; aquí guardamos
         manifest[cid][act] = frames
@@ -161,6 +196,7 @@ for cid in IDS:
         contact_frames.append((cid, act, strip))
     sheets[cid] = meta
 json.dump(sheets, open(f"{OUT}/manifest.json","w"), indent=1)
+if os.environ.get("HOLES_LOG"): json.dump(HOLE_LOG, open(os.environ["HOLES_LOG"], "w"))
 
 # hoja de contacto
 rowsH = sum(max(s.height for c,a,s in contact_frames if c==cid) + 4 for cid in IDS)

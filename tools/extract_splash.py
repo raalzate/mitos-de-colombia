@@ -18,6 +18,28 @@ def spans(profile, thresh, min_len):
     if start is not None and len(profile) - start >= min_len: out.append((start, len(profile)))
     return out
 
+import scipy.ndimage as ndi
+
+def background_mask(rgb):
+    """Fondo de la hoja: blanco/casi blanco conectado con el borde del recorte. Se busca primero sobre
+    la máscara clara erosionada (las rendijas finas del contorno no dejan pasar el relleno, así la camisa o
+    el vestido blancos quedan opacos) y luego se deja crecer 3 px dentro de lo claro para tragarse el halo
+    de antialias del generador. Los huecos encerrados de blanco puro (media >= 253.5) también son fondo."""
+    light = rgb.min(axis=2) >= 215
+    core = ndi.binary_erosion(light, iterations=2, border_value=1)
+    lab, _ = ndi.label(core)
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    bg = np.isin(lab, list(edge))
+    for _ in range(3):
+        bg = ndi.binary_dilation(bg) & light
+    pure = rgb.min(axis=2) >= 252
+    pl, pn = ndi.label(pure & ~bg)
+    for k in range(1, pn + 1):
+        m = pl == k
+        if m.sum() > rgb.shape[0] * rgb.shape[1] * 0.0008 and rgb[m].min(axis=1).mean() >= 253.5:
+            bg |= ndi.binary_dilation(m, iterations=3) & light
+    return bg
+
 def pixelize(img, target_h=None, target_w=None, colors=40):
     """RGBA -> downscale (LANCZOS) -> hard alpha -> limited palette."""
     w, h = img.size
@@ -69,7 +91,7 @@ BODIES = {
     "patasola": ("patasola.png", (20, 940, 240, 1155)),
     "hombrecaiman": ("hombre_caiman.jpeg", (5, 980, 200, 1190)),
     "llorona": ("llorona.jpeg", (10, 360, 235, 605)),
-    "sombreron": ("sombrerero.jpeg", (15, 30, 215, 300)),
+    "sombreron": ("sombrerero.jpeg", (15, 30, 194, 300)),
     "mohan": ("mohan.jpeg", (5, 935, 220, 1172)),
     "muelona": ("muelona.jpeg", (5, 20, 235, 280)),
     "silbon": ("silbon.jpeg", (5, 10, 235, 280)),
@@ -82,11 +104,11 @@ for name, (file, box) in BODIES.items():
     x0, y0, x1, y1 = [int(v * k) for v in box]
     crop = im.crop((x0, y0, x1, y1))
     ca = np.array(crop).astype(int)
-    alpha = (ca.min(axis=2) < 225).astype(np.uint8) * 255
     import scipy.ndimage as ndi
+    alpha = (~background_mask(ca)).astype(np.uint8) * 255
     lab, n = ndi.label(alpha > 0)
     sizes = ndi.sum(alpha > 0, lab, range(1, n + 1))
-    keep = [i + 1 for i, sz in enumerate(sizes) if sz >= sizes.max() * 0.04]
+    keep = [i + 1 for i, sz in enumerate(sizes) if sz >= sizes.max() * 0.12]
     alpha = np.where(np.isin(lab, keep), alpha, 0).astype(np.uint8)
     ys, xs = np.where(alpha > 0)
     crop = crop.crop((xs.min(), ys.min(), xs.max() + 1, ys.max() + 1))
