@@ -22,12 +22,14 @@ import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '..
 import { sfx } from '../audio/Sfx';
 import { SCARE_COOLDOWN, shouldRandomScare, tension } from '../combat/Fear';
 import { playScreamer } from '../ui/Screamer';
+import { FINISH_FRAMES, bloodDrops, cpuWantsFatality, finishPrompt, isFatalityInput } from '../combat/Finish';
+import { LOOKS } from '../art/CharacterArtist';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
 import type { ResultData } from './ResultScene';
 
-type Phase = 'intro' | 'fight' | 'roundEnd' | 'matchEnd';
+type Phase = 'intro' | 'fight' | 'finish' | 'roundEnd' | 'matchEnd';
 
 interface FighterView {
   sprite: Phaser.GameObjects.Sprite;
@@ -129,6 +131,11 @@ export class FightScene extends Phaser.Scene {
   private scareUsedRound = false;
   private framesSinceScare = SCARE_COOLDOWN;
   private finalScareDone = false;
+  private bloodR!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private bloodL!: Phaser.GameObjects.Particles.ParticleEmitter;
+  private splats: Phaser.GameObjects.Image[] = [];
+  /** la CPU decide una vez por remate si hace la fatalidad */
+  private cpuFatality: boolean | null = null;
   private message!: Phaser.GameObjects.BitmapText;
   private subMessage!: Phaser.GameObjects.BitmapText;
   private overlay!: Phaser.GameObjects.Rectangle;
@@ -242,6 +249,14 @@ export class FightScene extends Phaser.Scene {
       tint: [0xffb040, 0xff6020, 0xfff0a0],
       emitting: false,
     }).setDepth(26);
+    // sangre: hacia delante del atacante (dos emisores, uno por lado)
+    const bloodCfg = (angle: { min: number; max: number }) => ({
+      speed: { min: 70, max: 230 }, angle, gravityY: 560, lifespan: { min: 600, max: 1200 },
+      scale: { start: 2, end: 1 }, emitting: false,
+    });
+    this.bloodR = this.add.particles(0, 0, 'p_blood', bloodCfg({ min: -75, max: 5 })).setDepth(24);
+    this.bloodL = this.add.particles(0, 0, 'p_blood', bloodCfg({ min: 175, max: 255 })).setDepth(24);
+    this.splats = [];
     this.sparkEmitter = this.add.particles(0, 0, 'p_spark', {
       speed: { min: 40, max: 140 },
       gravityY: 160,
@@ -451,6 +466,77 @@ export class FightScene extends Phaser.Scene {
     if (!this.matchWinnerSlot && this.score.roundsPlayed >= MAX_ROUNDS) {
       this.matchWinnerSlot = forcedWinner(this.score, this.p1.hp, this.p2.hp);
     }
+    // KO que decide el combate: ventana de remate al estilo Mortal Kombat
+    if (ko && this.matchWinnerSlot && (this.matchWinnerSlot === 1 ? this.p2 : this.p1).hp <= 0) {
+      this.phase = 'finish';
+      this.phaseFrame = 0;
+      this.cpuFatality = null;
+    }
+  }
+
+  /** «¡ACÁBALO!»: el ganador tiene unos segundos para hacer la fatalidad. */
+  private stepFinish(): void {
+    this.p1.update(EMPTY_INPUT);
+    this.p2.update(EMPTY_INPUT);
+    const slot = this.matchWinnerSlot!;
+    const winner = slot === 1 ? this.p1 : this.p2;
+    const loser = slot === 1 ? this.p2 : this.p1;
+    const start = 50;
+    if (this.phaseFrame === start) {
+      this.showMessage(finishPrompt(LOOKS[loser.stats.id].female), 'DEFINITIVO O GOLPE FUERTE: FATALIDAD');
+      sfx.play('sting');
+    }
+    if (this.phaseFrame < start) return;
+    const t = this.phaseFrame - start;
+    this.message.setVisible(Math.floor(t / 12) % 2 === 0);
+    const isCpu = this.settings.mode === 'cpu' && slot === 2;
+    let go = false;
+    if (isCpu) {
+      if (this.cpuFatality === null) this.cpuFatality = cpuWantsFatality(this.settings.difficulty, Math.random());
+      go = this.cpuFatality && t === 70;
+    } else {
+      const p = inputManager.snapshot(slot).pressed;
+      go = isFatalityInput({ ultimate: p.ultimate, heavy: p.heavy, heavykick: p.heavykick });
+    }
+    if (go) {
+      this.fatality(winner, loser, slot);
+      return;
+    }
+    if (t >= FINISH_FRAMES) {
+      // no remató: sigue el final normal (con el susto de la cara del ganador)
+      this.message.setVisible(true);
+      this.showMessage('K.O.', '');
+      this.phase = 'roundEnd';
+      this.phaseFrame = 30;
+    }
+  }
+
+  /** FATALIDAD: chorro de sangre, manchas, golpe de tensión y la cara del ganador. */
+  private fatality(winner: Fighter, loser: Fighter, slot: PlayerSlot): void {
+    this.message.setVisible(true);
+    this.showMessage('FATALIDAD', winner.stats.name);
+    winner.setState('victory');
+    sfx.play('heavy');
+    sfx.play('sting');
+    this.cameras.main.shake(500, 0.02);
+    this.flashRect.setFillStyle(0x900000).setAlpha(0.6);
+    // fuente de sangre durante ~1 s desde el cuerpo del rival
+    const by = loser.y - 14;
+    this.time.addEvent({
+      delay: 80,
+      repeat: 12,
+      callback: () => {
+        this.bleed(loser.x + Phaser.Math.Between(-6, 6), by, 1, 14, 1);
+        this.bleed(loser.x + Phaser.Math.Between(-6, 6), by, -1, 14, 1);
+      },
+    });
+    this.finalScareDone = true;
+    this.time.delayedCall(1100, () => {
+      this.flashRect.setFillStyle(0xffffff);
+      this.triggerScare(slot);
+    });
+    this.phase = 'roundEnd';
+    this.phaseFrame = 40;
   }
 
   /* ------------------------------------------------------------------ */
@@ -534,6 +620,9 @@ export class FightScene extends Phaser.Scene {
       }
       case 'fight':
         this.stepFight();
+        break;
+      case 'finish':
+        this.stepFinish();
         break;
       case 'roundEnd':
         this.stepRoundEnd();
@@ -808,6 +897,7 @@ export class FightScene extends Phaser.Scene {
     } else {
       sfx.play(e.heavy ? 'heavy' : 'hit');
       this.views[e.defender.slot].flash = 4;
+      this.bleed(e.x, e.y, e.attacker.facing, bloodDrops(false, e.heavy, e.result.damage), e.heavy ? 3 : 1);
       this.sparkEmitter.explode(e.heavy ? 10 : 5, e.x, e.y);
       if (e.heavy) this.cameras.main.shake(120, 0.006);
       const kind = e.projectile ? e.projectile.attack.kind : e.attacker.attack?.kind;
@@ -815,6 +905,18 @@ export class FightScene extends Phaser.Scene {
       if (spec) this.emitterFor(spec.particle)?.explode(10, e.x, e.y);
       if (spec?.drain) this.views[e.attacker.slot].flash = 0;
     }
+  }
+
+  /** Sangre: gotas en la dirección del golpe y manchas en el suelo que se desvanecen. */
+  private bleed(x: number, y: number, facing: number, drops: number, splats: number): void {
+    if (drops > 0) (facing === 1 ? this.bloodR : this.bloodL).explode(drops, x, y);
+    for (let i = 0; i < splats; i++) {
+      const sp = this.add.image(x + facing * Phaser.Math.Between(4, 30), GROUND_Y + 1, 'p_splat').setOrigin(0.5, 1).setDepth(7);
+      sp.setScale(Phaser.Math.FloatBetween(0.8, 1.8), 1);
+      this.tweens.add({ targets: sp, alpha: 0, delay: 5000, duration: 2500, onComplete: () => sp.destroy() });
+      this.splats.push(sp);
+    }
+    while (this.splats.length > 40) this.splats.shift()?.destroy();
   }
 
   private addDrawnFx(key: string, kind: DrawnFxKind, anchor: 'center' | 'bottom' | 'left', x: number, y: number, flip: boolean, depth: number, scale: number, projectile: boolean): Phaser.GameObjects.Image {

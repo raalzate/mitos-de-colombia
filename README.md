@@ -268,6 +268,22 @@ ambos definitivos.
   con 20 s de separación) y tras 25 s quieto en el menú. La lógica del combate se
   pausa mientras dura el susto.
 
+## Estilo Mortal Kombat: criterio de aceptación
+
+| Criterio | Estado | Cómo se verificó |
+|---|---|---|
+| Un único personaje por luchador en todos los estados (un solo fotograma visible, sin imágenes superpuestas) | Cumple | Lectura de textura y fotograma por estado en el juego; capturas de los 10 caminando |
+| Al empezar a caminar no cambia la imagen | Cumple | El reposo es el primer fotograma del ciclo de andar |
+| Caminar con al menos tantas imágenes por segundo como MK II | Cumple | 11–27 frente a 9,5 (tabla siguiente) |
+| Sangre en los golpes (gotas en la dirección del golpe y manchas en el suelo) | Cumple | Captura de un golpe fuerte de Juan Machete al Silbón |
+| «¡ACÁBALO!/¡ACÁBALA!» tras el KO decisivo y FATALIDAD (definitivo o golpe fuerte) | Cumple | Captura de la fatalidad: texto, fuente de sangre y susto con la cara del ganador |
+| Escenarios oscuros y temáticos | Cumple | 6 escenarios nocturnos o de terror |
+| Golpes, caída y giro con tantos fotogramas dibujados como MK II | No cumple | Requiere más fotogramas dibujados; se decidió dejar la animación como está |
+
+En combate, tras el KO que decide el combate el ganador tiene 4 s para pulsar el
+definitivo o un golpe fuerte (P1: T, G o B; P2: P, K o I). La CPU remata con una
+probabilidad que sube con la dificultad.
+
 ## Fluidez frente a Mortal Kombat II
 
 Referencia: GIF de caminar de MK II en mortalkombatwarehouse.com (Scorpion,

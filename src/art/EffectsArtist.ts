@@ -264,7 +264,14 @@ export function buildParticles(): Record<string, Pixmap> {
   fly.rect(0, 0, 2, 2, hexToRgba(0xd8ff80));
   const ember = new Pixmap(2, 2);
   ember.rect(0, 0, 2, 2, hexToRgba(0xffb040));
-  return { leaf, drop, spark, fly, ember };
+  // sangre: gota (2x3) y mancha de suelo (7x2)
+  const blood = new Pixmap(2, 3);
+  blood.rect(0, 0, 2, 2, hexToRgba(0xb00010));
+  blood.set(0, 2, hexToRgba(0x70000a));
+  const splat = new Pixmap(7, 2);
+  splat.rect(1, 0, 5, 1, hexToRgba(0x8a0010));
+  splat.rect(0, 1, 7, 1, hexToRgba(0x5a0008));
+  return { leaf, drop, spark, fly, ember, blood, splat };
 }
 
 /** Arco de corte (blanco, para teñir): 4 frames. */
