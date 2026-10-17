@@ -1,0 +1,45 @@
+{
+ "usage": null,
+ "background_job_id": "037a625b-7f4a-4e75-ac5a-b007ed15cd7a",
+ "tileset_id": "e5678692-9ea4-44eb-b397-57096adaf975",
+ "status": "processing",
+ "_jobs": [
+  {
+   "usage": {
+    "type": "generations",
+    "generations": 3.0
+   },
+   "id": "037a625b-7f4a-4e75-ac5a-b007ed15cd7a",
+   "status": "completed",
+   "created_at": "2026-10-17T03:19:57.492769+00:00",
+   "last_response": {
+    "seed": 1372554918,
+    "type": "done",
+    "usage": {
+     "seconds": 22.84204339981079
+    },
+    "action": "tiles",
+    "status": "completed",
+    "progress": 1.3694444444444445,
+    "tileset_id": "e5678692-9ea4-44eb-b397-57096adaf975",
+    "frame_index": 0,
+    "request_type": "tileset",
+    "tileset_name": "lush green grass meadow \u2197 light brown dirt path",
+    "billing_usage": {
+     "usd": 0.0,
+     "type": "generations",
+     "generations": 3
+    },
+    "generation_id": "359199d7-272d-44e5-ab95-33c9bc50e7ef",
+    "queue_position": 0,
+    "billing_charged": true,
+    "saved_to_database": true,
+    "tileset_description": "lush green grass meadow \u2192 light brown dirt path",
+    "generation_started_at": "2026-10-17T03:19:57.689881+00:00",
+    "estimated_wait_seconds": 0,
+    "original_image_n_colors": 210,
+    "quantized_image_n_colors": 45
+   }
+  }
+ ]
+}

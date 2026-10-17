@@ -91,7 +91,7 @@ definitivo (T / P). Los tipos de habilidad son: **golpe** (hitbox con efecto),
 | El Mohán | rápido | Oleada del Magdalena (proyectil) | Niebla encantada (teletransporte) | Abismo del río (vórtice) |
 | La Muelona | equilibrado | Mordisco (embestida, roba vida) | Risa macabra (onda) | Festín de dientes |
 | El Silbón | rápido, alto | Silbido (proyectil) | Lluvia de huesos (erupción) | Saco de huesos (tormenta) |
-| Juan Machete | pesado | Machetazo (golpe) | Llamarada (erupción) | Pacto infernal (tormenta) |
+| Juan Machete | pesado | Machetazo (golpe) | Llamarada (erupción) | Furia paisa (tormenta) |
 | Bachué | equilibrado | Serpiente de agua (proyectil) | Manantial (erupción) | Abrazo de la laguna (vórtice) |
 
 ### Escenarios (6)
@@ -339,3 +339,25 @@ vercel deploy --prod  # build con pnpm y publica dist/
 ```
 
 `images/`, `tests/` y las capturas quedan fuera del upload (`.vercelignore`).
+
+## Modo aventura
+
+Desde el menú, **MODO AVENTURA** abre un recorrido por casillas con vista desde arriba, al estilo de los juegos de bolsillo:
+
+- **Juan Machete es el protagonista**: un campesino paisa de Medellín, vivo y berraco. Llega a la vereda San Agustín
+  y la abuela Rosa le cuenta que cinco espantos asustan a la gente. Él siempre es quien pelea.
+- **Los espantos** (Silbón, Llorona, Patasola, Sombrerón y Mohán) se ven en el mapa. Si te acercas, gritan, el héroe
+  tiembla del miedo, el espanto se acerca y empieza un **combate de lucha** como el del modo normal (rounds, golpes,
+  especiales, ¡ACÁBALO!). En la hierba alta también saltan mitos salvajes.
+- **Si ganas** sigues donde estabas y el espanto queda calmado. **Si pierdes**, FIN DEL JUEGO: la partida se borra y todo vuelve a empezar.
+- Los espantos se ponen más bravos (dificultad difícil) cuando ya calmaste a tres. Los salvajes van en fácil.
+- Don Toño, el pescador, oye llorar a la Llorona, se asusta y huye a la vereda.
+- Con los cinco calmados, vuelve con la abuela para el final.
+
+Controles en el mapa: flechas para andar, ESPACIO/ENTER para hablar y aceptar, ESC para el menú (espantos que faltan, guardar).
+La partida se guarda en el navegador.
+
+Arte: Juan Machete en el mapa (4 direcciones y caminata, generado con PixelLab y repintado en `tools/import_aventura.py` con sombrero café, camisa blanca, jean y bigote para que sea el mismo de la pelea), la abuela, don Toño, el árbol y el tileset de hierba y camino se generaron
+con **PixelLab** (originales en `images/pixellab/aventura/`, `tools/pixellab_api.py` lee la clave de `.env`, que no se
+sube). `tools/import_aventura.py` los convierte en `public/assets/aventura/`. Agua, hierba alta, puente, letreros y
+casas se dibujan en código (`src/adventure/OverworldArt.ts`); en combate se usan las tiras dibujadas de los luchadores.

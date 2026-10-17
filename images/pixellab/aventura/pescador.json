@@ -1,0 +1,42 @@
+{
+ "usage": null,
+ "background_job_id": "454f6f9b-8bd3-461e-aff9-0c803082e762",
+ "character_id": "5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0",
+ "status": "processing",
+ "enhanced_prompt": null,
+ "enhance_usage": null,
+ "_jobs": [
+  {
+   "usage": {
+    "type": "generations",
+    "generations": 2.0
+   },
+   "id": "454f6f9b-8bd3-461e-aff9-0c803082e762",
+   "status": "completed",
+   "created_at": "2026-10-17T03:23:59.944797+00:00",
+   "last_response": {
+    "status": "completed",
+    "character_id": "5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0",
+    "storage_urls": {
+     "east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/east.png",
+     "west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/west.png",
+     "north": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/north.png",
+     "south": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/south.png",
+     "north-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/north-east.png",
+     "north-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/north-west.png",
+     "south-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/south-east.png",
+     "south-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/5714af20-0bfe-4b0e-aa1a-7d6bcdfbb2c0/rotations/south-west.png"
+    },
+    "billing_usage": {
+     "type": "generations",
+     "generations": 2.0
+    },
+    "character_name": "Colombian river fisherman villager man, straw hat,",
+    "directions_type": "8-directions",
+    "generation_mode": "pixen_v3",
+    "directions_count": 8,
+    "character_description": "Colombian river fisherman villager man, straw hat, white shirt, rolled-up blue pants, barefoot, fishing net on shoulder"
+   }
+  }
+ ]
+}

@@ -1,0 +1,42 @@
+{
+ "usage": null,
+ "background_job_id": "970c1a0b-86d4-410a-a44b-a2c8df8d579d",
+ "character_id": "bfcc6354-7832-428a-876b-3e5fe9f0fe0a",
+ "status": "processing",
+ "enhanced_prompt": null,
+ "enhance_usage": null,
+ "_jobs": [
+  {
+   "usage": {
+    "type": "generations",
+    "generations": 2.0
+   },
+   "id": "970c1a0b-86d4-410a-a44b-a2c8df8d579d",
+   "status": "completed",
+   "created_at": "2026-10-17T03:21:10.464451+00:00",
+   "last_response": {
+    "status": "completed",
+    "character_id": "bfcc6354-7832-428a-876b-3e5fe9f0fe0a",
+    "storage_urls": {
+     "east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/east.png",
+     "west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/west.png",
+     "north": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/north.png",
+     "south": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/south.png",
+     "north-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/north-east.png",
+     "north-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/north-west.png",
+     "south-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/south-east.png",
+     "south-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/bfcc6354-7832-428a-876b-3e5fe9f0fe0a/rotations/south-west.png"
+    },
+    "billing_usage": {
+     "type": "generations",
+     "generations": 2.0
+    },
+    "character_name": "elderly Colombian grandmother villager, gray hair ",
+    "directions_type": "8-directions",
+    "generation_mode": "pixen_v3",
+    "directions_count": 8,
+    "character_description": "elderly Colombian grandmother villager, gray hair bun, white blouse, long colorful flowered skirt, dark shawl, wooden cane"
+   }
+  }
+ ]
+}

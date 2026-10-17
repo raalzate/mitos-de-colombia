@@ -1,0 +1,42 @@
+{
+ "usage": null,
+ "background_job_id": "623d0cfb-d46c-49d9-ada9-b2671a7a021a",
+ "character_id": "ffc088b4-5995-4c89-a7af-d8104f104b04",
+ "status": "processing",
+ "enhanced_prompt": null,
+ "enhance_usage": null,
+ "_jobs": [
+  {
+   "usage": {
+    "type": "generations",
+    "generations": 2.0
+   },
+   "id": "623d0cfb-d46c-49d9-ada9-b2671a7a021a",
+   "status": "completed",
+   "created_at": "2026-10-17T03:05:10.104200+00:00",
+   "last_response": {
+    "status": "completed",
+    "character_id": "ffc088b4-5995-4c89-a7af-d8104f104b04",
+    "storage_urls": {
+     "east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/east.png",
+     "west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/west.png",
+     "north": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/north.png",
+     "south": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/south.png",
+     "north-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/north-east.png",
+     "north-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/north-west.png",
+     "south-east": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/south-east.png",
+     "south-west": "https://backblaze.pixellab.ai/file/pixellab-characters/679dafa8-5626-47a6-9176-dd904213766a/ffc088b4-5995-4c89-a7af-d8104f104b04/rotations/south-west.png"
+    },
+    "billing_usage": {
+     "type": "generations",
+     "generations": 2.0
+    },
+    "character_name": "young Colombian peasant boy, sombrero vueltiao, re",
+    "directions_type": "8-directions",
+    "generation_mode": "pixen_v3",
+    "directions_count": 8,
+    "character_description": "young Colombian peasant boy, sombrero vueltiao, red ruana"
+   }
+  }
+ ]
+}

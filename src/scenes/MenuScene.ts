@@ -6,17 +6,19 @@ import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFul
 import { addStageBackdrop, portraitKey, text } from '../utils/textures';
 import { playScreamer } from '../ui/Screamer';
 import { MENU_IDLE_SCARE_SECONDS } from '../combat/Fear';
+import { loadAdventure } from '../adventure/State';
 import type { FighterId } from '../combat/CombatTypes';
 
-type Page = 'main' | 'difficulty' | 'controls';
+type Page = 'main' | 'difficulty' | 'controls' | 'adventure';
 
 // Un jugador contra la CPU (el modo de dos jugadores está oculto)
-const MAIN_ITEMS = ['JUGAR', 'CONTROLES', 'ARTE: DIBUJADO', 'SUSTOS: SÍ', 'PANTALLA COMPLETA'];
-const PLAY_INDEX = 0;
-const CONTROLS_INDEX = 1;
-const ART_INDEX = 2;
-const SCARES_INDEX = 3;
-const FULLSCREEN_INDEX = 4;
+const MAIN_ITEMS = ['MODO AVENTURA', 'COMBATE', 'CONTROLES', 'ARTE: DIBUJADO', 'SUSTOS: SÍ', 'PANTALLA COMPLETA'];
+const ADVENTURE_INDEX = 0;
+const PLAY_INDEX = 1;
+const CONTROLS_INDEX = 2;
+const ART_INDEX = 3;
+const SCARES_INDEX = 4;
+const FULLSCREEN_INDEX = 5;
 const SCARE_FACES: FighterId[] = ['llorona', 'muelona', 'patasola', 'silbon', 'sombreron'];
 const DIFF_ITEMS: { label: string; value: Difficulty }[] = [
   { label: 'FÁCIL', value: 'easy' },
@@ -89,8 +91,10 @@ export class MenuScene extends Phaser.Scene {
     this.cursor.setVisible(page !== 'controls');
     const art = getSettings(this).art === 'drawn' ? 'ARTE: DIBUJADO' : 'ARTE: PROCEDIMENTAL';
     const scares = getSettings(this).scares ? 'SUSTOS: SÍ' : 'SUSTOS: NO';
-    const labels = page === 'main' ? MAIN_ITEMS.map((l, i) => (i === ART_INDEX ? art : i === SCARES_INDEX ? scares : l)) : page === 'difficulty' ? [...DIFF_ITEMS.map((d) => d.label), 'VOLVER'] : [];
-    this.title.setText(page === 'difficulty' ? 'DIFICULTAD' : page === 'controls' ? 'CONTROLES' : '');
+    const labels = page === 'main' ? MAIN_ITEMS.map((l, i) => (i === ART_INDEX ? art : i === SCARES_INDEX ? scares : l))
+      : page === 'difficulty' ? [...DIFF_ITEMS.map((d) => d.label), 'VOLVER']
+      : page === 'adventure' ? (loadAdventure() ? ['CONTINUAR', 'NUEVA PARTIDA', 'VOLVER'] : ['NUEVA PARTIDA', 'VOLVER']) : [];
+    this.title.setText(page === 'difficulty' ? 'DIFICULTAD' : page === 'controls' ? 'CONTROLES' : page === 'adventure' ? 'MODO AVENTURA' : '');
     labels.forEach((label, i) => {
       this.items.push(text(this, GAME_WIDTH / 2, 132 + i * 12, label, 1, 0xe8e8f0));
     });
@@ -143,7 +147,7 @@ export class MenuScene extends Phaser.Scene {
       sfx.play('select');
       this.layoutCursor();
     }
-    if (this.menu.pressed(MENU_KEYS.back) && this.page === 'difficulty') {
+    if (this.menu.pressed(MENU_KEYS.back) && (this.page === 'difficulty' || this.page === 'adventure')) {
       this.showPage('main');
       return;
     }
@@ -152,6 +156,9 @@ export class MenuScene extends Phaser.Scene {
     const s = getSettings(this);
     if (this.page === 'main') {
       switch (this.index) {
+        case ADVENTURE_INDEX:
+          this.showPage('adventure');
+          break;
         case PLAY_INDEX:
           this.showPage('difficulty');
           break;
@@ -179,6 +186,11 @@ export class MenuScene extends Phaser.Scene {
           toggleFullscreen(this);
           break;
       }
+    } else if (this.page === 'adventure') {
+      const label = this.items[this.index].text;
+      if (label === 'VOLVER') { this.showPage('main'); return; }
+      this.registry.remove('adventure');
+      this.scene.start('AdventureScene', { fresh: label === 'NUEVA PARTIDA' });
     } else if (this.page === 'difficulty') {
       if (this.index === DIFF_ITEMS.length) {
         this.showPage('main');

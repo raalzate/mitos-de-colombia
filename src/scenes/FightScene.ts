@@ -576,6 +576,8 @@ export class FightScene extends Phaser.Scene {
     if (this.menu.pressed(['Enter'])) this.setPaused(!this.paused);
     if (this.menu.pressed(['Escape'])) {
       if (this.paused) {
+        this.registry.remove('adventureFight');
+        this.registry.remove('adventure');
         this.scene.start('MenuScene');
         return;
       }
@@ -712,6 +714,11 @@ export class FightScene extends Phaser.Scene {
 
   private goToResult(): void {
     const slot = this.matchWinnerSlot ?? 1;
+    // modo aventura: se vuelve al mapa; ganar sigue la historia y perder la reinicia
+    if (this.registry.get('adventureFight')) {
+      this.scene.start('AdventureScene', { outcome: slot === 1 ? 'win' : 'lose' });
+      return;
+    }
     const data: ResultData = {
       winner: slot,
       settings: this.settings,

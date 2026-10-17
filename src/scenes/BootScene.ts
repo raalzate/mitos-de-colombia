@@ -36,6 +36,12 @@ export class BootScene extends Phaser.Scene {
       }
     }
     preloadDrawnFx(this.load);
+    // modo aventura (arte de PixelLab; si falta algo se dibuja en código)
+    this.load.spritesheet('av_hero', 'aventura/hero.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('av_abuela', 'aventura/abuela.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('av_pescador', 'aventura/pescador.png', { frameWidth: 48, frameHeight: 48 });
+    this.load.spritesheet('av_tiles', 'aventura/tiles_path.png', { frameWidth: 16, frameHeight: 16 });
+    this.load.image('av_tree', 'aventura/tree.png');
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
       console.warn(`Recurso no disponible, se usa arte procedimental: ${file.key}`);
     });
