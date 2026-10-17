@@ -201,7 +201,7 @@ ambos definitivos.
   de `images/`; la variante `p2` es un giro de tono para el espejo):
   - `portraits/`: caras (selección, HUD, VS, resultado).
   - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
-  - `anim/`: tiras de animación por personaje (`idle` 6 fotogramas de guardia
+  - `anim/`: tiras de animación por personaje (`idle` 8 fotogramas de guardia
     sintetizados entre la preparación de golpe y la postura de andar, `walk` 12–14 fotogramas, `attack`
     5–6: puño y patada, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
     cortadas de `images/Retro Folklore Character Sprite Sheet.png`
@@ -239,11 +239,10 @@ ambos definitivos.
 
 ## Limitaciones y pendientes
 
-- Las animaciones son de 2-6 fotogramas por acción; faltan transiciones
-  intermedias y animaciones de giro.
-- En modo dibujado reposo, salto, agachado y bloqueo reutilizan fotogramas de
-  las tiras de andar/golpes/daño (no hay fotogramas propios). En modo
-  procedimental los 10 personajes comparten el mismo conjunto de poses base.
+- En modo dibujado andar tiene 12–14 fotogramas y reposo 8; golpes y daño tienen
+  5–6 y no hay animación de giro. Salto, agachado y bloqueo reutilizan fotogramas
+  de las tiras de golpes/daño. En modo procedimental los 10 personajes comparten
+  el mismo conjunto de poses base.
 - Sin remapeo de controles en pantalla (los mapas están en `InputManager.ts`).
 - Sin ataques en el aire con animación propia para los puños fuertes (usan la
   misma pose que los ligeros).
@@ -251,6 +250,36 @@ ambos definitivos.
 - La música es un bucle corto sintetizado.
 - No se ha probado en Firefox/Safari reales durante el desarrollo (solo
   Chromium vía Playwright); el código no usa API exclusivas de Chromium.
+
+## Fluidez frente a Mortal Kombat II
+
+Referencia: GIF de caminar de MK II en mortalkombatwarehouse.com (Scorpion,
+Sub-Zero y Reptile: 9 fotogramas × 100 ms) y postura de Scorpion (7 × 80 ms).
+Medición al caminar: capturas del juego en 45 pasos seguidos de 60 Hz por
+personaje (solo el luchador, sin escenario) frente a los GIF reproducidos a 60 Hz
+con su tiempo original, a la misma altura. Se cuenta el % de píxeles que cambian
+visiblemente entre pasos consecutivos.
+
+| Personaje | Pasos con cambio | Congelado máx. (pasos) | Imágenes/s | Salto máx. (% px) | Cambio medio (% px) |
+|---|---|---|---|---|---|
+| MK II Scorpion | 16 % | 5 | 9,5 | 23,1 | 17,8 |
+| MK II Sub-Zero | 16 % | 5 | 9,5 | 21,4 | 18,7 |
+| MK II Reptile | 16 % | 5 | 9,5 | 24,9 | 18,2 |
+| La Madremonte | 98 % | 1 | 58,6 | 19,6 | 8,2 |
+| La Patasola | 100 % | 0 | 60 | 14,7 | 7,2 |
+| El Hombre Caimán | 91 % | 2 | 54,5 | 19,9 | 9,7 |
+| La Llorona | 98 % | 1 | 58,6 | 15,4 | 6,8 |
+| El Sombrerón | 98 % | 1 | 58,6 | 22,9 | 3,8 |
+| El Mohán | 95 % | 1 | 57,3 | 21,3 | 9,5 |
+| La Muelona | 100 % | 0 | 60 | 18,3 | 7,9 |
+| El Silbón | 100 % | 0 | 60 | 20,3 | 8,8 |
+| Juan Machete | 100 % | 0 | 60 | 19,0 | 9,0 |
+| Bachué | 93 % | 1 | 55,9 | 17,0 | 7,2 |
+
+En MK II cada pose se mantiene 5 pasos y cambia de golpe; aquí el cambio se
+reparte en casi todos los pasos con saltos menores (fundido continuo hacia el
+siguiente fotograma). Los sprites de MK II solo se usaron para medir; no están
+en el repositorio.
 
 ## Despliegue
 
