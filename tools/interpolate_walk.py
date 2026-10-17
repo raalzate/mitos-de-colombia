@@ -107,7 +107,56 @@ def make_idle(out_dir, manifest, ids):
         meta["idle"] = {"frames": 8, "w": cw, "h": ch, "interpolated": cid not in IDLE_HOP}
         print(cid, "idle 8")
 
+def make_attack(out_dir, manifest, ids):
+    """Golpes: entre cada par de fotogramas clave se inserta un intermedio (2n-1 fotogramas);
+    el fotograma clave k queda en el índice 2k."""
+    for cid in ids:
+        meta = manifest[cid]["attack"]
+        if meta.get("interpolated"): continue
+        n, cw = meta["frames"], meta["w"]
+        for slot in ("p1", "p2"):
+            strip = Image.open(f"{out_dir}/{cid}_attack_{slot}.png").convert("RGBA")
+            keys = [strip.crop((i * cw, 0, (i + 1) * cw, strip.height)) for i in range(n)]
+            seq = []
+            for i, k in enumerate(keys):
+                seq.append(k)
+                if i < n - 1: seq.append(inbetween(k, keys[i + 1]))
+            out = Image.new("RGBA", (cw * len(seq), strip.height), (0, 0, 0, 0))
+            for i, f in enumerate(seq): out.paste(f, (i * cw, 0), f)
+            out.save(f"{out_dir}/{cid}_attack_{slot}.png")
+        meta.update({"frames": 2 * n - 1, "interpolated": True, "keys": n})
+        print(cid, "attack", n, "->", 2 * n - 1)
+
+def make_trans(out_dir, manifest, ids):
+    """Transiciones de guardia: [agacharse 1/3, agacharse 2/3, bloqueo 1/2] desde la postura de andar."""
+    for cid in ids:
+        m = manifest[cid]
+        for slot in ("p1", "p2"):
+            wlk = Image.open(f"{out_dir}/{cid}_walk_{slot}.png").convert("RGBA")
+            atk = Image.open(f"{out_dir}/{cid}_attack_{slot}.png").convert("RGBA")
+            hrt = Image.open(f"{out_dir}/{cid}_hurt_{slot}.png").convert("RGBA")
+            hn = m["hurt"]["frames"]; getup = 4 if hn >= 6 else hn - 2
+            w0 = wlk.crop((0, 0, m["walk"]["w"], wlk.height))
+            a0 = atk.crop((0, 0, m["attack"]["w"], atk.height))
+            c0 = hrt.crop((getup * m["hurt"]["w"], 0, (getup + 1) * m["hurt"]["w"], hrt.height))
+            cw = max(w0.width, a0.width, c0.width); ch = max(w0.height, a0.height, c0.height)
+            def cell(f):
+                c = Image.new("RGBA", (cw, ch), (0, 0, 0, 0)); c.paste(f, ((cw - f.width) // 2, ch - f.height), f); return c
+            W, A, C = cell(w0), cell(a0), cell(c0)
+            # Patasola: el pelo se deforma con la síntesis; sus transiciones usan solo fotogramas originales
+            seq = [W, A, A] if cid in IDLE_HOP else [inbetween(W, C, 0.33), inbetween(W, C, 0.66), inbetween(W, A, 0.5)]
+            out = Image.new("RGBA", (cw * 3, ch), (0, 0, 0, 0))
+            for i, f in enumerate(seq): out.paste(f, (i * cw, 0), f)
+            out.save(f"{out_dir}/{cid}_trans_{slot}.png")
+        m["trans"] = {"frames": 3, "w": cw, "h": ch, "interpolated": True}
+        print(cid, "trans 3")
+
 manifest = json.load(open(f"{OUT}/manifest.json"))
+if CONTACT in ("attack", "trans"):
+    ids = sys.argv[3].split(",") if len(sys.argv) > 3 else list(manifest.keys())
+    (make_attack if CONTACT == "attack" else make_trans)(OUT, manifest, ids)
+    json.dump(manifest, open(f"{OUT}/manifest.json", "w"), indent=1)
+    sys.exit(0)
 if CONTACT == "idle":
     make_idle(OUT, manifest, sys.argv[3].split(",") if len(sys.argv) > 3 else list(manifest.keys()))
     json.dump(manifest, open(f"{OUT}/manifest.json", "w"), indent=1)

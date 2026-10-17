@@ -203,7 +203,7 @@ ambos definitivos.
   - `splash/`: cuerpo entero base + 4 poses por personaje (habilidades).
   - `anim/`: tiras de animación por personaje (`idle` 8 fotogramas de guardia
     sintetizados entre la preparación de golpe y la postura de andar, `walk` 12–14 fotogramas, `attack`
-    5–6: puño y patada, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
+    9–11: puño y patada con intermedios sintetizados, `trans` 3: entrada a agacharse y bloquear, `hurt` 5–6: golpe, caída, tumbado, levantarse, victoria),
     cortadas de `images/Retro Folklore Character Sprite Sheet.png`
     (`tools/extract_anim.py`; a La Patasola se le borra la pierna trasera). Los
     fotogramas intermedios del ciclo de andar los sintetiza
@@ -239,9 +239,10 @@ ambos definitivos.
 
 ## Limitaciones y pendientes
 
-- En modo dibujado andar tiene 12–14 fotogramas y reposo 8; golpes y daño tienen
-  5–6 y no hay animación de giro. Salto, agachado y bloqueo reutilizan fotogramas
-  de las tiras de golpes/daño. En modo procedimental los 10 personajes comparten
+- En modo dibujado andar tiene 12–14 fotogramas, reposo 8 y golpes 9–11; daño
+  tiene 5–6 (sus poses cambian demasiado para sintetizar intermedios) y no hay
+  animación de giro. Salto, agachado y bloqueo reutilizan fotogramas de las tiras
+  de golpes/daño con transiciones de entrada. En modo procedimental los 10 personajes comparten
   el mismo conjunto de poses base.
 - Sin remapeo de controles en pantalla (los mapas están en `InputManager.ts`).
 - Sin ataques en el aire con animación propia para los puños fuertes (usan la
@@ -275,6 +276,20 @@ visiblemente entre pasos consecutivos.
 | El Silbón | 100 % | 0 | 60 | 20,3 | 8,8 |
 | Juan Machete | 100 % | 0 | 60 | 19,0 | 9,0 |
 | Bachué | 93 % | 1 | 55,9 | 17,0 | 7,2 |
+
+Golpes, agacharse y bloquear (capturas de Mohán, Madremonte y Caimán; la tira de
+golpes pasa de 5–6 a 9–11 fotogramas y el fotograma sigue la preparación, el
+impacto y la recuperación de cada ataque):
+
+| Acción | Fotogramas dibujados distintos | Salto máx. (% px) |
+|---|---|---|
+| Puño | 3–5 | 13,5–17,4 |
+| Patada fuerte | 5 | 15,9–21,1 |
+| Agacharse (achatado progresivo en 6 pasos) | 3 | 12,5–15,6 |
+| Bloquear | 2 | 14,1–17,4 |
+
+MK II no publica tiempos de sus golpes: en mortalkombatwarehouse solo hay
+fotogramas sueltos de cada golpe, así que aquí no se comparan ritmos.
 
 En MK II cada pose se mantiene 5 pasos y cambia de golpe; aquí el cambio se
 reparte en casi todos los pasos con saltos menores (fundido continuo hacia el

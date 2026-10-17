@@ -25,6 +25,21 @@ export interface DrawnFrameInput {
   walkDistance?: number;
   /** subiendo en el salto */
   rising?: boolean;
+  /** velocidad vertical (px/frame, negativa = sube): fase continua del salto */
+  vy?: number;
+  /** frames en el estado actual: transiciones al agacharse y bloquear */
+  stateFrame?: number;
+  /** avance del golpe en curso: el fotograma sigue preparación → impacto → recuperación */
+  attackProgress?: { frame: number; startup: number; active: number; recovery: number };
+}
+
+/** Índice en la tira de un golpe según su avance: preparación (s→e), impacto (e), recuperación (e→E). */
+export function attackIndex(s: number, e: number, E: number, p: { frame: number; startup: number; active: number; recovery: number }): number {
+  const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * Math.min(1, Math.max(0, t)));
+  if (p.frame < p.startup) return lerp(s, e, p.startup > 0 ? p.frame / p.startup : 1);
+  if (p.frame < p.startup + p.active) return e;
+  const t = p.recovery > 0 ? (p.frame - p.startup - p.active) / p.recovery : 1;
+  return E > e ? lerp(e, E, t) : lerp(e, s, t);
 }
 
 export function drawnAnimKey(id: FighterId, slot: 'p1' | 'p2', action: DrawnAction): string {
@@ -34,6 +49,8 @@ export function drawnAnimKey(id: FighterId, slot: 'p1' | 'p2', action: DrawnActi
 export function drawnAnimFile(id: FighterId, slot: 'p1' | 'p2', action: DrawnAction): string {
   return `anim/${id}_${action}_${slot}.png`;
 }
+
+const CROUCH_FROM_ATTACK = new Set<FighterId>(['patasola']);
 
 /** Velocidad del ciclo de andar (fotogramas lógicos por fotograma dibujado) cuando no hay distancia. */
 export const WALK_FRAME_TICKS = 5;
@@ -76,9 +93,24 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
   const walkN = m.walk.frames;
   const atkN = m.attack.frames;
   const hurtN = m.hurt.frames;
-  const half = Math.max(1, Math.floor(atkN / 2));
-  const punch = (f: number) => ({ action: 'attack' as const, index: [0, Math.min(half - 1, 1), Math.min(half - 1, 2)][Math.min(2, f)] });
-  const kick = (f: number) => ({ action: 'attack' as const, index: [half, Math.min(atkN - 1, half + 1), Math.min(atkN - 1, half + 2)][Math.min(2, f)] });
+  // con intermedios sintetizados el fotograma clave k está en el índice 2k
+  const ak = m.attack.interpolated ? 2 : 1;
+  const keysN = m.attack.keys ?? atkN;
+  const half = Math.max(1, Math.floor(keysN / 2));
+  const seg = (start: number, len: number) => {
+    const s = start * ak;
+    const e = (start + Math.min(1, len - 1)) * ak;
+    const E = (start + Math.min(2, len - 1)) * ak;
+    return { s, e, E };
+  };
+  const strike = (start: number, len: number, f: number) => {
+    const g = seg(start, len);
+    if (i.attackProgress) return { action: 'attack' as const, index: attackIndex(g.s, g.e, g.E, i.attackProgress) };
+    return { action: 'attack' as const, index: [g.s, g.e, g.E][Math.min(2, f)] };
+  };
+  const punch = (f: number) => strike(0, half, f);
+  const kick = (f: number) => strike(half, keysN - half, f);
+  const trans = m.trans;
   const getup = hurtN >= 6 ? 4 : hurtN - 2;
   switch (i.anim) {
     case 'idle':
@@ -90,13 +122,26 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       const k = Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
       return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
     }
-    case 'jump':
-      // subiendo: pierna recogida (preparación de patada); bajando: pierna extendida
-      return { action: 'attack', index: i.rising ? half : Math.min(atkN - 1, half + 1) };
+    case 'jump': {
+      // de pierna recogida (subiendo) a pierna extendida (bajando), continuo según la velocidad vertical
+      const g = seg(half, keysN - half);
+      if (i.vy !== undefined) {
+        const t = Math.min(1, Math.max(0, (i.vy + 5) / 10));
+        return { action: 'attack', index: Math.round(g.s + (g.e - g.s) * t) };
+      }
+      return { action: 'attack', index: i.rising ? g.s : g.e };
+    }
     case 'crouch':
-    case 'crouchblock':
+    case 'crouchblock': {
+      const sf = i.stateFrame ?? 99;
+      // en la hoja, el fotograma de levantarse de Patasola es ella tumbada: se agacha con su pose encorvada
+      if (CROUCH_FROM_ATTACK.has(id)) return sf < 3 && trans ? { action: 'trans', index: 0 } : { action: 'attack', index: 0 };
+      if (trans && sf < 3) return { action: 'trans', index: 0 };
+      if (trans && sf < 6) return { action: 'trans', index: 1 };
       return { action: 'hurt', index: getup };
+    }
     case 'block':
+      if (trans && (i.stateFrame ?? 99) < 4) return { action: 'trans', index: 2 };
       return { action: 'attack', index: 0 };
     case 'special1':
       return punch(i.animFrame);
@@ -104,6 +149,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       return kick(i.animFrame);
     case 'ultimate':
       return [punch(1), kick(1), { action: 'hurt' as const, index: hurtN - 1 }][Math.min(2, i.animFrame)];
+    case 'hit':
+      return { action: 'hurt', index: i.animFrame > 0 ? Math.min(1, hurtN - 1) : 0 };
     case 'light':
     case 'airlight':
     case 'heavy':
@@ -113,9 +160,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'heavykick':
       return kick(i.animFrame);
     // tira de daño: [golpe, golpe fuerte, caída, tumbado, levantarse, victoria]; con 5 fotogramas
-    // faltan uno de los intermedios, así que se cuenta desde el final.
-    case 'hit':
-      return { action: 'hurt', index: i.animFrame > 0 ? Math.min(1, hurtN - 1) : 0 };
+    // falta uno de los intermedios, así que se cuenta desde el final.
     case 'knockdown':
       if (i.state === 'defeat' || i.grounded) return { action: 'hurt', index: hurtN >= 6 ? 3 : hurtN - 2 };
       return { action: 'hurt', index: Math.min(2, hurtN - 1) };

@@ -900,6 +900,10 @@ export class FightScene extends Phaser.Scene {
         const input = {
           state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
           backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
+          stateFrame: f.stateFrame,
+          attackProgress: f.attack && (f.state === 'attack' || f.state === 'special')
+            ? { frame: f.attackFrame, startup: f.attack.startup, active: f.attack.active, recovery: f.attack.recovery }
+            : undefined,
         };
         const df = drawnFrame(v.id, input);
         const animKey = df ? drawnAnimKey(v.id, v.pal, df.action) : null;
@@ -938,6 +942,12 @@ export class FightScene extends Phaser.Scene {
           }
           else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
           else if (f.anim === 'hit') target.dx = -2;
+          else if ((f.anim === 'crouch' || f.anim === 'crouchblock') && f.stateFrame < 6) {
+            // al agacharse la figura de pie se achata hacia los pies antes de pasar a la pose agachada
+            target.sy = 1 - 0.38 * (f.stateFrame / 6);
+            target.sx = 1 + 0.06 * (f.stateFrame / 6);
+            snap = false;
+          }
           else if (f.state === 'attack' || f.state === 'special') {
             // impulso: anticipación atrás, extensión adelante (interpolado por el lerp de abajo)
             target.dx = f.animFrame === 0 ? -2 : f.animFrame === 1 ? 4 : 1;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWN_ANIM } from '../src/art/drawnAnimManifest';
-import { WALK_STRIDE_PX, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance, walkPhase } from '../src/art/DrawnAnim';
+import { WALK_STRIDE_PX, attackIndex, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance, walkPhase } from '../src/art/DrawnAnim';
 import { FIGHTER_IDS } from '../src/data/fighters';
 
 const files = import.meta.glob('../public/assets/anim/*.png');
@@ -9,9 +9,9 @@ const base = { state: 'idle' as const, anim: 'idle', animFrame: 0, frame: 0, gro
 describe('animación dibujada', () => {
   it('cada personaje tiene las tres tiras con archivo en disco', () => {
     for (const id of FIGHTER_IDS) {
-      for (const action of ['walk', 'attack', 'hurt', 'idle'] as const) {
+      for (const action of ['walk', 'attack', 'hurt', 'idle', 'trans'] as const) {
         const m = DRAWN_ANIM[id][action];
-        expect(m.frames).toBeGreaterThanOrEqual(4);
+        expect(m.frames).toBeGreaterThanOrEqual(action === 'trans' ? 3 : 4);
         expect(m.w).toBeGreaterThan(0);
         for (const slot of ['p1', 'p2'] as const) {
           expect(Object.keys(files)).toContain(`../public/assets/${drawnAnimFile(id, slot, action)}`);
@@ -37,7 +37,7 @@ describe('animación dibujada', () => {
       expect(DRAWN_ANIM[id].idle.frames).toBe(8);
       expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(1);
       expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
-      expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe('hurt');
+      expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe(id === 'patasola' ? 'attack' : 'hurt');
     }
   });
 
@@ -96,5 +96,42 @@ describe('animación dibujada', () => {
     const back = walkPhase(WALK_STRIDE_PX * 2, n, WALK_STRIDE_PX, true);
     expect(back.index).toBe(n - 2);
     expect(back.next).toBe(n - 3);
+  });
+
+  it('los golpes recorren los fotogramas según su avance: preparación, impacto sostenido y recuperación', () => {
+    const p = { startup: 6, active: 3, recovery: 9 };
+    const seq = Array.from({ length: 18 }, (_, f) => attackIndex(0, 2, 4, { ...p, frame: f }));
+    expect(seq[0]).toBe(0);
+    expect(seq.slice(6, 9)).toEqual([2, 2, 2]);
+    expect(seq[17]).toBe(4);
+    for (let k = 1; k < seq.length; k++) expect(seq[k]).toBeGreaterThanOrEqual(seq[k - 1]);
+    expect(new Set(seq).size).toBe(5); // usa los 5 fotogramas (clave + intermedios) del puño
+    // en el juego: cada golpe pasa por sus fotogramas clave y por los intermedios entre ellos
+    for (const id of ['mohan', 'madremonte', 'hombrecaiman'] as const) {
+      const keys = DRAWN_ANIM[id].attack.keys!;
+      const half = Math.floor(keys / 2);
+      const punchIds = new Set<number>(); const kickIds = new Set<number>();
+      for (let f = 0; f < 18; f++) {
+        punchIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: f } })!.index);
+        kickIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: f } })!.index);
+      }
+      expect(punchIds.size).toBe(2 * Math.min(3, half) - 1);
+      expect(kickIds.size).toBe(2 * Math.min(3, keys - half) - 1);
+    }
+  });
+
+  it('agacharse y bloquear entran con transición propia antes de la pose final', () => {
+    expect(drawnFrame('mohan', { ...base, anim: 'crouch', stateFrame: 0 })).toEqual({ action: 'trans', index: 0 });
+    expect(drawnFrame('mohan', { ...base, anim: 'crouch', stateFrame: 4 })).toEqual({ action: 'trans', index: 1 });
+    expect(drawnFrame('mohan', { ...base, anim: 'crouch', stateFrame: 10 })!.action).toBe('hurt');
+    expect(drawnFrame('mohan', { ...base, anim: 'block', stateFrame: 1 })).toEqual({ action: 'trans', index: 2 });
+    expect(drawnFrame('mohan', { ...base, anim: 'block', stateFrame: 10 })).toEqual({ action: 'attack', index: 0 });
+    const up = drawnFrame('mohan', { ...base, anim: 'jump', vy: -5 })!.index;
+    const down = drawnFrame('mohan', { ...base, anim: 'jump', vy: 5 })!.index;
+    expect(down).toBeGreaterThan(up);
+  });
+
+  it('Patasola se agacha encorvada, no tumbada', () => {
+    expect(drawnFrame('patasola', { ...base, anim: 'crouch', stateFrame: 10 })).toEqual({ action: 'attack', index: 0 });
   });
 });
