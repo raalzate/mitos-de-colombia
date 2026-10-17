@@ -5,7 +5,7 @@ import type { MatchSettings } from '../combat/CombatTypes';
 /** Entrada global compartida por todas las escenas. */
 export const inputManager = new InputManager();
 
-export const DEFAULT_SETTINGS: MatchSettings = { mode: 'cpu', difficulty: 'normal', p1: 'madremonte', p2: 'mohan', stage: 'random', art: 'drawn' };
+export const DEFAULT_SETTINGS: MatchSettings = { mode: 'cpu', difficulty: 'normal', p1: 'madremonte', p2: 'mohan', stage: 'random', art: 'drawn', scares: true };
 
 export function getSettings(scene: Phaser.Scene): MatchSettings {
   return { ...DEFAULT_SETTINGS, ...((scene.registry.get('settings') as Partial<MatchSettings> | undefined) ?? {}) };

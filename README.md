@@ -252,6 +252,22 @@ ambos definitivos.
 - No se ha probado en Firefox/Safari reales durante el desarrollo (solo
   Chromium vía Playwright); el código no usa API exclusivas de Chromium.
 
+## Terror
+
+- **Advertencia** al arrancar (sustos, gritos fuertes, destellos) y opción
+  `SUSTOS: SÍ/NO` en el menú.
+- **Ambiente sonoro** sintetizado (`src/audio/Sfx.ts`): zumbido grave en segunda
+  menor con filtro que respira, caja de música desafinada lejana con eco,
+  susurros, crujidos y gritos lejanos al azar. La **tensión** (vida más baja y
+  tiempo restante, `src/combat/Fear.ts`) acelera un latido de 55 a 150 ppm, abre
+  el zumbido y añade un tono agudo disonante.
+- **Screamers** (`src/ui/Screamer.ts`): la cara del luchador se abalanza a pantalla
+  completa con un grito distorsionado, temblor y glitch (máximo dos destellos, sin
+  parpadeo rápido). Saltan al rematar el combate (cara del ganador), como mucho
+  una vez por ronda cuando alguien baja de 30 de vida (cara del que va ganando,
+  con 20 s de separación) y tras 25 s quieto en el menú. La lógica del combate se
+  pausa mientras dura el susto.
+
 ## Fluidez frente a Mortal Kombat II
 
 Referencia: GIF de caminar de MK II en mortalkombatwarehouse.com (Scorpion,

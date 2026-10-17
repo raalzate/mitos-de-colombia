@@ -3,12 +3,17 @@ import { GAME_WIDTH } from '../config/game-config';
 import type { Difficulty } from '../combat/CombatTypes';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
-import { addStageBackdrop, text } from '../utils/textures';
+import { addStageBackdrop, portraitKey, text } from '../utils/textures';
+import { playScreamer } from '../ui/Screamer';
+import { MENU_IDLE_SCARE_SECONDS } from '../combat/Fear';
+import type { FighterId } from '../combat/CombatTypes';
 
 type Page = 'main' | 'difficulty' | 'controls';
 
-const MAIN_ITEMS = ['UN JUGADOR VS CPU', 'DOS JUGADORES', 'CONTROLES', 'ARTE: DIBUJADO', 'PANTALLA COMPLETA'];
+const MAIN_ITEMS = ['UN JUGADOR VS CPU', 'DOS JUGADORES', 'CONTROLES', 'ARTE: DIBUJADO', 'SUSTOS: SÍ', 'PANTALLA COMPLETA'];
 const ART_INDEX = 3;
+const SCARES_INDEX = 4;
+const SCARE_FACES: FighterId[] = ['llorona', 'muelona', 'patasola', 'silbon', 'sombreron'];
 const DIFF_ITEMS: { label: string; value: Difficulty }[] = [
   { label: 'FÁCIL', value: 'easy' },
   { label: 'NORMAL', value: 'normal' },
@@ -25,12 +30,17 @@ export class MenuScene extends Phaser.Scene {
   private title!: Phaser.GameObjects.BitmapText;
   private menu = new MenuInput();
   private frame = 0;
+  private idleFrames = 0;
+  private scaring = false;
 
   constructor() {
     super('MenuScene');
   }
 
   create(): void {
+    this.idleFrames = 0;
+    this.scaring = false;
+    sfx.setTension(0);
     this.page = 'main';
     this.menu = new MenuInput();
     this.index = 0;
@@ -79,10 +89,11 @@ export class MenuScene extends Phaser.Scene {
     this.controls.setVisible(page === 'controls');
     this.cursor.setVisible(page !== 'controls');
     const art = getSettings(this).art === 'drawn' ? 'ARTE: DIBUJADO' : 'ARTE: PROCEDIMENTAL';
-    const labels = page === 'main' ? MAIN_ITEMS.map((l, i) => (i === ART_INDEX ? art : l)) : page === 'difficulty' ? [...DIFF_ITEMS.map((d) => d.label), 'VOLVER'] : [];
+    const scares = getSettings(this).scares ? 'SUSTOS: SÍ' : 'SUSTOS: NO';
+    const labels = page === 'main' ? MAIN_ITEMS.map((l, i) => (i === ART_INDEX ? art : i === SCARES_INDEX ? scares : l)) : page === 'difficulty' ? [...DIFF_ITEMS.map((d) => d.label), 'VOLVER'] : [];
     this.title.setText(page === 'difficulty' ? 'DIFICULTAD' : page === 'controls' ? 'CONTROLES' : '');
     labels.forEach((label, i) => {
-      this.items.push(text(this, GAME_WIDTH / 2, 136 + i * 14, label, 1, 0xe8e8f0));
+      this.items.push(text(this, GAME_WIDTH / 2, 132 + i * 12, label, 1, 0xe8e8f0));
     });
     if (page === 'difficulty') {
       const cur = getSettings(this).difficulty;
@@ -101,6 +112,17 @@ export class MenuScene extends Phaser.Scene {
   override update(): void {
     inputManager.update();
     this.frame++;
+    // susto si el menú se queda quieto un rato
+    if (this.scaring) return;
+    if (inputManager.heldKeys().size > 0) this.idleFrames = 0;
+    else this.idleFrames++;
+    if (getSettings(this).scares && this.idleFrames > MENU_IDLE_SCARE_SECONDS * 60 && sfx.ready) {
+      this.idleFrames = 0;
+      this.scaring = true;
+      const id = SCARE_FACES[Math.floor(Math.random() * SCARE_FACES.length)];
+      void playScreamer(this, portraitKey(this, id, 'p1', 96)).then(() => { this.scaring = false; this.menu = new MenuInput(); });
+      return;
+    }
     this.subtitle.setVisible(Math.floor(this.frame / 30) % 2 === 0 || this.page !== 'main');
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
 
@@ -149,7 +171,16 @@ export class MenuScene extends Phaser.Scene {
           this.layoutCursor();
           break;
         }
-        case 4:
+        case SCARES_INDEX: {
+          setSettings(this, { ...s, scares: !s.scares });
+          const keep = this.index;
+          this.showPage('main');
+          this.index = keep;
+          this.layoutCursor();
+          if (!s.scares) sfx.play('sting');
+          break;
+        }
+        case 5:
           toggleFullscreen(this);
           break;
       }

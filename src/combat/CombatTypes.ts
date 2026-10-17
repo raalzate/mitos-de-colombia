@@ -215,6 +215,8 @@ export interface MatchSettings {
   stage: StageChoice;
   /** 'drawn': arte de cuerpo entero dibujado; 'procedural': esqueleto generado por código. */
   art: ArtMode;
+  /** screamers (sustos repentinos) activados */
+  scares: boolean;
 }
 
 export type ArtMode = 'drawn' | 'procedural';

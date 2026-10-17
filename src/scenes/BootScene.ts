@@ -47,7 +47,7 @@ export class BootScene extends Phaser.Scene {
     // Generar en el siguiente tick para que se vea el fondo.
     this.time.delayedCall(10, () => {
       this.buildAll();
-      this.scene.start('MenuScene');
+      this.scene.start('WarningScene');
     });
   }
 

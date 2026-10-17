@@ -20,6 +20,8 @@ import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, walkPhase } from '../art/Draw
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
 import { sfx } from '../audio/Sfx';
+import { SCARE_COOLDOWN, shouldRandomScare, tension } from '../combat/Fear';
+import { playScreamer } from '../ui/Screamer';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
@@ -122,6 +124,11 @@ export class FightScene extends Phaser.Scene {
   private lightningRect: Phaser.GameObjects.Rectangle | null = null;
   private lightningFrames = 0;
   private vsGroup: Phaser.GameObjects.GameObject[] = [];
+  /** susto en curso: la lógica queda en pausa mientras dura */
+  private scaring = false;
+  private scareUsedRound = false;
+  private framesSinceScare = SCARE_COOLDOWN;
+  private finalScareDone = false;
   private message!: Phaser.GameObjects.BitmapText;
   private subMessage!: Phaser.GameObjects.BitmapText;
   private overlay!: Phaser.GameObjects.Rectangle;
@@ -181,6 +188,10 @@ export class FightScene extends Phaser.Scene {
     this.projectileSprites = new Map();
     this.debugHitboxes = false;
     this.menu = new MenuInput();
+    this.scaring = false;
+    this.scareUsedRound = false;
+    this.framesSinceScare = SCARE_COOLDOWN;
+    this.finalScareDone = false;
   }
 
   /* ------------------------------------------------------------------ */
@@ -388,6 +399,7 @@ export class FightScene extends Phaser.Scene {
 
   private startRound(): void {
     this.roundNumber++;
+    this.scareUsedRound = false;
     this.phase = 'intro';
     this.phaseFrame = 0;
     this.timerFrames = ROUND_TIME_SECONDS * LOGIC_FPS;
@@ -446,6 +458,10 @@ export class FightScene extends Phaser.Scene {
   /* ------------------------------------------------------------------ */
 
   override update(_time: number, delta: number): void {
+    if (this.scaring) {
+      this.accumulator = 0;
+      return;
+    }
     this.accumulator += Math.min(delta, 250);
     let steps = 0;
     while (this.accumulator >= LOGIC_STEP_MS && steps < 5) {
@@ -529,6 +545,8 @@ export class FightScene extends Phaser.Scene {
         break;
     }
     this.hud.update(framesToDisplaySeconds(this.timerFrames, LOGIC_FPS), this.score, this.logicFrame);
+    this.framesSinceScare++;
+    if (this.phase === 'fight') sfx.setTension(tension(this.p1.hp, this.p2.hp, framesToDisplaySeconds(this.timerFrames, LOGIC_FPS)));
   }
 
   private stepFight(): void {
@@ -548,6 +566,13 @@ export class FightScene extends Phaser.Scene {
       }
     }
     if (this.cinematic) return;
+    const lowest = Math.min(this.p1.hp, this.p2.hp);
+    if (shouldRandomScare({ enabled: this.settings.scares, usedThisRound: this.scareUsedRound, lowestHp: lowest, framesSinceLast: this.framesSinceScare }, Math.random())) {
+      this.scareUsedRound = true;
+      // la cara del que está ganando: el monstruo que está a punto de acabar contigo
+      this.triggerScare(this.p1.hp >= this.p2.hp ? 1 : 2);
+      return;
+    }
     const winner = resolveRoundEnd(this.p1.hp, this.p2.hp, this.timerFrames);
     if (winner !== null) this.endRound(winner);
   }
@@ -556,6 +581,11 @@ export class FightScene extends Phaser.Scene {
     this.p1.update(EMPTY_INPUT);
     this.p2.update(EMPTY_INPUT);
     const w = this.roundWinner;
+    // remate del combate: la cara del ganador se abalanza sobre la pantalla
+    if (this.phaseFrame === 35 && this.matchWinnerSlot && !this.finalScareDone && this.settings.scares && (this.p1.hp <= 0 || this.p2.hp <= 0)) {
+      this.finalScareDone = true;
+      this.triggerScare(this.matchWinnerSlot);
+    }
     if (this.phaseFrame === 50 && (w === 1 || w === 2)) {
       const f = w === 1 ? this.p1 : this.p2;
       if (f.hp > 0 && f.grounded && f.state !== 'knockdown') f.setState('victory');
@@ -573,6 +603,21 @@ export class FightScene extends Phaser.Scene {
         this.startRound();
       }
     }
+  }
+
+  /** Susto con la cara del luchador indicado; la lógica se pausa mientras dura. */
+  private triggerScare(slot: PlayerSlot): void {
+    if (!this.settings.scares || this.scaring) return;
+    const id = slot === 1 ? this.settings.p1 : this.settings.p2;
+    const pal = slot === 2 && this.settings.p1 === this.settings.p2 ? 'p2' : 'p1';
+    this.scaring = true;
+    this.framesSinceScare = 0;
+    this.anims.pauseAll();
+    void playScreamer(this, portraitKey(this, id, pal, 96)).then(() => {
+      this.scaring = false;
+      if (!this.paused) this.anims.resumeAll();
+      inputManager.clearAll();
+    });
   }
 
   private goToResult(): void {

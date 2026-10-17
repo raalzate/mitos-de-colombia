@@ -6,6 +6,7 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { FightScene } from './scenes/FightScene';
 import { ResultScene } from './scenes/ResultScene';
 import { StageSelectScene } from './scenes/StageSelectScene';
+import { WarningScene } from './scenes/WarningScene';
 import { fitIntegerZoom, inputManager } from './utils/game';
 import { sfx } from './audio/Sfx';
 
@@ -24,7 +25,7 @@ const config: Phaser.Types.Core.GameConfig = {
   },
   fps: { target: 60, forceSetTimeOut: false },
   audio: { noAudio: true },
-  scene: [BootScene, MenuScene, CharacterSelectScene, StageSelectScene, FightScene, ResultScene],
+  scene: [BootScene, WarningScene, MenuScene, CharacterSelectScene, StageSelectScene, FightScene, ResultScene],
 };
 
 const game = new Phaser.Game(config);
