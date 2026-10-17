@@ -28,8 +28,9 @@ export class BootScene extends Phaser.Scene {
         for (const size of [24, 48, 64, 96]) this.load.image(`face_${id}_${slot}_${size}`, `portraits/${id}_${slot}_${size}.png`);
         for (const size of [72, 128]) this.load.image(`splash_${id}_${slot}_${size}`, `splash/${id}_${slot}_${size}.png`);
         for (let n = 0; n < 4; n++) this.load.image(`splash_${id}_${slot}_pose${n}_72`, `splash/${id}_${slot}_pose${n}_72.png`);
-        for (const action of ['walk', 'attack', 'hurt', 'idle', 'trans'] as const) {
+        for (const action of ['walk', 'attack', 'hurt', 'idle', 'trans', 'fall'] as const) {
           const m = DRAWN_ANIM[id][action];
+          if (!m) continue;
           this.load.spritesheet(drawnAnimKey(id, slot, action), drawnAnimFile(id, slot, action), { frameWidth: m.w, frameHeight: m.h });
         }
       }

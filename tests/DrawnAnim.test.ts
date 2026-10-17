@@ -28,7 +28,7 @@ describe('animación dibujada', () => {
         for (let f = 0; f < 3; f++) {
           const r = drawnFrame(id, { ...base, anim, animFrame: f, frame: f * 13 });
           expect(r).not.toBeNull();
-          const n = DRAWN_ANIM[id][r!.action].frames;
+          const n = DRAWN_ANIM[id][r!.action]!.frames;
           expect(r!.index).toBeGreaterThanOrEqual(0);
           expect(r!.index).toBeLessThan(n);
         }
@@ -135,5 +135,27 @@ describe('animación dibujada', () => {
 
   it('Patasola se agacha encorvada, no tumbada', () => {
     expect(drawnFrame('patasola', { ...base, anim: 'crouch', stateFrame: 10 })).toEqual({ action: 'attack', index: 0 });
+  });
+
+  it('la caída generada con PixelLab: en el aire, tumbado y levantándose en orden', () => {
+    const f = DRAWN_ANIM.mohan.fall!;
+    expect(f.frames).toBeGreaterThanOrEqual(8);
+    const up = drawnFrame('mohan', { ...base, state: 'knockdown', anim: 'knockdown', grounded: false, vy: -4 })!;
+    const down = drawnFrame('mohan', { ...base, state: 'knockdown', anim: 'knockdown', grounded: false, vy: 4 })!;
+    const lying = drawnFrame('mohan', { ...base, state: 'knockdown', anim: 'knockdown', grounded: true })!;
+    expect(up.action).toBe('fall');
+    expect(down.index).toBeGreaterThanOrEqual(up.index);
+    expect(lying.index).toBeGreaterThan(down.index);
+    expect(lying.index).toBe(f.lying);
+    // con más de un fotograma de vuelo, bajando avanza respecto a subiendo
+    const ll = DRAWN_ANIM.llorona.fall!;
+    expect(ll.airEnd!).toBeGreaterThan(ll.air!);
+    const lUp = drawnFrame('llorona', { ...base, state: 'knockdown', anim: 'knockdown', grounded: false, vy: -4 })!;
+    const lDown = drawnFrame('llorona', { ...base, state: 'knockdown', anim: 'knockdown', grounded: false, vy: 4 })!;
+    expect(lDown.index).toBeGreaterThan(lUp.index);
+    const getup = [0, 4, 8, 13].map((sf) => drawnFrame('mohan', { ...base, state: 'getup', anim: 'getup', stateFrame: sf })!.index);
+    for (let k = 1; k < getup.length; k++) expect(getup[k]).toBeGreaterThanOrEqual(getup[k - 1]);
+    expect(getup[0]).toBeGreaterThan(lying.index);
+    expect(getup[3]).toBeLessThan(f.frames);
   });
 });

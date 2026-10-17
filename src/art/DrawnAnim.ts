@@ -1,5 +1,6 @@
 import type { FighterId, FighterState } from '../combat/CombatTypes';
 import { DRAWN_ANIM, type DrawnAction } from './drawnAnimManifest';
+import { GETUP_FRAMES } from '../entities/Fighter';
 
 /**
  * Animación dibujada fotograma a fotograma (tiras de `public/assets/anim`):
@@ -111,6 +112,11 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
   const punch = (f: number) => strike(0, half, f);
   const kick = (f: number) => strike(half, keysN - half, f);
   const trans = m.trans;
+  const fall = m.fall;
+  /** fotograma tumbado de la tira de caída (~60 % de la tira) */
+  const fallLying = fall ? fall.lying ?? Math.round(0.6 * (fall.frames - 1)) : 0;
+  const fallAir = fall ? fall.air ?? 4 : 0;
+  const fallAirEnd = fall ? fall.airEnd ?? Math.max(fallAir, fallLying - 1) : 0;
   const getup = hurtN >= 6 ? 4 : hurtN - 2;
   switch (i.anim) {
     case 'idle':
@@ -150,6 +156,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'ultimate':
       return [punch(1), kick(1), { action: 'hurt' as const, index: hurtN - 1 }][Math.min(2, i.animFrame)];
     case 'hit':
+      // con caída de PixelLab: sus fotogramas 1-3 son el retroceso del golpe (mismo dibujo que la caída)
+      if (fall) return { action: 'fall', index: Math.min(fallAir, i.animFrame > 0 ? 2 : 1) };
       return { action: 'hurt', index: i.animFrame > 0 ? Math.min(1, hurtN - 1) : 0 };
     case 'light':
     case 'airlight':
@@ -161,11 +169,24 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       return kick(i.animFrame);
     // tira de daño: [golpe, golpe fuerte, caída, tumbado, levantarse, victoria]; con 5 fotogramas
     // falta uno de los intermedios, así que se cuenta desde el final.
-    case 'knockdown':
+    case 'knockdown': {
+      if (fall) {
+        // tira de PixelLab: [de pie, retroceso…, en el aire, tumbado, rodando, levantándose…, de pie]
+        if (i.state === 'defeat' || i.grounded) return { action: 'fall', index: fallLying };
+        const t = Math.min(1, Math.max(0, ((i.vy ?? 0) + 4) / 8));
+        return { action: 'fall', index: Math.round(fallAir + (fallAirEnd - fallAir) * t) };
+      }
       if (i.state === 'defeat' || i.grounded) return { action: 'hurt', index: hurtN >= 6 ? 3 : hurtN - 2 };
       return { action: 'hurt', index: Math.min(2, hurtN - 1) };
-    case 'getup':
+    }
+    case 'getup': {
+      if (fall) {
+        const first = fallLying + 1;
+        const k = Math.floor(((i.stateFrame ?? 0) / GETUP_FRAMES) * (fall.frames - first));
+        return { action: 'fall', index: Math.min(fall.frames - 1, first + Math.max(0, k)) };
+      }
       return { action: 'hurt', index: getup };
+    }
     case 'victory':
       return { action: 'hurt', index: hurtN - 1 };
     default:

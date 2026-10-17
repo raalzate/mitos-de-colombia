@@ -199,6 +199,13 @@ ambos definitivos.
     restos claros del fondo blanco en los bordes). Los intermedios sintetizados por
     flujo óptico (`tools/interpolate_walk.py`) se probaron y se retiraron: dejaban
     líneas del contorno dentro del cuerpo, como una segunda imagen detrás.
+  - `fall` (en `anim/`): caída de espaldas y levantarse de los 10 personajes, 13
+    fotogramas cada uno, generados con **PixelLab** (`animate-with-text-v3`) a partir
+    del primer fotograma de andar de cada uno. Los originales están en
+    `images/pixellab/fall/<id>/`; `tools/import_pixellab.py` los convierte en tiras,
+    quita fragmentos sueltos, deja a Patasola con una sola pierna de pie y mide en
+    cada caída qué fotogramas son vuelo, tumbado y levantarse. También se usan sus
+    primeros fotogramas como retroceso al recibir un golpe.
   - `fx/`: 35 efectos (proyectil, chorro, invocación, tornado) por personaje.
   En modo `ARTE: DIBUJADO` **todo** el combate sale de las tres tiras
   (`DrawnAnim.ts`), al estilo Mortal Kombat: reposo = primer fotograma de andar
@@ -275,7 +282,8 @@ iglesia, perros aullando y cascos de caballo.
 | Sangre en los golpes (gotas en la dirección del golpe y manchas en el suelo) | Cumple | Captura de un golpe fuerte de Juan Machete al Silbón |
 | «¡ACÁBALO!/¡ACÁBALA!» tras el KO decisivo y FATALIDAD (definitivo o golpe fuerte) | Cumple | Captura de la fatalidad: texto, fuente de sangre y susto con la cara del ganador |
 | Escenarios oscuros y temáticos | Cumple | 6 escenarios nocturnos o de terror |
-| Golpes, caída y giro con tantos fotogramas dibujados como MK II | No cumple | Requiere más fotogramas dibujados; se decidió dejar la animación como está |
+| Caída y levantarse con tantos fotogramas como MK II (7 de caída, 6 de levantarse) | Cumple | Caída de 13 fotogramas por personaje generada con PixelLab, revisada en el juego |
+| Golpes con tantos fotogramas dibujados como MK II | Parcial | 5–6 fotogramas originales por tira; MK II no publica tiempos de golpes |
 
 En combate, tras el KO que decide el combate el ganador tiene 4 s para pulsar el
 definitivo o un golpe fuerte (P1: T, G o B; P2: P, K o I). La CPU remata con una

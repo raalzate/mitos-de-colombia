@@ -41,7 +41,7 @@ export const NULL_BEHAVIOR: FighterBehavior = {
 };
 
 const LYING_FRAMES = 34;
-const GETUP_FRAMES = 14;
+export const GETUP_FRAMES = 14;
 const GETUP_INVULN = 20;
 const KNOCKBACK_FRICTION = 0.86;
 

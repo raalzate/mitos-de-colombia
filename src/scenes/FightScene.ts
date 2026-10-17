@@ -1081,7 +1081,7 @@ export class FightScene extends Phaser.Scene {
               v.lastFootfallIndex = ph.index;
               this.spawnEffect({ kind: 'dust', x: f.x - f.facing * 6, y: f.y, facing: f.facing, data: { small: true } }, v.id);
             }
-          } else if (f.anim === 'knockdown' && !f.grounded && v.blend) {
+          } else if (f.anim === 'knockdown' && !f.grounded && v.blend && !DRAWN_ANIM[v.id].fall) {
             // caída en el aire: gira hacia atrás según la velocidad vertical y funde la pose tumbada al bajar
             const down = Math.min(1, Math.max(0, f.vy / 6));
             target.rot = -8 - down * 30;

@@ -24,6 +24,14 @@
    "frames": 1,
    "w": 78,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 8,
+   "air": 6,
+   "airEnd": 7
   }
  },
  "patasola": {
@@ -51,6 +59,14 @@
    "frames": 8,
    "w": 60,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 7,
+   "air": 3,
+   "airEnd": 5
   }
  },
  "hombrecaiman": {
@@ -78,6 +94,14 @@
    "frames": 1,
    "w": 118,
    "h": 74
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 9,
+   "air": 6,
+   "airEnd": 7
   }
  },
  "llorona": {
@@ -105,6 +129,14 @@
    "frames": 1,
    "w": 70,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 9,
+   "air": 6,
+   "airEnd": 7
   }
  },
  "sombreron": {
@@ -132,6 +164,14 @@
    "frames": 1,
    "w": 68,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 8,
+   "air": 5,
+   "airEnd": 6
   }
  },
  "mohan": {
@@ -159,6 +199,14 @@
    "frames": 1,
    "w": 92,
    "h": 74
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 9,
+   "air": 6,
+   "airEnd": 6
   }
  },
  "muelona": {
@@ -186,6 +234,14 @@
    "frames": 1,
    "w": 78,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 8,
+   "air": 6,
+   "airEnd": 6
   }
  },
  "silbon": {
@@ -213,6 +269,14 @@
    "frames": 1,
    "w": 70,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 9,
+   "air": 7,
+   "airEnd": 7
   }
  },
  "juanmachete": {
@@ -240,6 +304,14 @@
    "frames": 1,
    "w": 102,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 9,
+   "air": 4,
+   "airEnd": 4
   }
  },
  "bachue": {
@@ -267,6 +339,14 @@
    "frames": 1,
    "w": 60,
    "h": 72
+  },
+  "fall": {
+   "frames": 13,
+   "w": 96,
+   "h": 94,
+   "lying": 7,
+   "air": 4,
+   "airEnd": 5
   }
  }
 }
