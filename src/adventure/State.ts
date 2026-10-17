@@ -13,7 +13,6 @@ export interface AdventureState {
 
 /** Combate en curso del modo aventura: lo lee el FightScene para volver al mapa al terminar. */
 export interface AdventureFight {
-  kind: 'wild' | 'guardian';
   id: FighterId;
 }
 
@@ -53,14 +52,14 @@ export function clearAdventure(): void {
 /** Aplica el resultado de un combate. Perder reinicia la partida desde cero. */
 export function applyOutcome(s: AdventureState, fight: AdventureFight, outcome: FightOutcome): AdventureState {
   if (outcome === 'lose') return newAdventure();
-  if (fight.kind === 'guardian' && !s.calmed.includes(fight.id)) s.calmed.push(fight.id);
+  if (!s.calmed.includes(fight.id)) s.calmed.push(fight.id);
   return s;
 }
 
-/** Los espantos se ponen más bravos a medida que calmas a los demás. */
-export function fightDifficulty(s: AdventureState, fight: Pick<AdventureFight, 'kind'>): Difficulty {
-  if (fight.kind === 'wild') return 'easy';
-  return s.calmed.length >= 3 ? 'hard' : 'normal';
+/** Los mitos se ponen más bravos a medida que Juan calma a los demás. */
+export function fightDifficulty(s: AdventureState): Difficulty {
+  if (s.calmed.length < 3) return 'easy';
+  return s.calmed.length < 6 ? 'normal' : 'hard';
 }
 
 export const allCalmed = (s: AdventureState) => GUARDIANS.every((g) => s.calmed.includes(g.id));

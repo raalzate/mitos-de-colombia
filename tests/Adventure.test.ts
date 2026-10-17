@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { FIGHTER_IDS } from '../src/data/fighters';
-import { GUARDIANS, HERO_START, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, SIGNS, HERO_FIGHTER, WILD, ZONE_STAGE, buildMap, walkable } from '../src/adventure/World';
+import { GUARDIANS, HERO_START, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, SIGNS, HERO_FIGHTER, buildMap, walkable } from '../src/adventure/World';
 import { paginate, wrap } from '../src/adventure/text';
 import { allCalmed, applyOutcome, fightDifficulty, newAdventure } from '../src/adventure/State';
 
 describe('combates del modo aventura', () => {
-  it('ganar a un espanto lo calma; a un salvaje no', () => {
+  it('ganar calma al mito', () => {
     const s = newAdventure();
-    applyOutcome(s, { kind: 'guardian', id: 'llorona' }, 'win');
-    applyOutcome(s, { kind: 'wild', id: 'muelona' }, 'win');
+    applyOutcome(s, { id: 'llorona' }, 'win');
+    applyOutcome(s, { id: 'llorona' }, 'win');
     expect(s.calmed).toEqual(['llorona']);
   });
 
@@ -17,28 +17,26 @@ describe('combates del modo aventura', () => {
     s.calmed.push('silbon');
     s.flags.push('intro');
     s.x = 30;
-    const r = applyOutcome(s, { kind: 'guardian', id: 'patasola' }, 'lose');
-    expect(r).toEqual(newAdventure());
+    expect(applyOutcome(s, { id: 'patasola' }, 'lose')).toEqual(newAdventure());
   });
 
-  it('los espantos se ponen más bravos y los salvajes son fáciles', () => {
+  it('los mitos se ponen más bravos a medida que Juan calma a los demás', () => {
     const s = newAdventure();
-    expect(fightDifficulty(s, { kind: 'wild' })).toBe('easy');
-    expect(fightDifficulty(s, { kind: 'guardian' })).toBe('normal');
+    expect(fightDifficulty(s)).toBe('easy');
     s.calmed = ['silbon', 'llorona', 'patasola'];
-    expect(fightDifficulty(s, { kind: 'guardian' })).toBe('hard');
+    expect(fightDifficulty(s)).toBe('normal');
+    s.calmed.push('mohan', 'bachue', 'muelona');
+    expect(fightDifficulty(s)).toBe('hard');
   });
 
-  it('cada zona tiene escenario y mitos salvajes', () => {
-    for (const z of Object.keys(WILD) as (keyof typeof WILD)[]) {
-      expect(WILD[z].length).toBeGreaterThan(0);
-      expect(ZONE_STAGE[z]).toBeTruthy();
-    }
-    expect(new Set(GUARDIANS.map((g) => g.id)).size).toBe(5);
+  it('Juan Machete pelea con todos los demás mitos, cada uno en el escenario de su leyenda', () => {
     expect(FIGHTER_IDS).toContain(HERO_FIGHTER);
-    // Juan Machete es una persona viva: nunca aparece como espanto ni como mito salvaje
-    expect(GUARDIANS.some((g) => g.id === HERO_FIGHTER)).toBe(false);
-    for (const ids of Object.values(WILD)) expect(ids).not.toContain(HERO_FIGHTER);
+    const ids = GUARDIANS.map((g) => g.id).sort();
+    expect(ids).toEqual(FIGHTER_IDS.filter((id) => id !== HERO_FIGHTER).sort());
+    const stage = Object.fromEntries(GUARDIANS.map((g) => [g.id, g.stage]));
+    expect(stage).toMatchObject({
+      silbon: 'llanos', llorona: 'ribera', mohan: 'ribera', hombrecaiman: 'pantano', bachue: 'laguna', sombreron: 'pueblo', muelona: 'pueblo',
+    });
   });
 });
 

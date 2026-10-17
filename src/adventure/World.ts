@@ -61,9 +61,6 @@ export function walkable(g: Cell[][], x: number, y: number): boolean {
 
 /** Zona del mapa: decide qué mitos salvajes salen en la hierba alta y de qué nivel. */
 export type Zone = 'llano' | 'rio' | 'monte' | 'sur';
-/** Escenario del combate según la zona del mapa */
-export const ZONE_STAGE: Record<Zone, StageId> = { llano: 'llanos', rio: 'ribera', monte: 'pantano', sur: 'laguna' };
-
 export function zoneAt(x: number, y: number): Zone {
   if (y >= 27) return 'sur';
   if (x >= 24) return 'monte';
@@ -71,20 +68,15 @@ export function zoneAt(x: number, y: number): Zone {
   return 'rio';
 }
 
-/** Mitos que saltan de la hierba alta en cada zona */
-export const WILD: Record<Zone, FighterId[]> = {
-  llano: ['muelona', 'madremonte'],
-  rio: ['hombrecaiman', 'bachue', 'muelona'],
-  monte: ['madremonte', 'muelona'],
-  sur: ['hombrecaiman', 'bachue', 'muelona'],
-};
-
-export const ENCOUNTER_RATE = 0.06;
+/** Probabilidad de que algo se mueva en la hierba alta y asuste a Juan (sin pelea) */
+export const RUSTLE_RATE = 0.05;
 
 export interface Guardian {
   id: FighterId;
   x: number;
   y: number;
+  /** escenario donde ocurre su leyenda */
+  stage: StageId;
   /** lo que grita el héroe al verlo */
   fright: string;
   /** lo que dice el mito antes de pelear */
@@ -93,13 +85,17 @@ export interface Guardian {
   defeat: string;
 }
 
-/** Los espantos que hay que calmar. Se ven en el mapa y atacan si uno se les acerca. */
+/** Todos los mitos de la tierra: Juan Machete tiene que enfrentarlos uno por uno, cada uno en su lugar. */
 export const GUARDIANS: Guardian[] = [
-  { id: 'silbon', x: 16, y: 2, fright: '¡AVE MARÍA, PUES! ¿Y ESE SILBIDO?... DO, RE, MI, FA, SOL, LA, SI... ¡QUÉ MIEDO TAN BERRACO!', taunt: 'FIIIIIIU... CUANDO LO OYES CERCA, ESTOY LEJOS... Y CUANDO LO OYES LEJOS...', defeat: 'EL SILBÓN RECOGE SU SACO DE HUESOS Y SE ALEJA SILBANDO BAJITO.' },
-  { id: 'llorona', x: 20, y: 23, fright: '¡ESE LLANTO! ¡UY, NO, PARCE, SE ME PARARON HASTA LOS PELOS DEL BIGOTE!', taunt: '¡AAAAY, MIS HIJOS! ¿TÚ HAS VISTO A MIS HIJOS?', defeat: 'LA LLORONA DEJA DE LLORAR. POR PRIMERA VEZ EN SIGLOS, SONRÍE.' },
-  { id: 'patasola', x: 31, y: 12, fright: '¡TUM... TUM... TUM! ¡ALGO SALTA EN UNA SOLA PATA! ¡VIRGEN SANTÍSIMA!', taunt: '¡NADIE SALE DEL MONTE CUANDO YO LO DIGO!', defeat: 'LA PATASOLA SE PIERDE ENTRE LOS ÁRBOLES, MÁS TRANQUILA.' },
-  { id: 'sombreron', x: 35, y: 2, fright: 'ESE SOMBRERO TAN GRANDE... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!', taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.', defeat: 'EL SOMBRERÓN SE QUITA EL SOMBRERO Y TE HACE UNA REVERENCIA.' },
-  { id: 'mohan', x: 6, y: 28, fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!', taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?', defeat: 'EL MOHÁN SE HUNDE EN EL AGUA RIENDO. EL RÍO VUELVE A ESTAR EN CALMA.' },
+  { id: 'sombreron', x: 20, y: 11, stage: 'pueblo', fright: 'ESE SOMBRERO TAN GRANDE EN PLENO PUEBLO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!', taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.', defeat: 'EL SOMBRERÓN SE QUITA EL SOMBRERO Y TE HACE UNA REVERENCIA.' },
+  { id: 'muelona', x: 3, y: 17, stage: 'pueblo', fright: '¿Y ESA SEÑORA TAN BONITA?... ¡AVE MARÍA, QUÉ DIENTES! ¡ES LA MUELONA!', taunt: 'JI, JI, JI... VEN, PAISITA, QUE TE QUIERO DAR UN BESITO...', defeat: 'LA MUELONA SE TAPA LA BOCA AVERGONZADA Y SE VA PARA LA CANTINA.' },
+  { id: 'silbon', x: 16, y: 2, stage: 'llanos', fright: '¡AVE MARÍA, PUES! ¿Y ESE SILBIDO?... DO, RE, MI, FA, SOL, LA, SI... ¡QUÉ MIEDO TAN BERRACO!', taunt: 'FIIIIIIU... CUANDO LO OYES CERCA, ESTOY LEJOS... Y CUANDO LO OYES LEJOS...', defeat: 'EL SILBÓN RECOGE SU SACO DE HUESOS Y SE ALEJA SILBANDO BAJITO.' },
+  { id: 'hombrecaiman', x: 4, y: 22, stage: 'pantano', fright: '¡ESE CAIMÁN TIENE CARA DE CRISTIANO! ¡VIRGEN DEL CARMEN!', taunt: '¡GRRRR! ¡NADIE ME MIRA CUANDO ME BAÑO EN EL RÍO!', defeat: 'EL HOMBRE CAIMÁN SE ZAMBULLE EN LA CIÉNAGA Y NO VUELVE A ASOMARSE.' },
+  { id: 'llorona', x: 20, y: 23, stage: 'ribera', fright: '¡ESE LLANTO! ¡UY, NO, PARCE, SE ME PARARON HASTA LOS PELOS DEL BIGOTE!', taunt: '¡AAAAY, MIS HIJOS! ¿TÚ HAS VISTO A MIS HIJOS?', defeat: 'LA LLORONA DEJA DE LLORAR. POR PRIMERA VEZ EN SIGLOS, SONRÍE.' },
+  { id: 'patasola', x: 31, y: 12, stage: 'pantano', fright: '¡TUM... TUM... TUM! ¡ALGO SALTA EN UNA SOLA PATA! ¡VIRGEN SANTÍSIMA!', taunt: '¡NADIE SALE DEL MONTE CUANDO YO LO DIGO!', defeat: 'LA PATASOLA SE PIERDE ENTRE LOS ÁRBOLES, MÁS TRANQUILA.' },
+  { id: 'madremonte', x: 28, y: 17, stage: 'pantano', fright: '¡LOS ÁRBOLES SE MUEVEN SOLOS! ¡ESA SEÑORA ESTÁ HECHA DE MUSGO Y RAÍCES!', taunt: '¿QUIÉN ANDA TUMBANDO MI MONTE CON ESE MACHETE?', defeat: 'LA MADREMONTE TE PERDONA: SABE QUE EL MACHETE ES PARA TRABAJAR, NO PARA DAÑAR EL MONTE.' },
+  { id: 'mohan', x: 6, y: 28, stage: 'ribera', fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!', taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?', defeat: 'EL MOHÁN SE HUNDE EN EL AGUA RIENDO. EL RÍO VUELVE A ESTAR EN CALMA.' },
+  { id: 'bachue', x: 30, y: 28, stage: 'laguna', fright: '¡DE LA LAGUNA SALE UNA SERPIENTE GIGANTE CON CARA DE MUJER! ¡MAMITA LINDA!', taunt: 'SOY LA MADRE DE TODOS. DEMUÉSTRAME QUE ERES DIGNO DE ESTA TIERRA.', defeat: 'BACHUÉ VUELVE A LA LAGUNA CONVERTIDA EN SERPIENTE Y TE BENDICE.' },
 ];
 
 /** El protagonista: Juan Machete, campesino paisa de carne y hueso. Siempre pelea él. */

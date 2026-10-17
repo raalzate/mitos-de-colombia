@@ -6,6 +6,9 @@ import { paginate } from './text';
 
 const BOX_Y = 170;
 const BOX_H = 50;
+/** fotogramas que dura cada posición del temblor de la caja cuando alguien está asustado */
+const SHAKE_FRAMES = 8;
+
 interface SayOpts { speaker?: string; shake?: boolean }
 
 /**
@@ -134,7 +137,9 @@ export class DialogBox {
     const total = lines.join('\n').length;
     const fast = input.pressed(MENU_KEYS.confirm);
     if (this.shown < total) {
-      this.shown = fast ? total : this.shown + 1;
+      // asustado habla más despacio, como tartamudeando
+      if (fast) this.shown = total;
+      else if (!this.shake || this.frame % 2 === 0) this.shown++;
       this.body.setText(lines.join('\n').slice(0, this.shown));
     } else if (fast) {
       sfx.play('select');
@@ -152,6 +157,8 @@ export class DialogBox {
       }
     }
     this.arrow.setVisible(this.shown >= total && Math.floor(this.frame / 20) % 2 === 0);
-    this.root.setPosition(this.shake ? Math.round(Math.sin(this.frame * 1.7) * 1.5) : 0, this.shake && this.frame % 6 < 3 ? 1 : 0);
+    // asustado: la caja tiembla despacio (cambia de posición cada pocos fotogramas, no en cada uno)
+    const step = Math.floor(this.frame / SHAKE_FRAMES);
+    this.root.setPosition(this.shake ? [0, 1, 0, -1][step % 4] : 0, this.shake && step % 3 === 0 ? 1 : 0);
   }
 }

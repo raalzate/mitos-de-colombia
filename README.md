@@ -345,16 +345,21 @@ vercel deploy --prod  # build con pnpm y publica dist/
 Desde el menú, **MODO AVENTURA** abre un recorrido por casillas con vista desde arriba, al estilo de los juegos de bolsillo:
 
 - **Juan Machete es el protagonista**: un campesino paisa de Medellín, vivo y berraco. Llega a la vereda San Agustín
-  y la abuela Rosa le cuenta que cinco espantos asustan a la gente. Él siempre es quien pelea.
-- **Los espantos** (Silbón, Llorona, Patasola, Sombrerón y Mohán) se ven en el mapa. Si te acercas, gritan, el héroe
-  tiembla del miedo, el espanto se acerca y empieza un **combate de lucha** como el del modo normal (rounds, golpes,
-  especiales, ¡ACÁBALO!). En la hierba alta también saltan mitos salvajes.
-- **Si ganas** sigues donde estabas y el espanto queda calmado. **Si pierdes**, FIN DEL JUEGO: la partida se borra y todo vuelve a empezar.
-- Los espantos se ponen más bravos (dificultad difícil) cuando ya calmaste a tres. Los salvajes van en fácil.
+  y la abuela Rosa le cuenta que todos los mitos andan sueltos asustando a la gente. Él siempre es quien pelea.
+- **Juan pelea contra todos los mitos** (los nueve), cada uno esperándolo en el lugar de su leyenda y peleando en
+  su escenario: Sombrerón y Muelona en el pueblo (Callejón del Sombrerón), Silbón en el llano (Llanos del Silbón),
+  Llorona y Mohán en el río (Ribera del Magdalena), Hombre Caimán en la orilla (Ciénaga del Caimán), Patasola y
+  Madremonte en el monte (Ciénaga), Bachué en la laguna del sur (Laguna de Iguaque).
+- Al acercarte, el mito grita, Juan tiembla del miedo y empieza un **combate de lucha** como el del modo normal.
+  En la hierba alta a veces algo se mueve y asusta a Juan, sin pelea.
+- **Si ganas** sigues donde estabas y el mito queda calmado. **Si pierdes**, FIN DEL JUEGO: la partida se borra y
+  todo vuelve a empezar.
+- Los mitos se ponen más bravos: fácil al principio, normal desde el tercero calmado y difícil desde el sexto.
 - Don Toño, el pescador, oye llorar a la Llorona, se asusta y huye a la vereda.
-- Con los cinco calmados, vuelve con la abuela para el final.
+- Con los nueve calmados, vuelve con la abuela para el final.
+- Cuando alguien está asustado, la caja de diálogo tiembla despacio y el texto sale más lento.
 
-Controles en el mapa: flechas para andar, ESPACIO/ENTER para hablar y aceptar, ESC para el menú (espantos que faltan, guardar).
+Controles en el mapa: flechas para andar, ESPACIO/ENTER para hablar y aceptar, ESC para el menú (mitos que faltan, guardar).
 La partida se guarda en el navegador.
 
 Arte: Juan Machete en el mapa (4 direcciones y caminata, generado con PixelLab y repintado en `tools/import_aventura.py` con sombrero café, camisa blanca, jean y bigote para que sea el mismo de la pelea), la abuela, don Toño, el árbol y el tileset de hierba y camino se generaron

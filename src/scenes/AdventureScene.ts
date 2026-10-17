@@ -5,11 +5,10 @@ import { MENU_KEYS, MenuInput, inputManager, toggleFullscreen } from '../utils/g
 import { addPixmap } from '../utils/textures';
 import { drawnAnimKey } from '../art/DrawnAnim';
 import { FIGHTERS } from '../data/fighters';
-import type { FighterId } from '../combat/CombatTypes';
 import { DialogBox } from '../adventure/DialogBox';
 import {
-  ENCOUNTER_RATE, GUARDIANS, HERO_FIGHTER, HOUSES, HOUSE_H, HOUSE_W, LLORONA_EVENT_Y, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, SIGNS,
-  STEP, WILD, ZONE_STAGE, areaName, buildMap, walkable, zoneAt, type Cell, type Dir, type Guardian, type Npc,
+  RUSTLE_RATE, GUARDIANS, HERO_FIGHTER, HOUSES, HOUSE_H, HOUSE_W, LLORONA_EVENT_Y, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, SIGNS,
+  STEP, areaName, buildMap, walkable, type Cell, type Dir, type Guardian, type Npc,
 } from '../adventure/World';
 import {
   allCalmed, applyOutcome, clearAdventure, fightDifficulty, loadAdventure, newAdventure, saveAdventure,
@@ -331,7 +330,7 @@ export class AdventureScene extends Phaser.Scene {
       void this.tonoEvent();
       return;
     }
-    if (this.map[this.st.y][this.st.x] === '"' && this.ready && this.rnd() < ENCOUNTER_RATE) void this.wildEvent();
+    if (this.map[this.st.y][this.st.x] === '"' && this.ready && this.rnd() < RUSTLE_RATE) void this.rustleEvent();
   }
 
   private showArea(): void {
@@ -387,7 +386,8 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('whisper');
     await this.dialog.say([
       'LOS ESPANTOS ANDAN ALBOROTADOS... DE NOCHE SE OYEN SILBIDOS, LLANTOS EN EL RÍO Y PASOS DE UNA SOLA PATA EN EL MONTE.',
-      'DICEN QUE SON CINCO: EL SILBÓN, LA LLORONA, LA PATASOLA, EL SOMBRERÓN Y EL MOHÁN. ¡YA NADIE SE ATREVE A SALIR!',
+      'ANDAN SUELTOS TODOS LOS MITOS: EL SOMBRERÓN Y LA MUELONA EN EL PUEBLO, EL SILBÓN EN EL LLANO, LA LLORONA, EL MOHÁN Y EL HOMBRE CAIMÁN EN EL RÍO...',
+      '...LA PATASOLA Y LA MADREMONTE EN EL MONTE Y BACHUÉ EN LA LAGUNA DEL SUR. ¡YA NADIE SE ATREVE A SALIR!',
     ], { speaker: 'ABUELA ROSA', shake: true });
     abuela.scared = false;
     await this.dialog.say(['USTED ES EL CAMPESINO MÁS BERRACO DE ANTIOQUIA. A LOS ESPANTOS SOLO LOS CALMA QUIEN LOS VENCE A PUÑO LIMPIO.'], { speaker: 'ABUELA ROSA' });
@@ -456,7 +456,7 @@ export class AdventureScene extends Phaser.Scene {
       await this.tween({ targets: v.sprite, x: feetX(nx), y: feetY(ny) + 2, duration: 220 });
     }
     await this.dialog.say([v.g.taunt], { speaker: FIGHTERS[v.g.id].name });
-    await this.startFight('guardian', v.g.id);
+    await this.startFight(v.g);
   }
 
   /** De vuelta del combate: ganar calma al espanto y lo suma al equipo; perder reinicia el juego. */
@@ -476,14 +476,9 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     sfx.play('ultimate');
-    if (fight.kind === 'guardian') {
-      const g = GUARDIANS.find((x) => x.id === fight.id)!;
-      await this.dialog.say([g.defeat, `ESPANTOS CALMADOS: ${this.st.calmed.length} DE 5.${allCalmed(this.st) ? ' ¡VUELVE CON LA ABUELA ROSA!' : ''}`]);
-      await this.dialog.say(['¡QUÉ PELEA TAN BERRACA, PUES! ¡SIGAMOS!'], { speaker: 'JUAN MACHETE' });
-    } else {
-      await this.dialog.say([`¡${name} SALE CORRIENDO PARA EL MONTE!`]);
-      await this.dialog.say(['¡ESO ES! ¡Y NO VUELVA, PUES!'], { speaker: 'JUAN MACHETE' });
-    }
+    const g = GUARDIANS.find((x) => x.id === fight.id)!;
+    await this.dialog.say([g.defeat, `MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.${allCalmed(this.st) ? ' ¡VUELVE CON LA ABUELA ROSA!' : ''}`]);
+    await this.dialog.say(['¡QUÉ PELEA TAN BERRACA, PUES! ¡SIGAMOS!'], { speaker: 'JUAN MACHETE' });
     this.locked = false;
     this.showArea();
   }
@@ -522,9 +517,9 @@ export class AdventureScene extends Phaser.Scene {
     }
     sfx.play('bloom');
     await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: 'ABUELA ROSA' });
-    const left = 5 - this.st.calmed.length;
+    const left = GUARDIANS.length - this.st.calmed.length;
     n.scared = true;
-    await this.dialog.say([`TODAVÍA QUEDAN ${left} ESPANTOS SUELTOS... ¡ME DA UN MIEDO SALIR AL PATIO!`], { speaker: 'ABUELA ROSA', shake: true });
+    await this.dialog.say([`TODAVÍA QUEDAN ${left} MITOS SUELTOS... ¡ME DA UN MIEDO SALIR AL PATIO!`], { speaker: 'ABUELA ROSA', shake: true });
     n.scared = false;
     saveAdventure(this.st);
   }
@@ -543,7 +538,7 @@ export class AdventureScene extends Phaser.Scene {
   private async ending(): Promise<void> {
     sfx.play('ultimate');
     await this.dialog.say([
-      '¡LO LOGRÓ, JUAN! EL SILBÓN, LA LLORONA, LA PATASOLA, EL SOMBRERÓN Y EL MOHÁN YA NO ASUSTAN A NADIE.',
+      '¡LO LOGRÓ, JUAN! LOS NUEVE MITOS SE CALMARON: YA NO ASUSTAN A NADIE EN EL PUEBLO, EN EL LLANO, EN EL RÍO, EN EL MONTE NI EN LA LAGUNA.',
       'LOS MITOS SON PARTE DE ESTA TIERRA. NO HAY QUE ACABARLOS: HAY QUE RESPETARLOS.',
     ], { speaker: 'ABUELA ROSA' });
     this.st.flags.push('fin');
@@ -564,7 +559,7 @@ export class AdventureScene extends Phaser.Scene {
     const i = await this.dialog.ask('¿QUÉ QUIERES HACER?', ['ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ', 'VOLVER'], { cancel: 3 });
     if (i === 0) {
       const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id)).map((g) => FIGHTERS[g.id].name).join(', ');
-      await this.dialog.say([`ESPANTOS CALMADOS: ${this.st.calmed.length} DE 5.`, left ? `FALTAN: ${left}.` : '¡YA NO FALTA NINGUNO!']);
+      await this.dialog.say([`MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.`, left ? `FALTAN: ${left}.` : '¡YA NO FALTA NINGUNO!']);
     } else if (i === 1) {
       saveAdventure(this.st);
       sfx.play('confirm');
@@ -580,29 +575,27 @@ export class AdventureScene extends Phaser.Scene {
     this.locked = false;
   }
 
-  /** Un mito salvaje salta de la hierba alta: susto y pelea. */
-  private async wildEvent(): Promise<void> {
+  /** Algo se mueve en la hierba alta: Juan se asusta, pero no sale nada. */
+  private async rustleEvent(): Promise<void> {
     this.locked = true;
-    const ids = WILD[zoneAt(this.st.x, this.st.y)];
-    const id = ids[Math.floor(this.rnd() * ids.length)];
-    sfx.play('sting');
+    const tg = this.tallGrass.get(`${this.st.x},${this.st.y}`);
+    sfx.play('whisper');
+    if (tg) await this.tween({ targets: tg, x: tg.x + 2, duration: 50, yoyo: true, repeat: 5 });
     await Promise.all([this.bubble(this.hero, 2, 500), this.shake(this.hero, 6)]);
-    await this.dialog.say([`¡ALGO SE MUEVE EN LA HIERBA! ¡ES ${FIGHTERS[id].name}!`], { speaker: 'JUAN MACHETE', shake: true });
-    await this.startFight('wild', id);
+    const lines = ['¿QUIÉN ANDA AHÍ?... ¡SALGA, PUES, QUE NO LE TENGO MIEDO!... BUENO, UN POQUITO.', '¡UY! ALGO SE MOVIÓ EN LA HIERBA... DEBE SER UN CONEJO... ¿CIERTO?'];
+    await this.dialog.say([lines[Math.floor(this.rnd() * lines.length)]], { speaker: 'JUAN MACHETE', shake: true });
+    this.locked = false;
   }
 
-  /** Juan Machete contra el mito, en el combate de lucha. */
-  private async startFight(kind: AdventureFight['kind'], id: FighterId): Promise<void> {
+  /** Juan Machete contra el mito, en el combate de lucha y en el escenario de su leyenda. */
+  private async startFight(g: Guardian): Promise<void> {
     this.locked = true;
-    const fighter = HERO_FIGHTER;
-    const fight: AdventureFight = { kind, id };
+    const id = g.id;
+    const fight: AdventureFight = { id };
     this.registry.set('adventureFight', fight);
-    setSettings(this, {
-      ...getSettings(this), mode: 'cpu', p1: fighter, p2: id, stage: ZONE_STAGE[zoneAt(this.st.x, this.st.y)],
-      difficulty: fightDifficulty(this.st, fight),
-    });
+    setSettings(this, { ...getSettings(this), mode: 'cpu', p1: HERO_FIGHTER, p2: id, stage: g.stage, difficulty: fightDifficulty(this.st) });
     saveAdventure(this.st);
-    sfx.play(kind === 'guardian' && id === 'silbon' ? 'whistle' : 'screamer');
+    sfx.play(id === 'silbon' ? 'whistle' : 'screamer');
     const cam = this.cameras.main;
     for (let i = 0; i < 3; i++) {
       cam.flash(90, 255, 255, 255);

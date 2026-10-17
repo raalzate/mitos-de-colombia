@@ -119,7 +119,7 @@ export const STAGES: Record<StageId, StageTheme> = {
   infierno: {
     id: 'infierno',
     name: 'Cañaduzal en Llamas',
-    subtitle: 'Hacienda de Juan Machete - pacto infernal',
+    subtitle: 'Hacienda antioqueña - noche de incendio',
     sky: [0x0a0204, 0x1c0606, 0x300a08, 0x48100a, 0x60180c, 0x7c2410, 0xa03414, 0xc84c18],
     stars: 0,
     moon: null,
