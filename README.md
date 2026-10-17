@@ -287,6 +287,10 @@ impacto y la recuperación de cada ataque):
 | Patada fuerte | 5 | 15,9–21,1 |
 | Agacharse (achatado progresivo en 6 pasos) | 3 | 12,5–15,6 |
 | Bloquear | 2 | 14,1–17,4 |
+| Caída por derribo (giro + fundido de la pose tumbada) | 19 imágenes distintas en el aire | 9,7 (4,6 al aterrizar) |
+
+La caída de MK II (Scorpion, GIF del sitio) son 7 fotogramas de 60 ms y la pose
+tumbada.
 
 MK II no publica tiempos de sus golpes: en mortalkombatwarehouse solo hay
 fotogramas sueltos de cada golpe, así que aquí no se comparan ritmos.
