@@ -1,0 +1,42 @@
+{
+ "usage": null,
+ "background_job_id": "1fab9709-1187-4429-83c3-64ead0fd9496",
+ "character_id": "a7280535-4f75-4f18-a34d-b2d6d5603958",
+ "status": "processing",
+ "enhanced_prompt": null,
+ "enhance_usage": null,
+ "_jobs": [
+  {
+   "usage": {
+    "type": "generations",
+    "generations": 2.0
+   },
+   "id": "1fab9709-1187-4429-83c3-64ead0fd9496",
+   "status": "completed",
+   "created_at": "2026-10-23T01:49:18.357895+00:00",
+   "last_response": {
+    "status": "completed",
+    "character_id": "a7280535-4f75-4f18-a34d-b2d6d5603958",
+    "storage_urls": {
+     "east": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/east.png",
+     "west": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/west.png",
+     "north": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/north.png",
+     "south": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/south.png",
+     "north-east": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/north-east.png",
+     "north-west": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/north-west.png",
+     "south-east": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/south-east.png",
+     "south-west": "https://backblaze.pixellab.ai/file/pixellab-characters/6fbae132-9baf-43c6-90af-f3013b7ba067/a7280535-4f75-4f18-a34d-b2d6d5603958/rotations/south-west.png"
+    },
+    "billing_usage": {
+     "type": "generations",
+     "generations": 2.0
+    },
+    "character_name": "duende",
+    "directions_type": "8-directions",
+    "generation_mode": "pixen_v3",
+    "directions_count": 8,
+    "character_description": "tiny mischievous Colombian duende goblin, long white beard, huge floppy brown hat covering eyes, green ragged clothes, bare feet, sly grin. chibi pixel art RPG overworld character, night colors, Colombian folklore"
+   }
+  }
+ ]
+}

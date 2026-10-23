@@ -2,17 +2,21 @@
  * Efectos de sonido sintetizados con WebAudio: ondas cuadradas, ruido y barridos,
  * en el espíritu de los chips de 16 bits, y un ambiente de terror (zumbido disonante,
  * caja de música desafinada, susurros, crujidos, latido según la tensión y gritos de
- * susto). Sin archivos externos.
+ * susto). Encima, sonidos grabados (machete, voces de los mitos, ambientes de la
+ * aventura) que se cargan al desbloquear el audio; si faltan, suena lo sintetizado.
  */
 
 import { heartbeatBpm } from '../combat/Fear';
+import type { FighterId } from '../combat/CombatTypes';
+import { MONSTER_VOICES, SAMPLE_IDS, canVoice, pickVoice, sampleUrl, type SampleId, type VoiceKind } from './Samples';
 import { STAGE_SOUND, pickStageEvent, type SoundscapeId, type StageEvent, type StageSoundTheme } from './StageSound';
 
 export type SfxName =
   | 'hit' | 'heavy' | 'block' | 'whoosh' | 'jump' | 'land' | 'ko'
   | 'wave' | 'roots' | 'mist' | 'vortex' | 'bloom' | 'select' | 'confirm' | 'round' | 'timer' | 'ultimate'
   | 'scream' | 'fire' | 'whistle' | 'bolt' | 'slash'
-  | 'screamer' | 'heartbeat' | 'whisper' | 'creak' | 'distantScream' | 'sting';
+  | 'screamer' | 'heartbeat' | 'whisper' | 'creak' | 'distantScream' | 'sting'
+  | 'machete' | 'macheteHit' | 'macheteClang' | 'polloMaligno' | 'duende' | 'manoPeluda';
 
 class Synth {
   private ctx: AudioContext | null = null;
@@ -35,6 +39,9 @@ class Synth {
   private nextBeat = 0;
   private nextEvent = 0;
   private nextBox = 0;
+  private samples = new Map<SampleId, AudioBuffer>();
+  /** voz en curso y momento de la última por luchador (para no encimar ni repetir) */
+  private voices = new Map<string, { src: AudioBufferSourceNode; at: number }>();
   enabled = true;
 
   /** Debe llamarse tras un gesto del usuario. */
@@ -53,6 +60,56 @@ class Synth {
     this.noiseBuffer = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
     const d = this.noiseBuffer.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    this.loadSamples();
+  }
+
+  private loadSamples(): void {
+    const ctx = this.ctx;
+    if (!ctx || typeof fetch !== 'function') return;
+    for (const id of SAMPLE_IDS) {
+      fetch(sampleUrl(id))
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.statusText))))
+        .then((buf) => ctx.decodeAudioData(buf))
+        .then((b) => { this.samples.set(id, b); })
+        .catch(() => { /* sin la muestra se usa el sonido sintetizado */ });
+    }
+  }
+
+  /** Reproduce una muestra grabada; false si aún no está cargada. */
+  private sample(id: SampleId, vol: number, rate = 1): AudioBufferSourceNode | null {
+    const buf = this.samples.get(id);
+    if (!this.ctx || !this.master || !buf) return null;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+    const g = this.ctx.createGain();
+    g.gain.value = vol;
+    src.connect(g).connect(this.master);
+    src.start();
+    return src;
+  }
+
+  private sampleOf(ids: readonly SampleId[], vol: number, rateJitter = 0.08): boolean {
+    const id = ids[Math.floor(Math.random() * ids.length)];
+    return !!this.sample(id, vol, 1 - rateJitter / 2 + Math.random() * rateJitter);
+  }
+
+  /**
+   * Voz del mito: rugido/risa/siseo al atacar, quejido al recibir golpe. Una voz a la
+   * vez por luchador (`slot`) y con pausa mínima para no saturar.
+   */
+  monster(id: FighterId, kind: VoiceKind, slot = 0): void {
+    const set = MONSTER_VOICES[id];
+    if (!this.ready || !this.ctx || !set) return;
+    const key = `${slot}:${id}`;
+    const now = this.ctx.currentTime;
+    const prev = this.voices.get(key);
+    if (!canVoice(kind, now, prev?.at)) return;
+    const v = pickVoice(set[kind], Math.random());
+    const src = this.sample(v.id, kind === 'hurt' ? 0.9 : 0.75, v.rate * (0.96 + Math.random() * 0.08));
+    if (!src) return;
+    if (prev) { try { prev.src.stop(); } catch { /* ya parado */ } }
+    this.voices.set(key, { src, at: now });
   }
 
   get ready(): boolean {
@@ -273,6 +330,31 @@ class Synth {
         for (const f of [233.08, 246.94, 349.23, 369.99]) this.tone('sawtooth', f, f * 0.98, 1.1, 0.07);
         this.tone('sine', 55, 30, 1.2, 0.6);
         this.noise(0.6, 0.3, 4000, 300);
+        break;
+      case 'machete':
+        if (!this.sampleOf(['machete_swing_1', 'machete_swing_2'], 1.1)) this.play('slash');
+        break;
+      case 'macheteHit':
+        if (!this.sampleOf(['machete_hit_1', 'machete_hit_2'], 1.2)) this.play('heavy');
+        break;
+      case 'macheteClang':
+        if (!this.sampleOf(['machete_clang'], 1.1)) this.play('block');
+        break;
+      case 'polloMaligno':
+        if (!this.sampleOf(['ambient_pollo'], 0.8, 0.15)) {
+          for (let i = 0; i < 4; i++) this.tone('square', 700, 420, 0.07, 0.06, i * 0.14);
+        }
+        break;
+      case 'duende':
+        if (!this.sampleOf(['ambient_duende'], 0.8, 0.15)) {
+          for (let i = 0; i < 5; i++) this.tone('triangle', 900 + i * 60, 700, 0.08, 0.08, i * 0.11);
+        }
+        break;
+      case 'manoPeluda':
+        if (!this.sampleOf(['ambient_mano'], 0.9, 0.15)) {
+          this.noise(0.5, 0.25, 3000, 900, 0, 'bandpass');
+          this.tone('sawtooth', 90, 60, 0.5, 0.12, 0.15);
+        }
         break;
     }
   }

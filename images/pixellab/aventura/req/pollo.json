@@ -1,0 +1,12 @@
+{
+ "description": "evil black rooster-chicken monster El Pollo Maligno, glowing red eyes, ragged black feathers, sharp beak, menacing. chibi pixel art RPG overworld character, night colors, Colombian folklore",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "pollo"
+}

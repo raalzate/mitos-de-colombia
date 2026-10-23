@@ -1,0 +1,12 @@
+{
+ "description": "Colombian coffee farmer, sombrero, poncho over shoulder, coffee basket on waist, mustache. chibi pixel art RPG overworld character, night colors, Colombian folklore",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "cafetero"
+}

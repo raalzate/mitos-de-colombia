@@ -7,7 +7,9 @@ from PIL import Image
 SRC = "images/pixellab/aventura"
 OUT = "public/assets/aventura"
 CELL = 48
-LEGS_FROM = 40  # en la caminata de frente el sombrero tapa la cara: arriba se usa el sprite quieto
+LEGS_FROM = 40
+VILLAGERS = ("cantinero", "cura", "borracho", "nina", "arriero", "vendedora", "campesina", "policia", "cafetero", "nino")
+SPIRITS = ("duende", "pollo", "mano")  # en la caminata de frente el sombrero tapa la cara: arriba se usa el sprite quieto
 
 def rgba(path):
     return np.array(Image.open(path).convert("RGBA"))
@@ -107,7 +109,7 @@ def hero():
     frames = [juanify(f, d) for f, d in zip(frames, facing)]
     Image.fromarray(np.concatenate(frames, axis=1)).save(f"{OUT}/hero.png")
 
-def npc(name):
+def npc(name, out=None):
     """Hoja 48x48 de un aldeano quieto: sur, este, norte (oeste = este espejado)."""
     if not os.path.exists(f"{SRC}/{name}.json"):
         return print("falta", name)
@@ -118,8 +120,11 @@ def npc(name):
         p = f"{SRC}/{name}/{d}.png"
         if not os.path.exists(p):
             os.system(f"curl -sS -o {p} '{r['storage_urls'][d]}'")
-        frames.append(rgba(p))
-    Image.fromarray(np.concatenate(frames, axis=1)).save(f"{OUT}/{name}.png")
+        im = Image.open(p).convert("RGBA")
+        if im.size != (CELL, CELL):
+            im = im.resize((CELL, CELL), Image.NEAREST)
+        frames.append(np.array(im))
+    Image.fromarray(np.concatenate(frames, axis=1)).save(f"{OUT}/{out or name}.png")
 
 def pixflux(name):
     if not os.path.exists(f"{SRC}/{name}.json"):
@@ -144,7 +149,9 @@ if __name__ == "__main__":
     tileset()
     os.makedirs(OUT, exist_ok=True)
     hero()
-    for n in ("abuela", "pescador"):
+    for n in ("abuela", "pescador") + VILLAGERS:
         npc(n)
+    for n in SPIRITS:
+        npc(n, f"spirit_{n}")
     for n in ("tree", "house"):
         pixflux(n)

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_ROUNDS, ROUND_TIME_SECONDS,
+  ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_HP, MAX_ROUNDS, ROUND_TIME_SECONDS,
 } from '../config/game-config';
 import type { Facing, FighterId, InputState, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
 import { EMPTY_INPUT } from '../combat/CombatTypes';
@@ -19,7 +19,8 @@ import { splashPose, splashPoseIndex, type SplashPose } from '../art/SplashPose'
 import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, walkPhase } from '../art/DrawnAnim';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
-import { sfx } from '../audio/Sfx';
+import { sfx, type SfxName } from '../audio/Sfx';
+import { isMacheteAttack } from '../audio/Samples';
 import { SCARE_COOLDOWN, shouldRandomScare, tension } from '../combat/Fear';
 import { playScreamer } from '../ui/Screamer';
 import { FINISH_FRAMES, bloodDrops, cpuWantsFatality, finishPrompt, isFatalityInput } from '../combat/Finish';
@@ -28,8 +29,10 @@ import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } fro
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
 import type { ResultData } from './ResultScene';
+import type { AdventureFight } from '../adventure/State';
+import { fleeFightChance } from '../adventure/Hunt';
 
-type Phase = 'intro' | 'fight' | 'finish' | 'roundEnd' | 'matchEnd';
+type Phase = 'intro' | 'fight' | 'finish' | 'roundEnd' | 'matchEnd' | 'flee';
 
 interface FighterView {
   sprite: Phaser.GameObjects.Sprite;
@@ -101,6 +104,8 @@ export class FightScene extends Phaser.Scene {
 
   private phase: Phase = 'intro';
   private phaseFrame = 0;
+  /** modo aventura: el mito ya intentó volarse en este combate */
+  private fleeTried = false;
   private score: Score = emptyScore();
   private roundNumber = 0;
   private timerFrames = ROUND_TIME_SECONDS * LOGIC_FPS;
@@ -179,6 +184,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   private resetState(): void {
+    this.fleeTried = false;
     this.phase = 'intro';
     this.phaseFrame = 0;
     this.score = emptyScore();
@@ -317,7 +323,7 @@ export class FightScene extends Phaser.Scene {
     for (const f of [this.p1, this.p2]) {
       f.behavior = new SpecBehavior();
       f.events = {
-        sound: (n) => sfx.play(n),
+        sound: (n) => this.fighterSound(f, n),
         effect: (e) => this.spawnEffect(e, f.stats.id),
         projectile: (p) => this.combat.spawnProjectile(p),
       };
@@ -630,6 +636,9 @@ export class FightScene extends Phaser.Scene {
       case 'roundEnd':
         this.stepRoundEnd();
         break;
+      case 'flee':
+        this.stepFlee();
+        break;
       case 'matchEnd':
         this.p1.update(EMPTY_INPUT);
         this.p2.update(EMPTY_INPUT);
@@ -665,8 +674,37 @@ export class FightScene extends Phaser.Scene {
       this.triggerScare(this.p1.hp >= this.p2.hp ? 1 : 2);
       return;
     }
+    if (this.tryFlee()) return;
     const winner = resolveRoundEnd(this.p1.hp, this.p2.hp, this.timerFrames);
     if (winner !== null) this.endRound(winner);
+  }
+
+  /** Modo aventura: con poca vida el mito puede volarse de la pelea, como un salvaje que huye. */
+  private tryFlee(): boolean {
+    const fight = this.registry.get('adventureFight') as AdventureFight | undefined;
+    const f = this.p2;
+    if (!fight || this.fleeTried || f.hp <= 0 || f.hp > MAX_HP * 0.3 || !f.grounded || f.state !== 'idle' && f.state !== 'walk') return false;
+    this.fleeTried = true;
+    if (Math.random() >= fleeFightChance(fight.escapes ?? 0)) return false;
+    this.phase = 'flee';
+    this.phaseFrame = 0;
+    this.ai = null;
+    sfx.monster(f.stats.id, 'attack', 2);
+    sfx.play('mist');
+    this.showMessage('¡SE ESTÁ VOLANDO!', f.stats.name);
+    return true;
+  }
+
+  private stepFlee(): void {
+    this.p1.update(EMPTY_INPUT);
+    this.p2.update(EMPTY_INPUT);
+    const t = this.phaseFrame;
+    if (t > 30) {
+      this.p2.alpha = Math.max(0, 1 - (t - 30) / 40);
+      this.p2.x += this.p2.facing * -2;
+    }
+    if (t === 70) this.showMessage('¡SE ESCAPÓ!', this.p2.stats.name);
+    if (t >= 140) this.scene.start('AdventureScene', { outcome: 'fled' });
   }
 
   private stepRoundEnd(): void {
@@ -895,15 +933,27 @@ export class FightScene extends Phaser.Scene {
   /* Eventos de combate / efectos                                        */
   /* ------------------------------------------------------------------ */
 
+  /** Machetazo para Juan Machete; rugidos, risas y siseos de los mitos al atacar. */
+  private fighterSound(f: Fighter, n: SfxName): void {
+    if (n === 'jump' || n === 'land') {
+      sfx.play(n);
+      return;
+    }
+    sfx.play(isMacheteAttack(f.stats.id, f.attack?.kind) ? 'machete' : n);
+    if (n !== 'whoosh' || Math.random() < 0.5) sfx.monster(f.stats.id, 'attack', f.slot);
+  }
+
   private onHit(e: HitEvent): void {
     const key = e.result.blocked ? 'fx_block' : e.heavy ? 'fx_heavy' : 'fx_hit';
     const sp = this.add.sprite(e.x, e.y, key).setDepth(22).setFlipX(e.attacker.facing === -1);
     sp.play(key);
     sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
+    const machete = !e.projectile && isMacheteAttack(e.attacker.stats.id, e.attacker.attack?.kind);
     if (e.result.blocked) {
-      sfx.play('block');
+      sfx.play(machete ? 'macheteClang' : 'block');
     } else {
-      sfx.play(e.heavy ? 'heavy' : 'hit');
+      sfx.play(machete ? 'macheteHit' : e.heavy ? 'heavy' : 'hit');
+      sfx.monster(e.defender.stats.id, 'hurt', e.defender.slot);
       this.views[e.defender.slot].flash = 4;
       this.bleed(e.x, e.y, e.attacker.facing, bloodDrops(false, e.heavy, e.result.damage), e.heavy ? 3 : 1);
       this.sparkEmitter.explode(e.heavy ? 10 : 5, e.x, e.y);

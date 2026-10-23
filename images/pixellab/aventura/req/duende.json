@@ -1,0 +1,12 @@
+{
+ "description": "tiny mischievous Colombian duende goblin, long white beard, huge floppy brown hat covering eyes, green ragged clothes, bare feet, sly grin. chibi pixel art RPG overworld character, night colors, Colombian folklore",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "duende"
+}

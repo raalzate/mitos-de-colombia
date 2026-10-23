@@ -1,0 +1,12 @@
+{
+ "description": "Colombian rural policeman, green olive uniform, cap, boots. chibi pixel art RPG overworld character, night colors, Colombian folklore",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "policia"
+}
