@@ -1,3 +1,6 @@
+import type { SampleId } from '../audio/Samples';
+import type { SfxName } from '../audio/Sfx';
+
 export type FighterId =
   | 'madremonte'
   | 'patasola'
@@ -16,6 +19,15 @@ export type SpecialType = 'strike' | 'projectile' | 'eruption' | 'teleport';
 /** Estilo de la cinemática del definitivo. */
 export type UltimateStyle = 'bloom' | 'vortex' | 'storm' | 'slash';
 
+/** Una capa de sonido: una grabación (s) o un sonido sintetizado (fx), con su tono, volumen y retraso en segundos. */
+export interface SoundLayer { s?: SampleId; fx?: SfxName; rate?: number; vol?: number; at?: number }
+
+/**
+ * Sonido declarado con cada poder: lo que suena al arrancar (cast) y cuando el poder sale o pega (release).
+ * `voice` = el luchador grita con su propia voz al soltarlo.
+ */
+export interface PowerSound { cast?: SoundLayer[]; release: SoundLayer[]; voice?: boolean }
+
 export interface SpecialSpec {
   type: SpecialType;
   /** Nombre corto para el HUD (≤ 9 caracteres). */
@@ -24,7 +36,7 @@ export interface SpecialSpec {
   fx: string;
   /** Tinte del efecto (0xffffff = sin tinte). */
   tint: number;
-  sound: 'wave' | 'roots' | 'mist' | 'vortex' | 'bloom' | 'whoosh' | 'heavy' | 'scream' | 'fire' | 'whistle' | 'bolt' | 'slash';
+  sound: PowerSound;
   /** Partículas al activar: leaf | drop | spark | ember | none */
   particle: 'leaf' | 'drop' | 'spark' | 'ember' | 'none';
   /** projectile: velocidad px/frame y vida en frames */
@@ -43,7 +55,7 @@ export interface UltimateSpec {
   short: string;
   tint: number;
   particle: 'leaf' | 'drop' | 'spark' | 'ember';
-  sound: 'bloom' | 'vortex' | 'fire' | 'scream' | 'bolt' | 'slash' | 'heavy';
+  sound: PowerSound;
 }
 
 export type FighterState =

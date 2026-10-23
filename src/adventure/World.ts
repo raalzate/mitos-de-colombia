@@ -200,6 +200,7 @@ export const SIGNS: Sign[] = [
   { x: 41, y: 52, lines: ['RÍO GRANDE. PROHIBIDO BAÑARSE DE NOCHE.', 'EL MOHÁN SE LLEVA A LOS QUE SE METEN.'] },
   { x: 77, y: 52, lines: ['LAGUNA SAGRADA.', 'DE AQUÍ SALIÓ BACHUÉ CON UN NIÑO EN BRAZOS, MADRE DE LOS MUISCAS.'] },
   { x: 11, y: 52, lines: ['CIÉNAGA. CUIDADO CON LOS CAIMANES...', '...Y CON LOS QUE NO SON CAIMANES DEL TODO.'] },
+  { x: 5, y: 7, lines: ['CAMINO DE HERRADURA A SANTA FE DE ANTIOQUIA.', 'TRES DÍAS A PIE... UNO A CABALLO. ¡SIN BESTIA NI LO INTENTE!'] },
 ];
 
 export function buildMap(): Cell[][] {
@@ -391,7 +392,7 @@ export const GUARDIANS: Guardian[] = [
 /** El protagonista: Juan Machete, campesino paisa de carne y hueso. Siempre pelea él. */
 export const HERO_FIGHTER: FighterId = 'juanmachete';
 
-export type NpcKey = 'abuela' | 'pescador' | VillagerKind | 'conductor' | 'silletero' | 'acordeonero' | 'bailarina' | 'rapero';
+export type NpcKey = 'abuela' | 'pescador' | VillagerKind | 'conductor' | 'silletero' | 'acordeonero' | 'bailarina' | 'rapero' | 'perro' | 'caballo';
 
 export interface Npc {
   key: NpcKey;
@@ -405,8 +406,12 @@ export interface Npc {
   wander?: number;
   /** historia que cuenta si Juan quiere oírla */
   story?: StoryId;
-  /** algo que hace además de hablar: llevar a Juan en el jeep o ponerlo a bailar */
-  action?: 'carro' | 'baile';
+  /** algo que hace además de hablar: llevar a Juan en el jeep o a caballo, o ponerlo a bailar */
+  action?: 'carro' | 'baile' | 'caballo';
+  /** solo aparece cuando ya pasó este suceso (por ejemplo, el caballo después de ganárselo) */
+  needs?: string;
+  /** se va del mapa cuando pasa este suceso (por ejemplo, el perro callejero cuando se une a Juan) */
+  gone?: string;
 }
 
 export const NPCS: Npc[] = [
@@ -439,6 +444,10 @@ export const NPCS: Npc[] = [
     ['¡YO NO LE TENGO MIEDO A NADA!... BUENO, AL SILBÓN SÍ. DICEN QUE SI LO OYE LEJOS ES QUE ESTÁ CERQUITA.'],
     ['EN EL CEMENTERIO SALE UNA MANO PELUDA DE LA TIERRA. ¡MI PRIMO LA VIO!'],
   ] },
+  // el perro flaco de la plaza: se gana con una arepa y desde ahí acompaña a Juan
+  { key: 'perro', name: 'PERRO CALLEJERO', x: 36, y: 30, facing: 'down', wander: 2, gone: 'perro' },
+  // Lucero, el caballo que don Rubén le regala a Juan, amarrado al principio del camino de herradura
+  { key: 'caballo', name: 'LUCERO', x: 8, y: 9, facing: 'right', needs: 'caballo', action: 'caballo' },
   { key: 'arriero', name: 'DON RUBÉN', story: 'arrieros', x: 14, y: 26, facing: 'left', lines: [
     ['ESTA MULA SE NIEGA A PASAR POR EL LLANO DE NOCHE. ALLÁ SE OYE SILBAR Y HAY HUESOS REGADOS.'],
     ['YO ATRAVESÉ EL MONTE UNA VEZ. LA MADREMONTE ME ENREDÓ LA MULA EN LOS BEJUCOS. ¡NUNCA MÁS!'],

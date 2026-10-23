@@ -21,7 +21,7 @@ const nextTo = (seen: Set<string>, x: number, y: number) => [[1, 0], [-1, 0], [0
 describe('todos los mapas', () => {
   for (const id of ALL_MAP_IDS) {
     const m = getMap(id);
-    const start: [number, number] = m.exit ? [m.exit.x, m.exit.y - 1] : m.arrival!;
+    const start: [number, number] = m.exit ? [m.exit.x, m.exit.y - 1] : (m.arrival ?? m.horseArrival)!;
     const seen = reach(m, start);
 
     it(`${id}: se llega a cada persona, letrero y puerta`, () => {
@@ -62,6 +62,24 @@ describe('todos los mapas', () => {
 
   it('el jeep conecta el campo con Medellín, con conductor a cada lado', () => {
     for (const id of ['campo', 'medellin']) expect(getMap(id).npcs.some((n) => n.action === 'carro'), id).toBe(true);
+  });
+
+  it('a Santa Fe de Antioquia se va a caballo: Lucero queda amarrado a cada lado del camino', () => {
+    for (const id of ['campo', 'santafe']) {
+      const m = getMap(id);
+      const horse = m.npcs.find((n) => n.action === 'caballo')!;
+      expect(horse, id).toBeDefined();
+      const [ax, ay] = m.horseArrival!;
+      expect(walkable(m.grid, ax, ay), `${id} llegada`).toBe(true);
+      expect(Math.abs(ax - horse.x) + Math.abs(ay - horse.y), `${id} junto a Lucero`).toBe(1);
+    }
+    expect(getMap('campo').npcs.find((n) => n.action === 'caballo')!.needs).toBe('caballo');
+  });
+
+  it('el perro callejero anda por la plaza hasta que se une a Juan', () => {
+    const perro = getMap('campo').npcs.find((n) => n.key === 'perro')!;
+    expect(perro.gone).toBe('perro');
+    expect(moodIn(getMap('campo'), perro.x, perro.y)).toBe('alegre');
   });
 
   it('el ritmo: el campo es mayormente tensión; la ciudad y los interiores, alegría', () => {

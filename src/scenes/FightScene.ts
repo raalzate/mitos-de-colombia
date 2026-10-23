@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import {
   ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_HP, MAX_ROUNDS, ROUND_TIME_SECONDS,
 } from '../config/game-config';
-import type { Facing, FighterId, InputState, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
+import type { Facing, FighterId, InputState, PowerSound, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
 import { EMPTY_INPUT } from '../combat/CombatTypes';
 import {
   applyRoundResult, emptyScore, forcedWinner, framesToDisplaySeconds, matchWinner, resolveHit, resolveRoundEnd, type Score,
@@ -35,6 +35,9 @@ import { pickDuel, type DuelLine } from '../combat/Duels';
 import { canUseUltimate } from '../combat/CombatRules';
 import type { AdventureFight } from '../adventure/State';
 import { fleeFightChance } from '../adventure/Hunt';
+import { aimLurk, buildLurk, lurkAt, lurkFeetY, lurkScale, lurkSounds, wantsLurk, type LurkScript } from '../combat/Lurk';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, buildHorse } from '../adventure/OverworldArt';
+import { addSheet } from '../utils/textures';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
 const VS_FRAMES = 90;
@@ -168,6 +171,11 @@ export class FightScene extends Phaser.Scene {
   private sparkEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
   private emberEmitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
+  /** el mito se metió al fondo del escenario: la pelea espera a que vuelva */
+  private lurk: { script: LurkScript; frame: number; ox: number; horse: Phaser.GameObjects.Image | null; walkDist: number; lastX: number; face: number; turn: number; horseX: number; horseDist: number } | null = null;
+  private lurksRound = 0;
+  private framesSinceLurk = 0;
+
   private onBlur = () => this.setPaused(true);
 
   constructor() {
@@ -221,6 +229,8 @@ export class FightScene extends Phaser.Scene {
     this.scareUsedRound = false;
     this.framesSinceScare = SCARE_COOLDOWN;
     this.finalScareDone = false;
+    this.lurk = null;
+    this.framesSinceLurk = 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -340,6 +350,7 @@ export class FightScene extends Phaser.Scene {
       f.behavior = new SpecBehavior();
       f.events = {
         sound: (n) => this.fighterSound(f, n),
+        power: (p, phase) => this.powerSound(f, p, phase),
         effect: (e) => this.spawnEffect(e, f.stats.id),
         projectile: (p) => this.combat.spawnProjectile(p),
       };
@@ -440,6 +451,9 @@ export class FightScene extends Phaser.Scene {
     this.readers[2].reset();
     this.roundNumber++;
     this.scareUsedRound = false;
+    this.endLurk(false);
+    this.lurksRound = 0;
+    this.framesSinceLurk = 0;
     this.phase = 'intro';
     this.phaseFrame = 0;
     this.timerFrames = ROUND_TIME_SECONDS * LOGIC_FPS;
@@ -755,6 +769,8 @@ export class FightScene extends Phaser.Scene {
   }
 
   private stepFight(): void {
+    if (this.lurk) { this.stepLurk(); return; }
+    this.framesSinceLurk++;
     if (this.cinematic) {
       this.updateCinematic();
     } else {
@@ -783,8 +799,138 @@ export class FightScene extends Phaser.Scene {
     }
     this.updateBanter();
     if (this.tryFlee()) return;
+    if (this.tryLurk()) return;
     const winner = resolveRoundEnd(this.p1.hp, this.p2.hp, this.timerFrames);
     if (winner !== null) this.endRound(winner);
+  }
+
+  /** Contra la CPU, de vez en cuando el mito se mete al fondo del escenario a hacer cosas raras. */
+  private tryLurk(): boolean {
+    const f = this.p2;
+    const calm = (x: Fighter) => (x.state === 'idle' || x.state === 'walk') && x.grounded;
+    const wish = {
+      id: f.stats.id, framesSince: this.framesSinceLurk, usedRound: this.lurksRound,
+      calm: calm(this.p1) && calm(f) && !this.combat.projectiles.length, dist: Math.abs(this.p1.x - f.x), hp: f.hp,
+    };
+    if (!this.ai || this.views[2].drawn === false || !wantsLurk(wish, Math.random())) return false;
+    const cam = this.cameras.main;
+    const script = buildLurk(this.stageId, f.stats.id, (f.x - cam.scrollX) / GAME_WIDTH, Math.random, (this.p1.x - cam.scrollX) / GAME_WIDTH);
+    let horse: Phaser.GameObjects.Image | null = null;
+    if (script.keys.some((k) => k.pose === 'mounted')) {
+      if (!this.textures.exists('av_caballo_negro')) addSheet(this, 'av_caballo_negro', buildHorse('negro'), 48, 48);
+      horse = this.add.image(0, 0, 'av_caballo_negro', 1).setOrigin(0.5, 1).setVisible(false);
+    }
+    this.lurk = { script, frame: 0, ox: cam.scrollX, horse, walkDist: 0, lastX: f.x, face: f.facing, turn: -1, horseX: 0, horseDist: 0 };
+    this.lurksRound++;
+    this.hideBubble();
+    this.say(1, script.line, 110);
+    sfx.play('whisper');
+    return true;
+  }
+
+  /** Mientras el mito anda por el fondo, Juan se puede mover pero nadie pega y el reloj no corre. */
+  private stepLurk(): void {
+    const l = this.lurk!;
+    this.p1.update(this.twoButton(1, this.p1, this.p2));
+    this.p2.update(EMPTY_INPUT);
+    this.p1.x = Phaser.Math.Clamp(this.p1.x, l.ox + 24, l.ox + GAME_WIDTH - 24);
+    this.ageBubble();
+    const prev = l.frame++;
+    if (l.frame === l.script.aimAt) aimLurk(l.script, (this.p1.x - l.ox) / GAME_WIDTH);
+    for (const n of lurkSounds(l.script, prev, l.frame)) {
+      if (n === 'screamer') sfx.monster(this.p2.stats.id, 'attack', 2);
+      else sfx.play(n);
+    }
+    if (l.frame >= l.script.total) this.endLurk(true);
+  }
+
+  /** Vuelve al plano de la pelea donde terminó la embestida, mirando a Juan. */
+  private endLurk(landed: boolean): void {
+    const l = this.lurk;
+    if (!l) return;
+    this.lurk = null;
+    l.horse?.destroy();
+    const v = this.views[2];
+    v.sprite.setCrop().clearTint();
+    if (!landed) return;
+    const end = l.script.keys[l.script.keys.length - 1];
+    this.p2.x = Phaser.Math.Clamp(l.ox + end.sx * GAME_WIDTH, ARENA_MARGIN_SAFE, ARENA_WIDTH - ARENA_MARGIN_SAFE);
+    this.p2.facing = this.p1.x > this.p2.x ? 1 : -1;
+    this.p1.facing = this.p1.x > this.p2.x ? -1 : 1;
+    this.framesSinceLurk = 0;
+    this.cameras.main.shake(160, 0.006);
+    this.spawnEffect({ kind: 'dust', x: this.p2.x, y: GROUND_Y, facing: this.p2.facing }, this.p2.stats.id);
+  }
+
+  /** Dibuja al mito en el fondo: más chico y oscuro cuanto más lejos, hundido, tendido o a caballo. */
+  private renderLurk(v: FighterView): void {
+    const l = this.lurk!;
+    const st = lurkAt(l.script, l.frame);
+    const action = st.pose === 'lying' ? (DRAWN_ANIM[v.id].fall ? 'fall' : 'idle')
+      : st.pose === 'hurt' ? 'hurt' : st.pose === 'attack' ? 'attack' : st.pose === 'walk' ? 'walk' : 'idle';
+    const key = drawnAnimKey(v.id, v.pal, action);
+    const strip = DRAWN_ANIM[v.id][action];
+    const k = lurkScale(st.d);
+    const rawX = l.ox + st.sx * GAME_WIDTH;
+    // el paso va con lo que avanza (medido a su tamaño): los pies no patinan aunque esté lejos y chiquito
+    if (l.lastX !== rawX) l.walkDist += Math.abs(rawX - l.lastX) / k;
+    l.lastX = rawX;
+    let index = 0;
+    if (action === 'fall') index = strip?.lying ?? 0;
+    else if (action === 'walk') index = walkPhase(l.walkDist, strip?.frames ?? 1, WALK_STRIDE_PX).index;
+    else if (action === 'idle') index = Math.floor(l.frame / 8) % (strip?.frames ?? 1);
+    else if (action === 'attack') index = Math.min(2, (strip?.frames ?? 1) - 1);
+    else index = 1;
+    if (this.textures.exists(key) && (v.sprite.texture.key !== key || v.sprite.frame.name !== String(index))) v.sprite.setTexture(key, index);
+    const lying = st.pose === 'lying' && action !== 'fall';
+    // temblor parejo, como un escalofrío, no un brinco al azar en cada cuadro
+    const jx = st.jitter ? Math.round(Math.sin(l.frame * 1.3) * st.jitter) : 0;
+    const x = Math.round(rawX) + jx;
+    // al voltearse se estrecha y se abre ya volteado, igual que en la pelea
+    if (st.face !== l.face) { l.face = st.face; l.turn = l.frame; }
+    let turnSx = 1, flip = st.face === -1;
+    if (l.turn >= 0) {
+      const t = (l.frame - l.turn) / 8;
+      if (t >= 1) l.turn = -1;
+      else { turnSx = Math.max(0.08, Math.abs(Math.cos(t * Math.PI))); if (t < 0.5) flip = !flip; }
+    }
+    const mounted = st.pose === 'mounted';
+    // galope: sube y baja con cada tranco y se mece adelante y atrás
+    const stride = mounted ? Math.abs(Math.sin(l.frame * 0.22)) : 0;
+    const rock = mounted ? Math.sin(l.frame * 0.22) * 3 : 0;
+    const feet = lurkFeetY(st.d, GROUND_Y);
+    const fh = v.sprite.frame.height;
+    // hundido: se corre hacia abajo y se recorta lo que queda bajo el agua o la tierra
+    const sunk = Math.round(fh * st.sink);
+    let y = Math.round(feet - st.lift * k) + Math.round(sunk * k);
+    const deep = feet < GROUND_Y - 42;
+    if (l.horse) {
+      const bob = Math.round(stride * 4 * k);
+      // patas del galope según lo que avanza; quieto, de pie
+      const moving = Math.abs(rawX - l.horseX) > 0.2;
+      l.horseX = rawX;
+      if (moving) l.horseDist += 1;
+      l.horse.setFrame(moving ? HORSE_GALLOP_FIRST + Math.floor(l.horseDist / 5) % HORSE_GALLOP_FRAMES : 1);
+      l.horse.setVisible(mounted).setPosition(x, Math.round(feet - st.lift * k) - bob)
+        .setScale(1.6 * k * turnSx, 1.6 * k).setFlipX(flip).setAngle(rock * st.face).setDepth(deep ? 4.4 : 7).setAlpha(st.alpha);
+      l.horse.setTint(this.depthTint(st.d));
+      // sentado en la montura: las piernas le cuelgan a los lados del caballo
+      if (mounted) y -= Math.round(17 * 1.6 * k) + bob;
+    }
+    const ks = k * (mounted ? 0.85 : 1);
+    v.sprite.setOrigin(0.5, 1).setPosition(x, y).setFlipX(flip)
+      .setScale(ks * turnSx, ks * st.sy).setAngle((st.rot + rock + (lying ? 90 : 0)) * st.face)
+      .setAlpha(st.alpha).setDepth(deep ? 4.5 : 7.5);
+    if (sunk > 0) v.sprite.setCrop(0, 0, v.sprite.frame.width, Math.max(0, fh - sunk));
+    else v.sprite.setCrop();
+    v.sprite.setTint(this.depthTint(st.d));
+    v.shadow.setPosition(x, Math.round(feet) + 1).setScale(Math.max(3, 14 * k), 2 * k).setAlpha(deep || st.sink > 0 ? 0 : 0.35 * st.alpha);
+  }
+
+  /** Lejos se ve oscuro, casi del color de la noche. */
+  private depthTint(d: number): number {
+    const c = Math.round(255 - 110 * d), b = Math.round(255 - 80 * d);
+    return (c << 16) | (c << 8) | b;
   }
 
   /** Modo aventura: con poca vida el mito puede volarse de la pelea, como un salvaje que huye. */
@@ -920,7 +1066,7 @@ export class FightScene extends Phaser.Scene {
         hold = null;
         break;
     }
-    sfx.play(spec.sound);
+    sfx.layers(spec.sound.release);
     this.cinematic = { attacker, defender, frame: 0, startX: defender.x, style: spec.style, tint: spec.tint, hold, attackerStartX: attacker.x };
     this.cameras.main.shake(200, 0.006);
   }
@@ -947,7 +1093,7 @@ export class FightScene extends Phaser.Scene {
           this.flashRect.setAlpha(0.9);
           em?.explode(30, d.x, d.y - 30);
           this.cameras.main.shake(350, 0.015);
-          sfx.play(a.stats.ultimateSpec.sound);
+          sfx.layers(a.stats.ultimateSpec.sound.release);
         }
         if (c.frame >= 56) this.releaseCinematic();
         break;
@@ -977,7 +1123,7 @@ export class FightScene extends Phaser.Scene {
           sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
           em?.explode(8, x, GROUND_Y - 30);
           this.cameras.main.shake(120, 0.008);
-          sfx.play(a.stats.ultimateSpec.sound);
+          sfx.layers(a.stats.ultimateSpec.sound.release);
           d.x = Math.max(ARENA_MARGIN_SAFE, Math.min(ARENA_WIDTH - ARENA_MARGIN_SAFE, c.startX + (Math.random() - 0.5) * 6));
         }
         if (c.frame === 30) a.animFrame = 2;
@@ -1050,6 +1196,13 @@ export class FightScene extends Phaser.Scene {
     }
     sfx.play(isMacheteAttack(f.stats.id, f.attack?.kind) ? 'machete' : n);
     if (n !== 'whoosh' || Math.random() < 0.5) sfx.monster(f.stats.id, 'attack', f.slot);
+  }
+
+  /** Sonido declarado con el poder; al soltarlo, el luchador grita con su voz. */
+  private powerSound(f: Fighter, p: PowerSound, phase: 'cast' | 'release'): void {
+    const ls = phase === 'cast' ? p.cast : p.release;
+    if (ls) sfx.layers(ls);
+    if (phase === (p.cast ? 'cast' : 'release') && p.voice) sfx.monster(f.stats.id, 'power', f.slot);
   }
 
   private onHit(e: HitEvent): void {
@@ -1210,6 +1363,7 @@ export class FightScene extends Phaser.Scene {
     for (const slot of [1, 2] as PlayerSlot[]) {
       const f = slot === 1 ? this.p1 : this.p2;
       const v = this.views[slot];
+      if (slot === 2 && this.lurk) { this.renderLurk(v); continue; }
       // solo tiembla quien recibe el golpe; el atacante se congela en su pose de impacto
       const shake = f.isAttacking() ? 0 : hitShake(f.hitstop);
       v.sprite.setFlipX(f.facing === -1);
@@ -1319,7 +1473,8 @@ export class FightScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const mid = (this.p1.x + this.p2.x) / 2;
     const target = Phaser.Math.Clamp(mid - GAME_WIDTH / 2, 0, ARENA_WIDTH - GAME_WIDTH);
-    cam.scrollX += (target - cam.scrollX) * 0.12;
+    // con el mito al fondo la cámara se queda quieta: la escena está dibujada sobre lo que se ve
+    if (!this.lurk) cam.scrollX += (target - cam.scrollX) * 0.12;
 
     // ambiente
     this.river.setTexture(this.stageTex.river(Math.floor(this.logicFrame / 9) % 3));

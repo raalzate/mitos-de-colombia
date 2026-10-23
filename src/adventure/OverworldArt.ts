@@ -156,3 +156,97 @@ export function buildDog(): Pixmap {
   [south, east, north].forEach((f, i) => sheet.blit(f, i * 48, 0));
   return sheet;
 }
+
+export type HorseKind = 'lucero' | 'negro';
+
+/** Patas en cada fotograma del galope: [trasera lejos, trasera cerca], [delantera lejos, delantera cerca], grados desde la vertical (+ = adelante). */
+const GALLOP: [[number, number], [number, number]][] = [
+  [[30, 12], [-12, 38]],
+  [[5, -12], [28, 12]],
+  [[-30, -45], [8, -18]],
+  [[-8, 18], [-38, -22]],
+];
+export const HORSE_GALLOP_FIRST = 3;
+export const HORSE_GALLOP_FRAMES = GALLOP.length;
+
+/**
+ * Caballo (sur, este, norte y cuatro de galope de lado), 48 px como los personajes. Lucero: alazán con lucero blanco en la frente
+ * y montura de arriero. Negro: el caballo del Sombrerón, de crin larga y ojos rojos.
+ */
+export function buildHorse(kind: HorseKind): Pixmap {
+  const negro = kind === 'negro';
+  const coat = C(negro ? 0x1c1820 : 0x8a4a22), shade = C(negro ? 0x0c0a10 : 0x5e3016), light = C(negro ? 0x3a3444 : 0xb06a36);
+  const mane = C(negro ? 0x050408 : 0x2a160a), hoof = C(0x141010), ink = C(0x0a0606);
+  const eye = negro ? C(0xff2a20) : ink;
+  const blaze = C(0xf0ece0), leather = C(0x6a3c1c), blanket = C(0xc8302c), blanketL = C(0xf05a48);
+
+  const side = (legs?: [[number, number], [number, number]]): Pixmap => {
+    const east = new Pixmap(48, 48);
+    if (!legs) {
+      for (const [x, back] of [[11, true], [16, false], [30, true], [35, false]] as const) {
+        east.rect(x, 31, 3, 12, back ? shade : coat);
+        east.rect(x, 42, 3, 2, hoof);
+      }
+    } else {
+      // cada pata sale de la cadera o del hombro con su ángulo; la del lado de allá, más oscura
+      const leg = (hx: number, deg: number, c: typeof coat) => {
+        const a = (deg * Math.PI) / 180;
+        const fx = Math.round(hx + Math.sin(a) * 12), fy = Math.round(31 + Math.cos(a) * 12);
+        east.line(hx, 31, fx, fy, 3, c);
+        east.rect(fx - 1, fy - 1, 3, 2, hoof);
+      };
+      leg(13, legs[0][0], shade); leg(32, legs[1][0], shade);
+      leg(17, legs[0][1], coat); leg(36, legs[1][1], coat);
+    }
+    east.line(10, 24, 5, 37, 3, mane);
+    east.ellipse(23, 28, 14, 7, coat);
+    east.hline(12, 34, 23, light);
+    east.ellipse(23, 33, 10, 2, shade);
+    east.polygon([[31, 27], [35, 13], [41, 14], [38, 29]], coat);
+    east.polygon([[35, 13], [41, 9], [46, 13], [46, 17], [41, 18]], coat);
+    east.rect(43, 15, 3, 3, shade);
+    east.polygon([[36, 11], [37, 6], [39, 10]], coat);
+    east.line(34, 12, 31, 27, 2, mane);
+    if (negro) east.line(33, 14, 29, 30, 2, mane);
+    east.set(40, 12, eye);
+    if (!negro) {
+      east.line(41, 10, 45, 15, 1, blaze);
+      east.rect(16, 22, 13, 4, blanket); east.hline(16, 28, 22, blanketL);
+      east.rect(18, 20, 9, 2, leather); east.rect(26, 18, 2, 3, leather);
+      east.vline(22, 22, 30, leather); east.rect(21, 30, 3, 2, C(0xc0c0c8));
+    }
+    east.outline(ink);
+    return east;
+  };
+  const east = side();
+
+  const south = new Pixmap(48, 48);
+  for (const x of [17, 28]) { south.rect(x, 32, 3, 11, coat); south.rect(x, 42, 3, 2, hoof); }
+  south.ellipse(24, 29, 9, 9, coat);
+  south.ellipse(24, 31, 6, 6, light);
+  south.rect(20, 10, 8, 16, coat);
+  south.rect(21, 22, 6, 5, shade);
+  south.polygon([[19, 10], [20, 4], [22, 9]], coat); south.polygon([[29, 10], [28, 4], [26, 9]], coat);
+  south.rect(22, 7, 4, 4, mane);
+  south.set(21, 14, eye); south.set(26, 14, eye);
+  if (!negro) {
+    south.vline(24, 11, 20, blaze);
+    south.rect(15, 24, 18, 3, blanket);
+  } else south.rect(19, 9, 2, 12, mane);
+  south.outline(ink);
+
+  const north = new Pixmap(48, 48);
+  for (const x of [17, 28]) { north.rect(x, 33, 3, 10, shade); north.rect(x, 42, 3, 2, hoof); }
+  north.ellipse(24, 28, 10, 10, coat);
+  north.rect(20, 9, 8, 14, coat);
+  north.polygon([[19, 10], [20, 4], [22, 9]], coat); north.polygon([[29, 10], [28, 4], [26, 9]], coat);
+  north.rect(22, 7, 4, 16, mane);
+  north.line(24, 36, 24, 45, 3, mane);
+  if (!negro) { north.rect(17, 22, 14, 6, blanket); north.rect(19, 20, 10, 4, leather); }
+  north.outline(ink);
+
+  const frames = [south, east, north, ...GALLOP.map((g) => side(g))];
+  const sheet = new Pixmap(48 * frames.length, 48);
+  frames.forEach((f, i) => sheet.blit(f, i * 48, 0));
+  return sheet;
+}

@@ -22,6 +22,11 @@ se hacen en el juego (`playbackRate`, ver `src/audio/Samples.ts`).
 | CACK2 | Evil Cackle Laugh 2 | nocturnalvanguard | CC0 | https://opengameart.org/content/evil-cackle-laugh-2 |
 | SCREECH | Evil Screech 1 | nocturnalvanguard | CC0 | https://opengameart.org/content/evil-screech-1 |
 | GIGGLE | Group Giggling | nocturnalvanguard | CC0 | https://opengameart.org/content/group-giggling |
+| YELL | Male Grunt/Yelling sounds | HaelDB | CC0 (multi-licencia, se usa CC0) | https://opengameart.org/content/male-gruntyelling-sounds |
+| CRE2 | 80 CC0 creature SFX #2 | rubberduck | CC0 | https://opengameart.org/content/80-cc0-creture-sfx-2 |
+| RPG80 | 80 CC0 RPG SFX | rubberduck | CC0 | https://opengameart.org/content/80-cc0-rpg-sfx |
+| BFH | 75 CC0 breaking / falling / hit sfx | rubberduck | CC0 | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx |
+| WAT | 40 CC0 water / splash / slime SFX | rubberduck | CC0 | https://opengameart.org/content/40-cc0-water-splash-slime-sfx |
 | HEN | Hen announcing she's lain an egg | alys (pdsounds.org) | Dominio público | https://commons.wikimedia.org/wiki/File:Hen_announcing_shes_lain_an_egg.ogg |
 
 ## Archivos
@@ -51,3 +56,32 @@ se hacen en el juego (`playbackRate`, ver `src/audio/Samples.ts`).
 | ambient_pollo.mp3 | HEN (2,3–3,9 s) |
 | ambient_duende.mp3 | GIGGLE `group_giggling.ogg` (0,2–1,7 s) |
 | ambient_mano.mp3 | KRPG `cloth2.ogg` + CRE `troll_01.ogg` |
+
+### Voz de Juan Machete y sonidos de los poderes
+
+Generados con `python3 -I tools/build_power_sfx.py <carpeta de paquetes>`: recorte del silencio inicial, duración
+máxima, cambio de tono en semitonos cuando se indica, y pico normalizado a -1 dB. La voz de Juan es siempre el
+mismo hombre (vocalista 3 de YELL) dos semitonos más grave.
+
+| Archivo | Origen |
+|---|---|
+| juan_attack_1/2/3.mp3 | YELL `3grunt6.wav`, `3grunt3.wav`, `3yell7.wav` (-2 semitonos) |
+| juan_hurt_1/2.mp3 | YELL `3grunt1.wav`, `3yell5.wav` (-2 semitonos) |
+| juan_power_1/2.mp3 | YELL `3yell6.wav`, `3yell1.wav` (-2 semitonos) |
+| wood_crack.mp3 | MW `wood_cracking_02.ogg` |
+| wood_snap.mp3 | RPG80 `wood_02.ogg` |
+| wood_break.mp3 | BFH `bfh1_wood_breaking_01.ogg` |
+| rock_rumble.mp3 | BFH `bfh1_rock_falling_03.ogg` (-3) |
+| rock_break.mp3 | BFH `bfh1_rock_breaking_01.ogg` |
+| roar_deep.mp3 | CRE2 `roar_06.ogg` (-2) |
+| roar_low.mp3 | RPG80 `creature_roar_03.ogg` (-3) |
+| grunt_deep.mp3 | CRE2 `grunt_07.ogg` (-2) |
+| stomp.mp3 | CRE2 `stomp_01.ogg` |
+| splash_big.mp3, splash_small.mp3, bubbles.mp3, water_rush.mp3, rain.mp3 | WAT `splash_03`, `splash_10`, `bubble_02`, `loop_water_01`, `loop_rain` |
+| fire_burst.mp3, fire_roar.mp3 | RPG80 `spell_fire_06`, `spell_fire_03` (-2) |
+| blade_slash.mp3, chain_whip.mp3 | RPG80 `blade_01`, `chain_01` |
+| bite_snap.mp3 | CRE `eat_01.ogg` (-2) |
+| bones_clack.mp3, bones_rattle.mp3 | BFH `bfh1_wood_hit_02` (+4), RPG80 `item_wood_02` (+3) |
+| ghost_breath.mp3 | CRE `breath.ogg` (-4) |
+| punch_1.mp3, punch_2.mp3, punch_heavy.mp3 | BFH `bfh1_hit_01`, `bfh1_hit_05`, `bfh1_hit_09` (-2) |
+

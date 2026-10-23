@@ -8,6 +8,7 @@
 
 import { heartbeatBpm } from '../combat/Fear';
 import type { FighterId } from '../combat/CombatTypes';
+import type { SoundLayer } from '../combat/CombatTypes';
 import { MONSTER_VOICES, SAMPLE_IDS, canVoice, pickVoice, sampleUrl, type SampleId, type VoiceKind } from './Samples';
 import {
   MUSIC, STAGE_SOUND, effectiveTension, midiToFreq, musicDuck, pickStageEvent, stepSeconds,
@@ -20,7 +21,7 @@ export type SfxName =
   | 'scream' | 'fire' | 'whistle' | 'bolt' | 'slash'
   | 'screamer' | 'heartbeat' | 'whisper' | 'creak' | 'distantScream' | 'sting'
   | 'machete' | 'macheteHit' | 'macheteClang' | 'polloMaligno' | 'duende' | 'manoPeluda'
-  | 'ladrido' | 'grunido' | 'motor' | 'pito' | 'polvora' | 'puerta';
+  | 'ladrido' | 'grunido' | 'motor' | 'pito' | 'polvora' | 'puerta' | 'galope' | 'relincho';
 
 /** Envolvente por tramos: [segundos desde el inicio, valor]. */
 type Ramp = [number, number][];
@@ -94,7 +95,7 @@ class Synth {
   }
 
   /** Reproduce una muestra grabada; false si aún no está cargada. */
-  private sample(id: SampleId, vol: number, rate = 1): AudioBufferSourceNode | null {
+  private sample(id: SampleId, vol: number, rate = 1, delay = 0): AudioBufferSourceNode | null {
     const buf = this.samples.get(id);
     if (!this.ctx || !this.master || !buf) return null;
     const src = this.ctx.createBufferSource();
@@ -103,7 +104,7 @@ class Synth {
     const g = this.ctx.createGain();
     g.gain.value = vol;
     src.connect(g).connect(this.master);
-    src.start();
+    src.start(this.ctx.currentTime + delay);
     return src;
   }
 
@@ -112,19 +113,36 @@ class Synth {
     return !!this.sample(id, vol, 1 - rateJitter / 2 + Math.random() * rateJitter);
   }
 
+  /** Capas de un sonido declarado (grabaciones y sintetizados), cada una con su tono, volumen y retraso. */
+  layers(ls: readonly SoundLayer[]): void {
+    if (!this.ready) return;
+    for (const l of ls) {
+      const at = l.at ?? 0;
+      if (l.s) {
+        // la muestra puede no haber cargado: se cae al sintetizado si la capa trae uno
+        if (this.sample(l.s, l.vol ?? 0.8, (l.rate ?? 1) * (0.97 + Math.random() * 0.06), at) || !l.fx) continue;
+      }
+      if (l.fx) {
+        const fx = l.fx;
+        if (at > 0) setTimeout(() => this.play(fx), at * 1000);
+        else this.play(fx);
+      }
+    }
+  }
+
   /**
-   * Voz del mito: rugido/risa/siseo al atacar, quejido al recibir golpe. Una voz a la
+   * Voz del luchador: grito/risa/rugido al atacar, quejido al recibir golpe, grito fuerte al soltar un poder. Una voz a la
    * vez por luchador (`slot`) y con pausa mínima para no saturar.
    */
   monster(id: FighterId, kind: VoiceKind, slot = 0): void {
     const set = MONSTER_VOICES[id];
-    if (!this.ready || !this.ctx || !set) return;
+    if (!this.ready || !this.ctx) return;
     const key = `${slot}:${id}`;
     const now = this.ctx.currentTime;
     const prev = this.voices.get(key);
     if (!canVoice(kind, now, prev?.at)) return;
     const v = pickVoice(set[kind], Math.random());
-    const src = this.sample(v.id, kind === 'hurt' ? 0.9 : 0.75, v.rate * (0.96 + Math.random() * 0.08));
+    const src = this.sample(v.id, kind === 'attack' ? 0.75 : 0.9, v.rate * (0.96 + Math.random() * 0.08));
     if (!src) return;
     if (prev) { try { prev.src.stop(); } catch { /* ya parado */ } }
     this.voices.set(key, { src, at: now });
@@ -235,13 +253,13 @@ class Synth {
     if (!this.ready) return;
     switch (name) {
       case 'hit':
-        this.noise(0.09, 0.5, 2400, 300);
-        this.tone('square', 220, 80, 0.08, 0.25);
+        // golpe grabado; el sintetizado (sin pitido cuadrado) queda si la muestra no cargó
+        if (!this.sampleOf(['punch_1', 'punch_2'], 0.75, 0.12)) this.noise(0.09, 0.5, 2400, 300);
+        this.tone('sine', 120, 50, 0.08, 0.25);
         break;
       case 'heavy':
-        this.noise(0.16, 0.7, 1800, 120);
-        this.tone('square', 160, 40, 0.16, 0.35);
-        this.tone('sawtooth', 90, 30, 0.2, 0.2, 0.01);
+        if (!this.sampleOf(['punch_heavy'], 0.85, 0.1)) this.noise(0.16, 0.7, 1800, 120);
+        this.tone('sine', 90, 35, 0.18, 0.4);
         break;
       case 'block':
         this.tone('square', 900, 500, 0.05, 0.2);
@@ -251,7 +269,8 @@ class Synth {
         this.noise(0.12, 0.18, 600, 2200, 0, 'bandpass');
         break;
       case 'jump':
-        this.tone('square', 240, 520, 0.12, 0.12);
+        // impulso del salto: aire y ropa, nada de "boing" de juguete
+        this.noise(0.14, 0.14, 500, 1600, 0, 'bandpass');
         break;
       case 'land':
         this.noise(0.06, 0.2, 500, 120);
@@ -412,6 +431,21 @@ class Synth {
           for (const [k, v] of [[1, 0.08], [1.5, 0.04], [2.2, 0.025]]) this.tone('sine', 1850 * k, 1850 * k, 0.9, v, d);
         }
         this.shaped('sawtooth', t + 0.05, [[0, 170], [0.3, 240], [0.55, 200], [0.8, 150]], [[0.06, 0.05], [0.7, 0.04], [0.85, 0]], undefined, { type: 'bandpass', freq: 900, q: 3 }, { rate: 17, depth: 0.7 });
+        break;
+      }
+      case 'galope':
+        // cascos sobre la tierra: tres golpes y un silencio, una y otra vez
+        for (let i = 0; i < 6; i++) for (const [d, v] of [[0, 0.5], [0.09, 0.35], [0.17, 0.45]] as const) {
+          const at = i * 0.38 + d;
+          this.tone('sine', 140, 55, 0.08, v * (1 - i * 0.1), at);
+          this.noise(0.05, v * 0.25 * (1 - i * 0.1), 1400, 300, at, 'bandpass');
+        }
+        break;
+      case 'relincho': {
+        // relincho: chillido nasal que sube y baja temblando
+        const t = this.ctx!.currentTime;
+        this.shaped('sawtooth', t, [[0, 520], [0.15, 900], [0.5, 760], [0.9, 420], [1.2, 300]], [[0.04, 0.16], [0.9, 0.12], [1.25, 0]], undefined, { type: 'bandpass', freq: 1300, q: 2 }, { rate: 26, depth: 0.55 });
+        this.noise(0.6, 0.06, 2000, 600, 0.6, 'bandpass');
         break;
       }
     }

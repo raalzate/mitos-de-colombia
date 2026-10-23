@@ -6,6 +6,7 @@ import { toWorldBox } from '../combat/HitboxSystem';
 import { addMeter, applyDamage, attackCooldownTotal, canUseSpecial, canUseUltimate, facingToward } from '../combat/CombatRules';
 import type { ProjectileSpawn } from './Projectile';
 import type { SfxName } from '../audio/Sfx';
+import type { PowerSound } from '../combat/CombatTypes';
 
 export interface EffectRequest {
   kind: string;
@@ -18,6 +19,8 @@ export interface EffectRequest {
 /** Canal de salida del luchador hacia la presentación (escena). */
 export interface FighterEvents {
   sound(name: SfxName): void;
+  /** sonido declarado con el poder: `cast` al arrancar, `release` cuando sale o pega */
+  power?(s: PowerSound, phase: 'cast' | 'release'): void;
   effect(e: EffectRequest): void;
   projectile(p: ProjectileSpawn): void;
 }

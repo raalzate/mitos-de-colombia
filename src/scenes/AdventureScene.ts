@@ -38,7 +38,8 @@ import {
 import {
   FURNITURE_FOOTPRINT, WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
-import { buildDog } from '../adventure/OverworldArt';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, buildDog, buildHorse } from '../adventure/OverworldArt';
+import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
 const CELL = 32;
@@ -90,8 +91,11 @@ export class AdventureScene extends Phaser.Scene {
   private st!: AdventureState;
   private gm!: GameMap;
   private map: Cell[][] = [];
-  private dog!: Phaser.GameObjects.Sprite;
-  private dogAt = { x: 0, y: 0, facing: 'down' as Dir };
+  /** Firulais: no está desde el principio, Juan se lo gana con una arepa */
+  private dog: Phaser.GameObjects.Sprite | null = null;
+  private dogAt = { x: -99, y: -99, facing: 'down' as Dir };
+  /** pasos que faltan para que el perro pueda volver a avisar de un espanto */
+  private dogWarnCd = 0;
   private trains: Phaser.GameObjects.Image[] = [];
   private blinkers: { img: Phaser.GameObjects.Image; base: string }[] = [];
   private lightImg!: Phaser.GameObjects.Image;
@@ -127,7 +131,7 @@ export class AdventureScene extends Phaser.Scene {
     super('AdventureScene');
   }
 
-  create(data: { fresh?: boolean; outcome?: FightOutcome; arrive?: 'car' | 'door' }): void {
+  create(data: { fresh?: boolean; outcome?: FightOutcome; arrive?: 'car' | 'horse' | 'door' }): void {
     this.st = (this.registry.get('adventure') as AdventureState | undefined) ?? (data.fresh ? null : loadAdventure()) ?? newAdventure();
     if (data.fresh) this.st = newAdventure();
     const fight = this.registry.get('adventureFight') as AdventureFight | undefined;
@@ -152,6 +156,9 @@ export class AdventureScene extends Phaser.Scene {
     this.clues.clear();
     this.area = '';
     this.soundNow = '';
+    this.dog = null;
+    this.dogAt = { x: -99, y: -99, facing: 'down' };
+    this.dogWarnCd = 0;
     sfx.setTension(0);
 
     this.gm = getMap(this.st.map);
@@ -176,7 +183,7 @@ export class AdventureScene extends Phaser.Scene {
 
     if (fight && data.outcome) void this.afterFight(fight, data.outcome);
     else if (!this.st.flags.includes('intro')) void this.intro();
-    else if (data.arrive === 'car') void this.arriveByCar();
+    else if (data.arrive === 'car' || data.arrive === 'horse') void this.arriveBy(data.arrive);
     else this.showArea();
   }
 
@@ -206,6 +213,8 @@ export class AdventureScene extends Phaser.Scene {
     for (const v of VILLAGER_KINDS) if (!this.textures.exists(`av_${v}`)) addSheet(this, `av_${v}`, buildVillager(v), 48, 48);
     for (const s of SPIRIT_KINDS) if (!this.textures.exists(`av_spirit_${s}`)) addSheet(this, `av_spirit_${s}`, buildSpirit(s), 48, 48);
     if (!this.textures.exists('av_perro')) addSheet(this, 'av_perro', buildDog(), 48, 48);
+    if (!this.textures.exists('av_caballo')) addSheet(this, 'av_caballo', buildHorse('lucero'), 48, 48);
+    if (!this.textures.exists('av_caballo_negro')) addSheet(this, 'av_caballo_negro', buildHorse('negro'), 48, 48);
     if (!this.textures.exists('av_mat')) add('av_mat', buildDoorMat());
     if (!this.textures.exists('av_light')) {
       const c = document.createElement('canvas');
@@ -386,19 +395,16 @@ export class AdventureScene extends Phaser.Scene {
   private buildActors(): void {
     const campo = this.gm.kind === 'campo';
     for (const npc of this.gm.npcs) {
-      let [x, y] = [npc.x, npc.y];
-      if (campo && npc.key === 'pescador' && this.st.flags.includes('tono')) [x, y] = PESCADOR_REFUGIO;
-      const sprite = this.add.sprite(feetX(x), feetY(y), this.npcTexture(npc.key), 0).setOrigin(0.5, 47 / 48);
-      const view: NpcView = { npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0 };
-      this.faceNpc(view, npc.facing);
-      this.npcs.push(view);
+      if (npc.needs && !this.st.flags.includes(npc.needs)) continue;
+      if (npc.gone && this.st.flags.includes(npc.gone)) continue;
+      this.addNpc(npc);
     }
     this.heroShadow = this.add.image(0, 0, 'av_shadow');
     this.hero = this.add.sprite(feetX(this.st.x), feetY(this.st.y), 'av_hero', HERO_FRAMES[this.st.facing].idle).setOrigin(0.5, 47 / 48);
     this.grassFront = this.add.image(0, 0, 'av_tall_0').setOrigin(0.5, 0).setScale(2).setCrop(0, 9, 16, 7).setVisible(false);
     this.setHeroFrame();
     this.placeHero(feetX(this.st.x), feetY(this.st.y));
-    this.buildDog();
+    if (this.hasDog) this.buildDog();
 
     if (!campo) return;
     // los mitos no se ven: rondan escondidos lejos de Juan
@@ -418,25 +424,42 @@ export class AdventureScene extends Phaser.Scene {
     }
   }
 
+  private addNpc(npc: Npc): NpcView {
+    let [x, y] = [npc.x, npc.y];
+    if (this.gm.kind === 'campo' && npc.key === 'pescador' && this.st.flags.includes('tono')) [x, y] = PESCADOR_REFUGIO;
+    const sprite = this.add.sprite(feetX(x), feetY(y), this.npcTexture(npc.key), 0).setOrigin(0.5, 47 / 48);
+    if (npc.key === 'perro') sprite.setScale(0.75);
+    const view: NpcView = { npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0 };
+    this.faceNpc(view, npc.facing);
+    this.npcs.push(view);
+    return view;
+  }
+
   // ---------------------------------------------------------------- el perro
 
+  private get hasDog(): boolean {
+    return this.st.flags.includes('perro');
+  }
+
   /** Firulais sigue a Juan una casilla atrás, por donde él pasó. */
-  private buildDog(): void {
+  private buildDog(at?: [number, number]): void {
     const [dx, dy] = STEP[OPPOSITE[this.st.facing]];
-    let x = this.st.x + dx, y = this.st.y + dy;
-    if (!walkable(this.map, x, y) || this.npcs.some((n) => n.x === x && n.y === y)) [x, y] = [this.st.x, this.st.y];
+    let [x, y] = at ?? [this.st.x + dx, this.st.y + dy];
+    if (!at && (!walkable(this.map, x, y) || this.npcs.some((n) => n.x === x && n.y === y))) [x, y] = [this.st.x, this.st.y];
     this.dogAt = { x, y, facing: this.st.facing };
     this.dog = this.add.sprite(feetX(x), feetY(y), 'av_perro', 0).setOrigin(0.5, 47 / 48).setScale(0.75);
     this.faceDog(this.st.facing);
   }
 
   private faceDog(d: Dir): void {
+    if (!this.dog) return;
     this.dogAt.facing = d;
     const f = NPC_FRAME[d];
     this.dog.setFrame(f.f).setFlipX(f.flip);
   }
 
   private followDog(): void {
+    if (!this.dog) return;
     const { x: tx, y: ty } = this.from;
     const d: Dir = tx > this.dogAt.x ? 'right' : tx < this.dogAt.x ? 'left' : ty > this.dogAt.y ? 'down' : 'up';
     if (tx === this.dogAt.x && ty === this.dogAt.y) return;
@@ -688,6 +711,7 @@ export class AdventureScene extends Phaser.Scene {
 
   /** El perro gruñe y mira hacia donde ronda un espanto escondido: otra señal para encontrarlo. */
   private dogSenses(): void {
+    if (!this.dog) return;
     const near = this.hidden.find((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 6);
     if (!near || this.rnd() > 0.25) return;
     const dx = near.h.x - this.dogAt.x, dy = near.h.y - this.dogAt.y;
@@ -696,13 +720,101 @@ export class AdventureScene extends Phaser.Scene {
     this.tweens.add({ targets: this.dog, x: this.dog.x + 1, duration: 40, yoyo: true, repeat: 6 });
   }
 
-  /** En el yipao entre San Agustín y Medellín: carretera de montaña con cafetales, de noche. */
+  private lookDog(x: number, y: number): Dir {
+    const dx = x - this.dogAt.x, dy = y - this.dogAt.y;
+    const d: Dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up';
+    this.faceDog(d);
+    return d;
+  }
+
+  /** Firulais huele al espanto antes de que salte: se para en seco y ladra hacia donde está. */
+  private async dogWarn(v: HiddenView): Promise<void> {
+    if (!this.dog) return;
+    this.locked = true;
+    this.dogWarnCd = 10;
+    // el espanto se queda quieto unos pasos: Juan alcanza a prepararse
+    v.h.rest = Math.max(v.h.rest, 3);
+    const d = this.lookDog(v.h.x, v.h.y);
+    sfx.play('ladrido');
+    await Promise.all([this.bubble(this.dog, 1, 500), this.tween({ targets: this.dog, y: this.dog.y - 5, duration: 90, yoyo: true, repeat: 2 })]);
+    const where: Record<Dir, string> = { up: 'PA\' ARRIBA', down: 'PA\' ABAJO', left: 'PA\' LA IZQUIERDA', right: 'PA\' LA DERECHA' };
+    if (!this.st.flags.includes('aviso')) {
+      this.st.flags.push('aviso');
+      saveAdventure(this.st);
+      await this.dialog.say([`FIRULAIS SE PARA EN SECO, PELA LOS DIENTES Y LADRA MIRANDO ${where[d]}.`]);
+      await this.dialog.say(['¿QUÉ HUELE, FIRULAIS?... ¡ALGO HAY POR AHÍ! GRACIAS POR AVISAR, PARCERO. CUANDO LADRE ASÍ, ¡OJO!'], { speaker: 'JUAN MACHETE' });
+    } else if (this.rnd() < 0.5) {
+      const lines = [`¡FIRULAIS LADRA ${where[d]}! ¡AY, MAMITA!`, 'SHHH... ¿QUÉ VIO, FIRULAIS? ¿ESPANTO?', '¡YA SÉ, YA SÉ! ¡HAY ALGO CERCA!'];
+      await this.dialog.say([lines[Math.floor(this.rnd() * lines.length)]], { speaker: 'JUAN MACHETE' });
+    }
+    this.locked = false;
+  }
+
+  /** El perro flaco de la plaza: con hambre gruñe; con una arepa se gana su cariño para siempre. */
+  private async talkPerro(n: NpcView): Promise<void> {
+    if (!this.st.flags.includes('arepa')) {
+      sfx.play('grunido');
+      await this.shake(n.sprite, 5);
+      if (!this.st.flags.includes('perro_visto')) {
+        this.st.flags.push('perro_visto');
+        saveAdventure(this.st);
+      }
+      await this.dialog.say(['UN PERRO FLACO, SIN DUEÑO. LE GRUÑE A JUAN... PERO NO DEJA DE MIRARLE LAS MANOS. TIENE CARA DE HAMBRE.']);
+      await this.dialog.say(['TRANQUILO, MIJO, QUE YO NO LE HAGO NADA. ¿Y SI LE CONSIGO ALGO DE COMER? DOÑA GLORIA, LA DE LA PLAZA, VENDE AREPAS...'], { speaker: 'JUAN MACHETE' });
+      return;
+    }
+    const i = await this.dialog.ask('¿LE DA LA AREPA AL PERRO?', ['¡TOME, POBRECITO!', 'TODAVÍA NO'], { cancel: 1 });
+    if (i !== 0) return;
+    sfx.play('bloom');
+    for (let k = 0; k < 3; k++) await this.tween({ targets: n.sprite, scaleY: 0.66, duration: 110, yoyo: true });
+    sfx.play('ladrido');
+    await this.tween({ targets: n.sprite, y: n.sprite.y - 8, duration: 130, yoyo: true, repeat: 2 });
+    await this.dialog.say(['EL PERRO SE COME LA AREPA EN DOS BOCADOS, MUEVE LA COLA Y LE LAME LA MANO A JUAN.']);
+    await this.dialog.say(['¡ESO, PARCERO! DE AHORA EN ADELANTE USTED SE LLAMA FIRULAIS Y ANDA CONMIGO.'], { speaker: 'JUAN MACHETE' });
+    this.st.flags = this.st.flags.filter((f) => f !== 'arepa');
+    this.st.flags.push('perro');
+    saveAdventure(this.st);
+    const at: [number, number] = [n.x, n.y];
+    n.sprite.destroy();
+    this.npcs = this.npcs.filter((x) => x !== n);
+    this.buildDog(at);
+    this.faceDog(OPPOSITE[this.st.facing]);
+    sfx.play('ultimate');
+    await this.dialog.say(['¡FIRULAIS SE UNIÓ A JUAN! CUANDO HUELA UN ESPANTO CERCA, LADRARÁ PARA AVISARLE.']);
+  }
+
+  /** Arepa para el perro: se la da doña Gloria si Juan ya lo vio, o se compra en las fiestas. */
+  private giveArepa(): boolean {
+    if (this.hasDog || this.st.flags.includes('arepa')) return false;
+    this.st.flags.push('arepa');
+    saveAdventure(this.st);
+    sfx.play('confirm');
+    return true;
+  }
+
+  /** En el yipao entre San Agustín y Medellín. */
   private async travel(): Promise<void> {
     this.locked = true;
     const toCity = this.gm.id === 'campo';
     const ok = await this.dialog.ask(toCity ? '¿SE VA PA\' MEDELLÍN?' : '¿VOLVEMOS A SAN AGUSTÍN?', ['¡VÁMONOS!', 'TODAVÍA NO'], { cancel: 1 });
     if (ok !== 0) { this.locked = false; return; }
-    sfx.play('motor');
+    await this.journey('jeep', toCity ? 'medellin' : 'campo', toCity ? 'BAJANDO A MEDELLÍN...' : 'SUBIENDO A SAN AGUSTÍN...');
+  }
+
+  /** Lucero lleva a Juan por el camino de herradura entre San Agustín y Santa Fe de Antioquia. */
+  private async ride(n: NpcView): Promise<void> {
+    sfx.play('relincho');
+    await this.tween({ targets: n.sprite, y: n.sprite.y - 4, duration: 90, yoyo: true, repeat: 1 });
+    const toSantafe = this.gm.id !== 'santafe';
+    const i = await this.dialog.ask(toSantafe ? '¿NOS VAMOS PA\' SANTA FE DE ANTIOQUIA, LUCERO?' : '¿VOLVEMOS A SAN AGUSTÍN, LUCERO?', ['¡ARRE, LUCERO!', 'TODAVÍA NO'], { cancel: 1 });
+    if (i !== 0) return;
+    await this.journey('caballo', toSantafe ? 'santafe' : 'campo', toSantafe ? 'CAMINO DE HERRADURA A SANTA FE...' : 'DE VUELTA A SAN AGUSTÍN...');
+  }
+
+  /** Viaje de noche por la montaña: cafetales, luna y el pueblo iluminado al final. En jeep o a caballo. */
+  private async journey(by: 'jeep' | 'caballo', to: string, title: string): Promise<void> {
+    this.locked = true;
+    sfx.play(by === 'jeep' ? 'motor' : 'galope');
     const layer: Phaser.GameObjects.GameObject[] = [];
     const bg = this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0x0a1430).setScrollFactor(0).setDepth(8000).setAlpha(0);
     layer.push(bg);
@@ -719,40 +831,61 @@ export class AdventureScene extends Phaser.Scene {
     hills(1, 120, 0x14243c, 40);
     hills(4, 150, 0x1c3a2a, 26);
     for (let x = 0; x < GAME_WIDTH * 3; x += 14) { g.fillStyle(0x2a5a2a, 1).fillCircle(x, 166 + (x % 3), 5); g.fillStyle(0xc02020, 1).fillCircle(x + 2, 164, 1); }
-    g.fillStyle(0x3a3028, 1).fillRect(0, 172, GAME_WIDTH * 3, 30);
-    for (let x = 0; x < GAME_WIDTH * 3; x += 24) g.fillStyle(0xd8c070, 1).fillRect(x, 186, 10, 2);
-    const village = toCity ? 'MEDELLÍN' : 'SAN AGUSTÍN';
+    // carretera destapada para el jeep; trocha de herradura con piedras para el caballo
+    g.fillStyle(by === 'jeep' ? 0x3a3028 : 0x5a4030, 1).fillRect(0, 172, GAME_WIDTH * 3, 30);
+    if (by === 'jeep') for (let x = 0; x < GAME_WIDTH * 3; x += 24) g.fillStyle(0xd8c070, 1).fillRect(x, 186, 10, 2);
+    else for (let x = 0; x < GAME_WIDTH * 3; x += 17) g.fillStyle(0x7a6450, 1).fillRect(x + (x % 5), 178 + (x % 13), 4, 2);
     for (let i = 0; i < 40; i++) layer.push(this.add.circle(GAME_WIDTH * 2 + 40 + (i % 10) * 18, 110 + Math.floor(i / 10) * 10, 1.5, [0xf8d048, 0xf8f0c0, 0xf88848][i % 3]).setScrollFactor(0).setDepth(8001));
-    const jeep = this.add.image(-60, 182, 'av_cp_jeep_0').setScale(2).setOrigin(0.5, 1).setScrollFactor(0).setDepth(8003);
-    layer.push(jeep);
-    const label = this.add.bitmapText(GAME_WIDTH / 2, 24, 'font', toCity ? 'BAJANDO A MEDELLÍN...' : 'SUBIENDO A SAN AGUSTÍN...').setOrigin(0.5).setScrollFactor(0).setDepth(8004).setTint(0xf8f0d8);
+    let rider: Phaser.GameObjects.Container;
+    let gallop: Phaser.Time.TimerEvent | null = null;
+    if (by === 'jeep') {
+      rider = this.add.container(-60, 182, [this.add.image(0, 0, 'av_cp_jeep_0').setScale(2).setOrigin(0.5, 1)]);
+    } else {
+      const parts: Phaser.GameObjects.GameObject[] = [];
+      if (this.hasDog) parts.push(this.add.sprite(-46, 2, 'av_perro', 1).setOrigin(0.5, 1).setScale(0.75));
+      const horse = this.add.image(0, 0, 'av_caballo', HORSE_GALLOP_FIRST).setOrigin(0.5, 1).setScale(1.5);
+      parts.push(horse);
+      parts.push(this.add.sprite(-4, -26, 'av_hero', HERO_FRAMES.right.idle).setOrigin(0.5, 1).setScale(0.9));
+      rider = this.add.container(-60, 184, parts);
+      let n = 0;
+      gallop = this.time.addEvent({ delay: 90, loop: true, callback: () => horse.setFrame(HORSE_GALLOP_FIRST + (++n % HORSE_GALLOP_FRAMES)) });
+    }
+    rider.setScrollFactor(0).setDepth(8003);
+    layer.push(rider);
+    const label = this.add.bitmapText(GAME_WIDTH / 2, 24, 'font', title).setOrigin(0.5).setScrollFactor(0).setDepth(8004).setTint(0xf8f0d8);
     layer.push(label);
-    const bump = this.tweens.add({ targets: jeep, y: 180, duration: 120, yoyo: true, repeat: -1 });
-    await this.tween({ targets: jeep, x: GAME_WIDTH / 2, duration: 1400, ease: 'Sine.out' });
-    await this.tween({ targets: g, x: -GAME_WIDTH * 1.6, duration: 2600, ease: 'Sine.inOut',
+    const bump = this.tweens.add({ targets: rider, y: rider.y - (by === 'jeep' ? 2 : 4), duration: by === 'jeep' ? 120 : 160, yoyo: true, repeat: -1 });
+    const hooves = by === 'caballo' ? this.time.addEvent({ delay: 2200, loop: true, callback: () => sfx.play('galope') }) : null;
+    await this.tween({ targets: rider, x: GAME_WIDTH / 2, duration: 1400, ease: 'Sine.out' });
+    await this.tween({ targets: g, x: -GAME_WIDTH * 1.6, duration: by === 'jeep' ? 2600 : 3400, ease: 'Sine.inOut',
       onUpdate: () => { for (const o of layer) if (o instanceof Phaser.GameObjects.Arc && o.radius < 2) o.x -= 1.4; } });
-    sfx.play('pito');
-    label.setText(`¡LLEGAMOS A ${village}!`);
-    await this.tween({ targets: jeep, x: GAME_WIDTH + 80, duration: 900, ease: 'Sine.in' });
+    const dest = getMap(to);
+    sfx.play(by === 'jeep' ? 'pito' : 'relincho');
+    label.setText(`¡LLEGAMOS A ${dest.name}!`);
+    await this.tween({ targets: rider, x: GAME_WIDTH + 80, duration: 900, ease: 'Sine.in' });
     bump.stop();
-    const dest = toCity ? getMap('medellin') : getMap('campo');
-    const [ax, ay] = dest.arrival!;
+    hooves?.remove();
+    gallop?.remove();
+    const [ax, ay] = (by === 'jeep' ? dest.arrival : dest.horseArrival)!;
     Object.assign(this.st, { map: dest.id, x: ax, y: ay, facing: 'down' as Dir });
     saveAdventure(this.st);
-    this.scene.restart({ arrive: 'car' });
+    this.scene.restart({ arrive: by === 'jeep' ? 'car' : 'horse' });
   }
 
-  private async arriveByCar(): Promise<void> {
+  private async arriveBy(by: 'car' | 'horse'): Promise<void> {
     this.locked = true;
-    sfx.play('pito');
+    sfx.play(by === 'car' ? 'pito' : 'relincho');
     await this.wait(500);
     const first = !this.st.flags.includes(`llegó_${this.gm.id}`);
     if (first) {
       this.st.flags.push(`llegó_${this.gm.id}`);
       saveAdventure(this.st);
-      await this.dialog.say(this.gm.kind === 'ciudad'
-        ? ['¡AVE MARÍA, QUÉ BELLEZA! MEDELLÍN DE NOCHE, TODA ILUMINADA. AQUÍ NO HAY ESPANTOS... ¡HAY FIESTA!', 'PA\' VOLVER A SAN AGUSTÍN, BUSQUE A DON EVELIO EN LA TERMINAL DEL NORTE.']
-        : ['DE VUELTA EN SAN AGUSTÍN. AQUÍ EL MONTE SE OYE DISTINTO... LOS ESPANTOS SIGUEN SUELTOS.'], { speaker: 'JUAN MACHETE' });
+      const lines: Record<string, string[]> = {
+        medellin: ['¡AVE MARÍA, QUÉ BELLEZA! MEDELLÍN DE NOCHE, TODA ILUMINADA. AQUÍ NO HAY ESPANTOS... ¡HAY FIESTA!', 'PA\' VOLVER A SAN AGUSTÍN, BUSQUE A DON EVELIO EN LA TERMINAL DEL NORTE.'],
+        santafe: ['¡SANTA FE DE ANTIOQUIA, LA CIUDAD MADRE! CASAS BLANCAS, CALLES DE PIEDRA... ¡Y QUÉ CALOR TAN BERRACO, Y ESO QUE ES DE NOCHE!', 'LUCERO SE QUEDA AMARRADO AQUÍ EN LA ENTRADA. CUANDO QUIERA VOLVER A SAN AGUSTÍN, LO BUSCO.'],
+        campo: ['DE VUELTA EN SAN AGUSTÍN. AQUÍ EL MONTE SE OYE DISTINTO... LOS ESPANTOS SIGUEN SUELTOS.'],
+      };
+      await this.dialog.say(lines[this.gm.id] ?? [`¡LLEGAMOS A ${this.gm.name}!`], { speaker: 'JUAN MACHETE' });
     }
     this.locked = false;
     this.showArea();
@@ -776,6 +909,12 @@ export class AdventureScene extends Phaser.Scene {
         wander(this.map, v.h, v.g, this.rnd, (x, y) => this.occupied(x, y));
         this.syncClues(v);
       }
+    }
+    // Firulais avisa antes de que un espanto salte encima
+    if (this.dogWarnCd > 0) this.dogWarnCd--;
+    if (this.dog && this.dogWarnCd <= 0) {
+      const threat = this.hidden.find((v) => v.h.rest === 0 && dist(v.h.x, v.h.y, hero.x, hero.y) <= 4);
+      if (threat) { void this.dogWarn(threat); return; }
     }
     // ¿alguno salta de la nada?
     for (const v of this.hidden) {
@@ -845,7 +984,24 @@ export class AdventureScene extends Phaser.Scene {
 
   private mythSprite(id: FighterId, x: number, y: number, anim: 'idle' | 'walk' = 'idle'): Phaser.GameObjects.Sprite {
     const k = drawnAnimKey(id, 'p1', anim);
-    return this.add.sprite(feetX(x), feetY(y) + 2, this.textures.exists(k) ? k : 'av_hero', 0).setOrigin(0.5, 1).setDepth(feetY(y) + 2).setScale(MYTH_MAP_SCALE);
+    const sp = this.add.sprite(feetX(x), feetY(y) + 2, this.textures.exists(k) ? k : 'av_hero', 0).setOrigin(0.5, 1).setDepth(feetY(y) + 2).setScale(MYTH_MAP_SCALE);
+    if (id === 'sombreron') this.mount(sp);
+    return sp;
+  }
+
+  /** El Sombrerón anda en su caballo negro: el caballo sigue al jinete en todo (aparecer, crecer, esfumarse). */
+  private mount(sp: Phaser.GameObjects.Sprite): void {
+    const horse = this.add.image(sp.x, sp.y, 'av_caballo_negro', 1).setOrigin(0.5, 1);
+    sp.y -= 30;
+    sfx.play('galope');
+    this.time.delayedCall(500, () => sfx.play('relincho'));
+    const sync = () => {
+      const k = sp.scaleY / MYTH_MAP_SCALE;
+      horse.setScale(1.3 * k * (sp.scaleX / sp.scaleY), 1.3 * k).setAlpha(sp.alpha).setFlipX(sp.flipX).setDepth(sp.depth - 0.5);
+    };
+    sync();
+    this.events.on(Phaser.Scenes.Events.POST_UPDATE, sync);
+    sp.once(Phaser.GameObjects.Events.DESTROY, () => { this.events.off(Phaser.Scenes.Events.POST_UPDATE, sync); horse.destroy(); });
   }
 
   /** Ojos rojos que brillan en la oscuridad, por encima de la noche. */
@@ -859,7 +1015,11 @@ export class AdventureScene extends Phaser.Scene {
   /** Se deja ver un instante a lo lejos y se esfuma. */
   private async glimpse(v: HiddenView): Promise<void> {
     const sp = this.mythSprite(v.g.id, v.h.x, v.h.y).setAlpha(0).setFlipX(v.h.x > this.st.x);
-    const eyes = this.eyesAt(sp.x, sp.y - sp.displayHeight * 0.78).setAlpha(0);
+    // a veces la Patasola está acostada en el monte, como una mujer herida que espera a que alguien se acerque
+    const fall = DRAWN_ANIM.patasola.fall;
+    const lying = v.g.id === 'patasola' && fall && this.textures.exists(drawnAnimKey('patasola', 'p1', 'fall')) && this.rnd() < 0.5;
+    if (lying) sp.setTexture(drawnAnimKey('patasola', 'p1', 'fall'), fall.lying ?? 0).setY(sp.y + 4);
+    const eyes = this.eyesAt(sp.x, sp.y - sp.displayHeight * (lying ? 0.4 : 0.78)).setAlpha(0);
     sfx.monster(v.g.id, 'attack');
     await this.tween({ targets: [sp, eyes], alpha: 0.85, duration: 300 });
     await this.wait(500);
@@ -960,6 +1120,7 @@ export class AdventureScene extends Phaser.Scene {
     sv.sprite.setFlipX(sv.x > this.st.x);
     this.tweens.add({ targets: sv.sprite, alpha: 1, duration: 300 });
     sfx.play(SPIRIT_SOUND[sv.s.kind]);
+    if (this.dog) { this.lookDog(sv.x, sv.y); this.time.delayedCall(250, () => sfx.play('ladrido')); }
     if (sv.s.kind === 'pollo') this.eyesAt(sv.sprite.x, sv.sprite.y - 30).setData('pollo', true);
   }
 
@@ -1045,6 +1206,7 @@ export class AdventureScene extends Phaser.Scene {
     await this.dialog.say([
       'PERO OJO, MIJO: A LOS ESPANTOS NO LOS VA A VER ASÍ NO MÁS. SE ESCONDEN, SE MUEVEN Y SALEN DE LA NADA.',
       'BUSQUE LAS SEÑALES QUE DEJAN: HUELLAS, HUESOS, LÁGRIMAS... Y PARE BIEN LA OREJA. PREGÚNTELE A LA GENTE DEL PUEBLO.',
+      'Y EN LA PLAZA ANDA UN PERRITO FLACO, SIN DUEÑO. DICEN QUE ESOS PERROS HUELEN A LOS ESPANTOS ANTES QUE NADIE... SI SE LO GANA, NO LO DEJA SOLO NUNCA.',
     ], { speaker: 'ABUELA ROSA' });
     await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE MACHETE Y ESE FAROL, PUES!'], { speaker: 'JUAN MACHETE' });
     sfx.play('ultimate');
@@ -1143,12 +1305,15 @@ export class AdventureScene extends Phaser.Scene {
       this.faceNpc(npc, OPPOSITE[this.st.facing]);
       if (npc.npc.key === 'abuela') await this.talkAbuela(npc);
       else if (npc.npc.key === 'pescador' && this.gm.kind === 'campo') await this.talkTono(npc);
+      else if (npc.npc.key === 'perro') await this.talkPerro(npc);
+      else if (npc.npc.key === 'caballo') await this.ride(npc);
+      else if (npc.npc.name === 'DON RUBÉN') await this.talkRuben(npc);
       else await this.talkVillager(npc);
-      this.faceNpc(npc, before);
+      if (npc.sprite.active) this.faceNpc(npc, before);
       this.locked = false;
       return;
     }
-    if (this.dogAt.x === tx && this.dogAt.y === ty) {
+    if (this.dog && this.dogAt.x === tx && this.dogAt.y === ty) {
       sfx.play('ladrido');
       this.tweens.add({ targets: this.dog, y: this.dog.y - 6, duration: 120, yoyo: true, repeat: 1 });
       await this.dialog.say([['FIRULAIS MUEVE LA COLA. ¡QUÉ PERRO TAN FIEL!', 'FIRULAIS LE LAME LA MANO. CON ÉL AL LADO, EL MIEDO ES MENOS.', '¿QUIÉN ES UN PERRO BERRACO? ¡USTED, FIRULAIS!'][this.frame % 3]]);
@@ -1176,8 +1341,23 @@ export class AdventureScene extends Phaser.Scene {
   /** Cada aldeano saluda, y si tiene una historia, se la ofrece a Juan. */
   private async talkVillager(n: NpcView): Promise<void> {
     const npc = n.npc;
-    if (npc.lines?.length) await this.dialog.say(npc.lines[n.talks % npc.lines.length], { speaker: npc.name });
+    const arepas = this.gm.kind === 'campo' && (npc.name === 'DOÑA GLORIA' || npc.name === 'DOÑA MARINA');
+    if (arepas && (npc.name === 'DOÑA MARINA' || this.st.flags.includes('perro_visto')) && this.giveArepa()) {
+      await this.dialog.say([npc.name === 'DOÑA GLORIA'
+        ? '¿PA\'L PERRITO FLACO DE LA PLAZA? TOME, MIJO, LA ÚLTIMA AREPA QUE ME QUEDÓ. ¡ESE PERRO HUELE ESPANTOS, DICEN!'
+        : '¡UNA AREPA DE CHOCLO CON QUESITO! ¿PA\' USTED O PA\' ALGÚN PERRITO? JA, JA, LLÉVESELA.'], { speaker: npc.name });
+      await this.dialog.say(['JUAN GUARDA LA AREPA EN EL CARRIEL.']);
+      n.talks++;
+    } else if (npc.lines?.length) await this.dialog.say(npc.lines[n.talks % npc.lines.length], { speaker: npc.name });
     n.talks++;
+    await this.offerStory(n);
+    if (npc.action === 'carro') await this.travel();
+    else if (npc.action === 'baile') await this.dance();
+  }
+
+  /** Si el aldeano tiene una historia, se la ofrece a Juan. */
+  private async offerStory(n: NpcView): Promise<void> {
+    const npc = n.npc;
     if (npc.story) {
       const story = STORIES[npc.story];
       const heard = this.st.stories.includes(npc.story);
@@ -1193,8 +1373,41 @@ export class AdventureScene extends Phaser.Scene {
         }
       }
     }
-    if (npc.action === 'carro') await this.travel();
-    else if (npc.action === 'baile') await this.dance();
+  }
+
+  /** Don Rubén, el arriero: le regala a Lucero, su caballo, si Juan calma al Silbón que espanta las bestias del llano. */
+  private async talkRuben(n: NpcView): Promise<void> {
+    const S = 'DON RUBÉN';
+    if (this.st.flags.includes('caballo')) {
+      await this.dialog.say(['¿CÓMO VA LUCERO, MIJO? CON ESE CABALLO LLEGA A SANTA FE DE ANTIOQUIA EN UN DÍA. ¡TRÁTEMELO BIEN!'], { speaker: S });
+      await this.offerStory(n);
+      return;
+    }
+    if (!this.st.flags.includes('oferta_caballo')) {
+      this.st.flags.push('oferta_caballo');
+      saveAdventure(this.st);
+      await this.dialog.say([
+        'ESTA MULA NO PASA POR EL LLANO NI A PALO: EL SILBÓN LA TIENE ESPANTADA. Y POR EL LLANO SALE EL CAMINO DE HERRADURA A SANTA FE DE ANTIOQUIA.',
+        'YO TENGO UN CABALLO, LUCERO, EL MÁS BERRACO DE LA VEREDA. PERO NO SE LO DOY A CUALQUIERA...',
+        'HAGAMOS UN TRATO: SI USTED CALMA AL SILBÓN, LUCERO ES SUYO. ¡PALABRA DE ARRIERO!',
+      ], { speaker: S });
+    }
+    if (!this.st.calmed.includes('silbon')) {
+      await this.dialog.say(['EL SILBÓN ANDA EN EL LLANO, AL NORTE. SIGA LOS HUESOS... Y SI LO OYE LEJOS, ¡ES QUE ESTÁ CERQUITA!'], { speaker: S });
+      await this.offerStory(n);
+      return;
+    }
+    sfx.play('relincho');
+    await this.dialog.say([
+      '¡USTED CALMÓ AL SILBÓN! ANOCHE LA MULA DURMIÓ COMO UNA BENDITA.',
+      'PALABRA DE ARRIERO: LUCERO ES SUYO. LO DEJÉ AMARRADO EN EL LLANO, AL PRINCIPIO DEL CAMINO DE HERRADURA. ¡QUE LE VAYA BONITO EN SANTA FE!',
+    ], { speaker: S });
+    this.st.flags.push('caballo');
+    saveAdventure(this.st);
+    const lucero = this.gm.npcs.find((x) => x.key === 'caballo');
+    if (lucero && !this.npcs.some((x) => x.npc === lucero)) this.addNpc(lucero);
+    sfx.play('ultimate');
+    await this.dialog.say(['¡JUAN SE GANÓ A LUCERO! CON ÉL PUEDE VIAJAR A SANTA FE DE ANTIOQUIA.']);
   }
 
   /** Cosas del mapa que se pueden usar: el tablado, el castillo de pólvora, la rockola, la silleta… */
@@ -1210,12 +1423,19 @@ export class AdventureScene extends Phaser.Scene {
       case 'botero_gorda': case 'botero_caballo': case 'botero_gato':
         await this.dialog.say(['UNA ESCULTURA DE BOTERO, GORDITA Y BRILLANTE DE TANTO QUE LA SOBAN. JUAN LE SOBA LA BARRIGA... ¡PA\' LA SUERTE!']); return true;
       case 'grafiti': await this.dialog.say(['UN MURAL LLENO DE COLORES: UNA ABUELA SONRIENDO, PÁJAROS, FLORES Y LA PALABRA «ESPERANZA».']); return true;
-      case 'puesto_arepas': sfx.play('bloom'); await this.dialog.say(['¡UNA AREPA DE CHOCLO CON QUESITO! JUAN SE LA COME DE TRES MORDISCOS. ¡QUÉ DELICIA!']); return true;
+      case 'puesto_arepas':
+        sfx.play('bloom');
+        await this.dialog.say(['¡UNA AREPA DE CHOCLO CON QUESITO! JUAN SE LA COME DE TRES MORDISCOS. ¡QUÉ DELICIA!']);
+        if (this.gm.kind === 'campo' && this.giveArepa()) await this.dialog.say(['...Y GUARDA OTRA EN EL CARRIEL, POR SI ACASO.']);
+        return true;
       case 'puesto_fruta': sfx.play('bloom'); await this.dialog.say(['MANGO BICHE CON SAL, LIMÓN Y PIMIENTA. ¡JUAN HACE CARA DE ÁCIDO, PERO PIDE OTRO!']); return true;
       case 'fogon_lena': case 'olla': await this.dialog.say(['UN SANCOCHO HIRVIENDO EN EL FOGÓN DE LEÑA. ¡HUELE A DOMINGO EN FAMILIA!']); return true;
       case 'sagrado_corazon': case 'virgen': case 'altar': await this.dialog.say(['JUAN SE PERSIGNA. «QUE DIOS Y LA VIRGEN ME ACOMPAÑEN CONTRA LOS ESPANTOS».']); return true;
       case 'tiple': case 'guitarra': case 'acordeon': await this.dialog.say(['UN INSTRUMENTO COLGADO EN LA PARED. ALGUIEN EN ESTA CASA TOCA MUY BONITO.']); return true;
-      case 'mula': sfx.play('ladrido'); await this.dialog.say(['LA MULA LE MUEVE LAS OREJAS A JUAN. FIRULAIS LE LADRA, PERO ELLA NI SE INMUTA.']); return true;
+      case 'mula':
+        if (this.dog) sfx.play('ladrido');
+        await this.dialog.say([this.dog ? 'LA MULA LE MUEVE LAS OREJAS A JUAN. FIRULAIS LE LADRA, PERO ELLA NI SE INMUTA.' : 'LA MULA LE MUEVE LAS OREJAS A JUAN Y SIGUE COMIENDO PASTO.']);
+        return true;
     }
     return false;
   }
@@ -1275,6 +1495,8 @@ export class AdventureScene extends Phaser.Scene {
     }
     sfx.play('bloom');
     await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: 'ABUELA ROSA' });
+    if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
+    else if (!this.st.flags.includes('caballo')) await this.dialog.say(['¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.'], { speaker: 'ABUELA ROSA' });
     const left = GUARDIANS.length - this.st.calmed.length;
     n.scared = true;
     await this.dialog.say([`TODAVÍA QUEDAN ${left} MITOS SUELTOS... ACUÉRDESE: SIGA LAS SEÑALES Y PARE LA OREJA.`], { speaker: 'ABUELA ROSA', shake: true });
@@ -1318,7 +1540,8 @@ export class AdventureScene extends Phaser.Scene {
     if (i === 0) {
       const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id)).map((g) => FIGHTERS[g.id].name).join(', ');
       await this.dialog.say([`MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.`, left ? `FALTAN: ${left}. ANDAN ESCONDIDOS: BUSCA SUS SEÑALES.` : '¡YA NO FALTA NINGUNO!',
-        `HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}. HABLE CON LA GENTE, ENTRE A LAS CASAS Y A LAS CANTINAS.`]);
+        `HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}. HABLE CON LA GENTE, ENTRE A LAS CASAS Y A LAS CANTINAS.`,
+        this.hasDog ? `COMPAÑEROS: FIRULAIS${this.st.flags.includes('caballo') ? ' Y LUCERO, EL CABALLO' : ''}.` : 'TODAVÍA ANDA SOLO... ¿Y ESE PERRITO FLACO DE LA PLAZA?']);
     } else if (i === 1) {
       saveAdventure(this.st);
       sfx.play('confirm');

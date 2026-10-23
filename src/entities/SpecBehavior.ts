@@ -19,7 +19,7 @@ export class SpecBehavior implements FighterBehavior {
 
   onAttackStart(f: Fighter, attack: AttackDef): void {
     if (attack.kind === 'ultimate') {
-      f.events.sound('ultimate');
+      f.events.power?.(f.stats.ultimateSpec.sound, 'cast');
       f.events.effect({ kind: 'particles', x: f.x, y: f.y - 30, facing: f.facing, data: { count: 24, particle: f.stats.ultimateSpec.particle } });
       return;
     }
@@ -29,18 +29,17 @@ export class SpecBehavior implements FighterBehavior {
       case 'eruption': {
         const ox = f.opponent ? f.opponent.x : f.x + f.facing * 60;
         f.scratch.targetX = Math.max(30, Math.min(ARENA_WIDTH - 30, ox));
-        f.events.sound('roots');
+        f.events.power?.(s.sound, 'cast');
         break;
       }
       case 'teleport':
         f.scratch.dir = f.opponent ? (f.opponent.x > f.x ? 1 : -1) : f.facing;
-        f.events.sound(s.sound);
+        f.events.power?.(s.sound, 'cast');
         f.events.effect({ kind: 'puff', x: f.x, y: f.y, facing: f.facing, data: { fx: s.fx, tint: s.tint } });
         break;
       case 'strike':
-        f.events.sound(s.sound);
-        break;
       case 'projectile':
+        f.events.power?.(s.sound, 'cast');
         break;
     }
     if (s.particle !== 'none' && s.type !== 'projectile') {
@@ -52,7 +51,7 @@ export class SpecBehavior implements FighterBehavior {
     if (attack.kind === 'ultimate') {
       if (frame === attack.startup - 2) {
         f.events.effect({ kind: 'ultwind', x: f.x + f.facing * 40, y: f.y - 28, facing: f.facing, data: { style: f.stats.ultimateSpec.style, tint: f.stats.ultimateSpec.tint } });
-        f.events.sound(f.stats.ultimateSpec.sound);
+        f.events.power?.(f.stats.ultimateSpec.sound, 'release');
       }
       return;
     }
@@ -65,11 +64,12 @@ export class SpecBehavior implements FighterBehavior {
           const cx = hb ? hb.x + hb.w / 2 : 30;
           const cy = hb ? hb.y + hb.h / 2 : -30;
           f.events.effect({ kind: 'strikefx', x: f.x + f.facing * cx, y: f.y + cy, facing: f.facing, data: { fx: s.fx, tint: s.tint, w: hb ? hb.w : 40 } });
+          f.events.power?.(s.sound, 'release');
         }
         break;
       case 'projectile':
         if (frame === attack.startup) {
-          f.events.sound(s.sound);
+          f.events.power?.(s.sound, 'release');
           f.events.projectile({
             x: f.x + f.facing * 22,
             y: f.y + (s.offsetY ?? 0),
@@ -90,7 +90,7 @@ export class SpecBehavior implements FighterBehavior {
         if (frame === 6) f.events.effect({ kind: 'warning', x: f.scratch.targetX, y: GROUND_Y, facing: f.facing, data: { tint: s.tint } });
         if (frame === attack.startup - 3) {
           f.events.effect({ kind: 'eruption', x: f.scratch.targetX, y: GROUND_Y, facing: f.facing, data: { fx: s.fx, tint: s.tint, particle: s.particle } });
-          f.events.sound(s.sound);
+          f.events.power?.(s.sound, 'release');
           f.events.effect({ kind: 'shake', x: 0, y: 0, facing: 1, data: { power: 3 } });
         }
         break;
@@ -106,6 +106,7 @@ export class SpecBehavior implements FighterBehavior {
           if (opp && Math.abs(opp.x - f.x) < 150) target = opp.x + dir * 48;
           f.x = Math.max(ARENA_MARGIN + 4, Math.min(ARENA_WIDTH - ARENA_MARGIN - 4, target));
           f.events.effect({ kind: 'puff', x: f.x, y: f.y, facing: f.facing, data: { fx: s.fx, tint: s.tint } });
+          f.events.power?.(s.sound, 'release');
           if (opp) f.facing = opp.x >= f.x ? 1 : -1;
         }
         if (frame === attack.startup + attack.active) f.alpha = 1;

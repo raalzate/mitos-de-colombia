@@ -7,15 +7,16 @@ import { CITY_BUILDING_FOOTPRINT, CITY_BUILDING_NAME, CITY_PROP_FOOTPRINT, type 
 import { FURNITURE_FOOTPRINT, WALL_HUNG, type FloorKind, type FurnitureKind, type WallKind } from './InteriorArt';
 
 /**
- * Todos los mapas del modo aventura: el campo (San Agustín), la ciudad (Medellín) y los interiores
- * de casas, cantinas, tiendas e iglesias. Puro: se puede probar sin Phaser.
+ * Todos los mapas del modo aventura: el campo (San Agustín), las ciudades (Medellín en jeep y
+ * Santa Fe de Antioquia a caballo) y los interiores de casas, cantinas, tiendas e iglesias.
+ * Puro: se puede probar sin Phaser.
  */
 
 export type MapKind = 'campo' | 'ciudad' | 'interior';
 export type MapId = string;
 export type Sound = 'pueblo' | 'monte' | 'fiesta' | 'cantina' | 'hogar' | 'ciudad' | 'iglesia';
 
-export interface MapBuilding { set: 'town' | 'city'; kind: BuildingKind | CityBuildingKind; x: number; y: number; id?: string }
+export interface MapBuilding { set: 'town' | 'city'; kind: BuildingKind | CityBuildingKind; x: number; y: number; id?: string; /** nombre propio si no es el del dibujo */ name?: string }
 export interface MapProp { set: 'town' | 'city' | 'furniture'; kind: PropKind | CityPropKind | FurnitureKind; x: number; y: number }
 
 export interface GameMap {
@@ -37,6 +38,8 @@ export interface GameMap {
   exit?: { x: number; y: number; to: MapId; tx: number; ty: number };
   /** casilla donde se aparece Juan al llegar en el jeep */
   arrival?: [number, number];
+  /** casilla donde se baja Juan del caballo, al lado de donde queda amarrado Lucero */
+  horseArrival?: [number, number];
 }
 
 export const w = (m: GameMap) => m.grid[0].length;
@@ -47,6 +50,7 @@ export function buildingFootprint(b: MapBuilding): [number, number] {
 }
 
 export function buildingName(b: MapBuilding): string | null {
+  if (b.name) return b.name;
   return b.set === 'town' ? BUILDING_NAME[b.kind as BuildingKind] : CITY_BUILDING_NAME[b.kind as CityBuildingKind];
 }
 
@@ -113,7 +117,7 @@ function campo(): GameMap {
   ];
   return {
     id: 'campo', kind: 'campo', name: 'SAN AGUSTÍN', grid: buildMap(), buildings, props, signs: SIGNS, npcs: NPCS, areas: AREAS,
-    darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17],
+    darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17], horseArrival: [7, 9],
   };
 }
 
@@ -244,6 +248,93 @@ function medellin(): GameMap {
   return {
     id: 'medellin', kind: 'ciudad', name: 'MEDELLÍN', grid: g, buildings: all, props, signs, npcs, areas,
     darkness: { tension: 0.7, alegre: 0.5 }, sound: { tension: 'ciudad', alegre: 'ciudad' }, arrival: [9, 10],
+  };
+}
+
+// ------------------------------------------------------------------ Santa Fe de Antioquia
+
+export const SANTAFE_W = 64;
+export const SANTAFE_H = 46;
+
+/** La ciudad madre: casas blancas, calles de piedra, la catedral, la plaza con su ceiba y el Puente de Occidente sobre el Cauca. */
+function santafe(): GameMap {
+  const W = SANTAFE_W, H = SANTAFE_H;
+  const g: Cell[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => 'o' as Cell));
+  fill(g, 0, 0, W - 1, 0, 'T'); fill(g, 0, H - 1, W - 1, H - 1, 'T');
+  fill(g, 0, 0, 0, H - 1, 'T'); fill(g, W - 1, 0, W - 1, H - 1, 'T');
+  // afueras: potrero con árboles y el camino de herradura que llega del oriente antioqueño
+  fill(g, 1, 1, 9, 44, '.');
+  for (let y = 1; y <= 44; y++) for (let x = 1; x <= 9; x++) if ((x * 7 + y * 11) % 9 === 0 && (y < 15 || y > 22)) g[y][x] = 'T';
+  fill(g, 1, 18, 21, 19, '=');
+  // plaza mayor de ladrillo
+  fill(g, 22, 14, 42, 24, 'l');
+  // orillas y el río Cauca, con el puente colgante
+  fill(g, 10, 33, W - 2, 35, '.');
+  fill(g, 1, 36, W - 2, 40, '~');
+  fill(g, 1, 41, W - 2, 44, '.');
+  fill(g, 56, 36, 57, 40, 'B');
+
+  const T = (kind: BuildingKind, x: number, bottom: number, id?: string, name?: string): MapBuilding =>
+    ({ set: 'town', kind, x, y: bottom - BUILDING_FOOTPRINT[kind][1] + 1, id, name });
+  const buildings: MapBuilding[] = [
+    T('casa_blanca', 11, 11, 'sf_casa', 'CASA DE LA TÍA ROSALÍA'),
+    T('casa_amarilla', 17, 11),
+    T('alcaldia', 22, 11, undefined, 'CASA DE GOBIERNO'),
+    T('iglesia', 30, 11, 'sf_catedral', 'CATEDRAL BASÍLICA DE LA INMACULADA'),
+    T('casa_azul', 38, 11),
+    T('tienda', 44, 11, 'sf_dulceria', 'DULCERÍA DOÑA CHAVA'),
+    T('casa_roja', 50, 11),
+    T('casa_verde', 55, 11),
+    T('cantina', 12, 31, undefined, 'CANTINA EL TAMARINDO'),
+    T('casa_blanca', 20, 31),
+    T('edificio', 26, 31, undefined, 'HOTEL CASA TEJADA'),
+    T('casa_amarilla', 33, 31),
+    T('finca', 38, 31, undefined, 'CASA MUSEO JUAN DEL CORRAL'),
+    T('casa_verde', 46, 31),
+    T('casa_roja', 52, 31),
+  ];
+  const n: Record<string, number> = {};
+  for (const b of buildings) if (!b.id) { const i = n[b.kind] ?? 0; b.id = `sf_${b.kind}${i}`; n[b.kind] = i + 1; }
+
+  const tp = (kind: PropKind, x: number, y: number): MapProp => ({ set: 'town', kind, x, y });
+  const cp = (kind: CityPropKind, x: number, y: number): MapProp => ({ set: 'city', kind, x, y });
+  const props: MapProp[] = [
+    tp('fuente', 32, 19),
+    tp('banca', 26, 16), tp('banca', 37, 16), tp('banca', 26, 22), tp('banca', 37, 22),
+    ...([[23, 14], [41, 14], [23, 24], [41, 24], [16, 13], [48, 13], [16, 26], [48, 26]] as const).map(([x, y]) => tp('farol', x, y)),
+    // la ceiba de la plaza y los palos de tamarindo
+    cp('guayacan', 28, 19), cp('guayacan', 36, 19),
+    cp('puesto_fruta', 30, 24), cp('bombillos', 27, 14), cp('bombillos', 37, 14),
+    ...([[12, 34], [24, 34], [36, 34], [48, 34], [20, 42], [40, 43]] as const).map(([x, y]) => tp('palma', x, y)),
+    tp('mula', 6, 20), tp('roca', 4, 24), tp('cafeto', 7, 26), tp('cafeto', 8, 12),
+  ];
+  const signs: Sign[] = [
+    { x: 8, y: 17, lines: ['SANTA FE DE ANTIOQUIA, LA CIUDAD MADRE.', 'FUNDADA EN 1541. ¡BIENVENIDO, ARRIERO!'] },
+    { x: 21, y: 15, lines: ['PLAZA MAYOR.', 'DE NOCHE SE OYEN CASCOS DE HIERRO EN LAS CALLES EMPEDRADAS. NO SE ASOME.'] },
+    { x: 55, y: 34, lines: ['PUENTE DE OCCIDENTE, 1895.', 'PUENTE COLGANTE SOBRE EL RÍO CAUCA. ¡NO SE MECE, NO SE MECE!'] },
+  ];
+  const npcs: Npc[] = [
+    { key: 'caballo', name: 'LUCERO', x: 3, y: 19, facing: 'right', action: 'caballo' },
+    { key: 'cura', name: 'PADRE JACINTO', x: 33, y: 13, facing: 'down', story: 'ciudad_madre', lines: [['BIENVENIDO A LA CIUDAD MADRE, HIJO. ESTA CATEDRAL TIENE MÁS AÑOS QUE TODO MEDELLÍN.']] },
+    { key: 'vendedora', name: 'DOÑA CHAVA', x: 31, y: 23, facing: 'up', story: 'tamarindo', lines: [['¡BOLITAS DE TAMARINDO, MIJO! DULCES, ÁCIDAS Y CON AZÚCAR. ¡PA\'L CALOR NO HAY NADA MEJOR!']] },
+    { key: 'arriero', name: 'DON EUSEBIO', x: 54, y: 35, facing: 'down', story: 'puente', lines: [['YO CRUCÉ ESTE PUENTE CON CUARENTA MULAS CARGADAS DE CAFÉ. ¡NI SE MOVIÓ!']] },
+    { key: 'campesina', name: 'DOÑA OFELIA', x: 17, y: 21, facing: 'right', story: 'mula_herrada', lines: [['¿OYÓ ANOCHE? CLAC, CLAC, CLAC... POR LA CALLE DE LA AMARGURA. ¡ES ELLA, LA MULA HERRADA!']] },
+    { key: 'nino', name: 'SIMÓN', x: 40, y: 21, facing: 'left', wander: 3, lines: [['¿ESE CABALLO ES SUYO? ¡QUÉ CABALLO TAN BONITO! ¿ME DEJA MONTARLO?']] },
+    { key: 'borracho', name: 'DON LISÍMACO', x: 18, y: 32, facing: 'down', story: 'arrieros', lines: [['¡HIP! EN LA CANTINA EL TAMARINDO EL AGUARDIENTE ES TIBIO... ¡PORQUE AQUÍ TODO ES TIBIO, HIP!']] },
+    { key: 'pescador', name: 'EL BALSERO', x: 48, y: 42, facing: 'up', story: 'mohan', lines: [['ANTES DEL PUENTE YO PASABA LA GENTE EN BALSA. EL CAUCA ES BRAVO... Y DE NOCHE SE OYE TOCAR UN TIPLE DESDE EL AGUA.']] },
+  ];
+  stamp(g, buildings, props, signs, 'o');
+  const areas: Area[] = [
+    { name: 'CAMINO DE HERRADURA', r: R(1, 1, 9, 44), mood: 'tension' },
+    { name: 'PUENTE DE OCCIDENTE', r: R(52, 33, 60, 44), mood: 'tension' },
+    { name: 'RÍO CAUCA', r: R(1, 36, 62, 44), mood: 'tension' },
+    { name: 'PLAZA MAYOR', r: R(22, 14, 42, 24) },
+    { name: 'CALLE DE LA AMARGURA', r: R(10, 12, 21, 27) },
+    { name: 'SANTA FE DE ANTIOQUIA', r: R(10, 1, 62, 35) },
+  ];
+  return {
+    id: 'santafe', kind: 'ciudad', name: 'SANTA FE DE ANTIOQUIA', grid: g, buildings, props, signs, npcs, areas,
+    darkness: { tension: 0.78, alegre: 0.5 }, sound: { tension: 'monte', alegre: 'pueblo' }, horseArrival: [4, 19],
   };
 }
 
@@ -379,6 +470,23 @@ export const INTERIORS: Record<string, InteriorDef> = {
     furniture: [['banca_iglesia', 3, 4], ['banca_iglesia', 7, 4], ['reloj', 5, 1], ['cuadro_paisaje', 3, 1], ['radio', 8, 2]],
     npcs: [N('nino', 'EL VOCEADOR', 5, 3, 'chiva', '¡MEDELLÍN, MEDELLÍN, MEDELLÍN! ¡EL YIPAO ESTÁ AFUERA!')],
   },
+  // Santa Fe de Antioquia
+  sf_catedral: {
+    name: 'CATEDRAL BASÍLICA DE LA INMACULADA', w: 13, h: 11, floor: 'ladrillo', wall: 'iglesia', sound: 'iglesia',
+    furniture: [['virgen', 3, 1], ['altar', 6, 3], ['virgen', 9, 1], ['velas', 3, 3], ['velas', 9, 3], ['pulpito', 10, 4],
+      ['banca_iglesia', 4, 6], ['banca_iglesia', 8, 6], ['banca_iglesia', 4, 8], ['banca_iglesia', 8, 8]],
+    npcs: [N('cura', 'EL SACRISTÁN VIEJO', 2, 7, 'ciudad_madre', 'ESTAS PAREDES SON DE CAL Y CANTO. HAN AGUANTADO TEMBLORES, GUERRAS Y PROCESIONES.', 'right')],
+  },
+  sf_casa: {
+    name: 'CASA DE LA TÍA ROSALÍA', w: 11, h: 9, floor: 'baldosa', wall: 'bahareque', sound: 'hogar',
+    furniture: [...CASA_FURNI, ['hamaca', 8, 6]],
+    npcs: [N('campesina', 'TÍA ROSALÍA', 3, 4, 'mula_herrada', '¡JUAN! ¿USTED ES EL NIETO DE ROSA? ¡VENGA LE DOY UN JUGO DE TAMARINDO, QUE AQUÍ SE ASA UNO!')],
+  },
+  sf_dulceria: {
+    name: 'DULCERÍA DOÑA CHAVA', w: 10, h: 8, floor: 'baldosa_ajedrez', wall: 'azul', sound: 'hogar',
+    furniture: [['estante_tienda', 3, 1], ['estante_tienda', 6, 1], ['mostrador', 4, 3], ['costales', 8, 3], ['olla', 2, 4], ['radio', 6, 3]],
+    npcs: [N('vendedora', 'LA NIETA DE DOÑA CHAVA', 4, 2, 'tamarindo', 'MI ABUELA ESTÁ EN LA PLAZA VENDIENDO. AQUÍ HACEMOS LOS DULCES: ¡HUELA ESE TAMARINDO!')],
+  },
   // Medellín
   terminal_ciudad: {
     name: 'TERMINAL DEL NORTE', w: 12, h: 8, floor: 'cemento', wall: 'verde', sound: 'ciudad',
@@ -461,11 +569,12 @@ export function getMap(id: MapId): GameMap {
   let m: GameMap;
   if (id === 'campo') m = campo();
   else if (id === 'medellin') m = medellin();
+  else if (id === 'santafe') m = santafe();
   else if (id.startsWith('int:')) {
     const key = id.slice(4);
     const def = INTERIORS[key];
     if (!def) throw new Error(`interior desconocido: ${id}`);
-    const parent = [getMap('campo'), getMap('medellin')].find((p) => p.buildings.some((b) => b.id === key))!;
+    const parent = [getMap('campo'), getMap('medellin'), getMap('santafe')].find((p) => p.buildings.some((b) => b.id === key))!;
     const b = parent.buildings.find((x) => x.id === key)!;
     const [tx, ty] = doorCell(b);
     m = interior(id, def, { to: parent.id, tx, ty });
@@ -474,6 +583,6 @@ export function getMap(id: MapId): GameMap {
   return m;
 }
 
-export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
+export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
 
 export { HERO_START, doorOf };
