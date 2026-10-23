@@ -22,19 +22,20 @@ export type KeyMap = Record<Action, string[]>;
 
 /** Mapas por defecto. Se usan `event.code` para independencia de la distribución del teclado. */
 export const DEFAULT_KEYMAPS: Record<PlayerSlot, KeyMap> = {
-  // Un jugador contra la CPU: mano derecha en las flechas, mano izquierda en ESPACIO y Z X C / A S D.
+  // Controles para niños: flechas para moverse y solo dos botones, GOLPE (Z o ESPACIO) y PATADA (X).
+  // Lo fuerte, los poderes y el definitivo salen por combinaciones (ver TwoButton.ts).
   1: {
     left: ['ArrowLeft'],
     right: ['ArrowRight'],
     up: ['ArrowUp'],
     down: ['ArrowDown'],
-    light: ['Space'],
-    heavy: ['KeyX'],
-    lightkick: ['KeyZ'],
-    heavykick: ['KeyC'],
-    special: ['KeyA'],
-    ultimate: ['KeyS'],
-    block: ['KeyD', 'ShiftLeft'],
+    light: ['KeyZ', 'Space'],
+    lightkick: ['KeyX'],
+    heavy: [],
+    heavykick: [],
+    special: [],
+    ultimate: [],
+    block: [],
   },
   // Sin uso por teclado (el rival es la CPU); se deja en el teclado numérico para no chocar con P1.
   2: {
@@ -43,24 +44,24 @@ export const DEFAULT_KEYMAPS: Record<PlayerSlot, KeyMap> = {
     up: ['Numpad8'],
     down: ['Numpad5'],
     light: ['Numpad1'],
-    heavy: ['Numpad2'],
-    lightkick: ['Numpad3'],
-    heavykick: ['Numpad0'],
-    special: ['Numpad7'],
-    ultimate: ['Numpad9'],
-    block: ['NumpadDecimal'],
+    lightkick: ['Numpad2'],
+    heavy: [],
+    heavykick: [],
+    special: [],
+    ultimate: [],
+    block: [],
   },
 };
 
 /** Botones estándar de Gamepad API (disposición tipo "standard"). */
 const GAMEPAD_BUTTONS: Partial<Record<Action, number[]>> = {
-  light: [2],      // X / cuadrado
-  heavy: [3],      // Y / triángulo
-  lightkick: [0],  // A / cruz
-  heavykick: [1],  // B / círculo
-  special: [5, 7], // RB / RT
-  ultimate: [4, 6],// LB / LT
-  block: [],       // bloqueo = atrás (se calcula en Fighter) o botón 8 (select)
+  light: [2, 3, 5, 7],     // X / Y / RB / RT: golpe
+  lightkick: [0, 1, 4, 6], // A / B / LB / LT: patada
+  heavy: [],
+  heavykick: [],
+  special: [],
+  ultimate: [],
+  block: [],               // bloquear = echarse para atrás mientras el rival ataca
   up: [12],
   down: [13],
   left: [14],
@@ -68,7 +69,7 @@ const GAMEPAD_BUTTONS: Partial<Record<Action, number[]>> = {
 };
 
 const BUFFER_FRAMES = 6;
-const PRESSED_ACTIONS: (keyof InputState['pressed'])[] = [
+const PRESSED_ACTIONS: (keyof InputState['pressed'] & Action)[] = [
   'up', 'light', 'heavy', 'lightkick', 'heavykick', 'special', 'ultimate',
 ];
 

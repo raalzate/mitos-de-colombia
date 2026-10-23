@@ -295,6 +295,7 @@ export class Fighter {
     const atk = this.stats.attacks;
     const order: { pressed: boolean; kind: AttackKind }[] = [
       { pressed: input.pressed.ultimate, kind: 'ultimate' },
+      { pressed: !!input.pressed.special2, kind: 'special2' },
       { pressed: input.pressed.special, kind: input.down ? 'special2' : 'special1' },
       { pressed: input.pressed.heavy, kind: 'heavy' },
       { pressed: input.pressed.heavykick, kind: 'heavykick' },

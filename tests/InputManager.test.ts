@@ -33,12 +33,20 @@ describe('gestor de entrada', () => {
     im.update();
     expect(im.snapshot(1).left).toBe(false);
   });
-  it('controles por defecto: flechas para moverse y ESPACIO para golpear', () => {
+  it('controles por defecto: flechas para moverse y solo dos botones, golpe (Z o ESPACIO) y patada (X)', () => {
     const im = new InputManager();
-    for (const [code, action] of [['ArrowRight', 'right'], ['ArrowUp', 'up'], ['ArrowDown', 'down'], ['Space', 'light'], ['KeyZ', 'lightkick'], ['KeyX', 'heavy'], ['KeyC', 'heavykick'], ['KeyA', 'special'], ['KeyS', 'ultimate'], ['KeyD', 'block']] as const) {
+    for (const [code, action] of [['ArrowRight', 'right'], ['ArrowUp', 'up'], ['ArrowDown', 'down'], ['Space', 'light'], ['KeyZ', 'light'], ['KeyX', 'lightkick']] as const) {
       im.setKey(code, true);
       im.update();
       expect(im.snapshot(1)[action]).toBe(true);
+      im.setKey(code, false);
+      im.update();
+    }
+    for (const code of ['KeyC', 'KeyA', 'KeyS', 'KeyD']) {
+      im.setKey(code, true);
+      im.update();
+      const s = im.snapshot(1);
+      expect(s.heavy || s.heavykick || s.special || s.ultimate || s.block, code).toBe(false);
       im.setKey(code, false);
       im.update();
     }

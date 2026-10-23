@@ -164,6 +164,8 @@ export interface InputState {
     heavykick: boolean;
     special: boolean;
     ultimate: boolean;
+    /** controles de dos botones: el poder 2 sale directo, sin flecha abajo */
+    special2?: boolean;
   };
 }
 

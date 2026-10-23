@@ -38,7 +38,7 @@ describe('plantel completo', () => {
       expect(f.attacks.special1.kind).toBe('special1');
       expect(f.attacks.special2.kind).toBe('special2');
       expect(f.special1.short.length).toBeLessThanOrEqual(9);
-      expect(specialHint(id, 'R', 'T')).toContain('ABAJO+R');
+      expect(specialHint(id, 'R', 'T')).toContain('R+T:');
       expect(LOOKS[id]).toBeDefined();
     }
   });

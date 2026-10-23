@@ -72,12 +72,12 @@ export class MenuScene extends Phaser.Scene {
     const c = this.add.container(0, 0).setVisible(false);
     const bg = this.add.rectangle(GAME_WIDTH / 2, 145, 348, 108, 0x100c18, 1).setStrokeStyle(1, 0xd8b070);
     c.add(bg);
-    const left = ['MOVERSE', 'SALTAR / AGACHARSE', 'PUÑO', 'PATADA', 'PUÑO FUERTE', 'PATADA FUERTE', 'ESPECIAL  (ABAJO+A: ESPECIAL 2)', 'DEFINITIVO', 'BLOQUEAR'];
-    const right = ['FLECHAS IZQ./DER.', 'FLECHA ARRIBA / ABAJO', 'ESPACIO', 'Z', 'X', 'C', 'A', 'S', 'D  O  SHIFT'];
+    const left = ['MOVERSE / SALTAR / AGACHARSE', 'GOLPE', 'PATADA', 'COMBO: 3 SEGUIDOS', 'PODER 1', 'PODER 2', 'GOLPE FUERTE', 'DEFINITIVO (BARRA LLENA)', 'BLOQUEAR'];
+    const right = ['FLECHAS', 'Z  O  ESPACIO', 'X', 'Z Z Z  O  X X X', 'MANTÉN Z Y SUELTA  O  Z X Z', 'MANTÉN X Y SUELTA  O  X Z X', 'Z + X', 'Z + X', 'ATRÁS CUANDO ATACAN'];
     c.add(this.add.bitmapText(GAME_WIDTH / 2, 94, 'font_plain', 'CONTROLES').setOrigin(0.5, 0).setTint(0xf8d048));
     left.forEach((line, i) => c.add(this.add.bitmapText(28, 106 + i * 9, 'font_plain', line).setTint(0xe8e8f0)));
     right.forEach((line, i) => c.add(this.add.bitmapText(GAME_WIDTH - 28, 106 + i * 9, 'font_plain', line).setOrigin(1, 0).setTint(0x80c8ff)));
-    c.add(this.add.bitmapText(GAME_WIDTH / 2, 188, 'font_plain', 'MANDO: X PUÑO  A PATADA  RB ESPECIAL  LB DEFINITIVO').setOrigin(0.5, 0).setTint(0x9088b0));
+    c.add(this.add.bitmapText(GAME_WIDTH / 2, 188, 'font_plain', 'MANDO: X/Y GOLPE   A/B PATADA   ¡SOLO DOS BOTONES!').setOrigin(0.5, 0).setTint(0x9088b0));
     this.controls = c;
   }
 

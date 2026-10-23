@@ -263,8 +263,8 @@ export const FIGHTERS: Record<FighterId, FighterStats> = Object.fromEntries(DEFS
 
 export const FIGHTER_IDS: FighterId[] = DEFS.map((d) => d.id);
 
-/** Indicación corta de habilidades para el HUD. */
-export function specialHint(id: FighterId, specialKey: string, ultKey: string): string {
+/** Indicación corta de habilidades para el HUD (controles de dos botones: golpe y patada). */
+export function specialHint(id: FighterId, punchKey: string, kickKey: string): string {
   const f = FIGHTERS[id];
-  return `${specialKey}:${f.special1.short} ABAJO+${specialKey}:${f.special2.short} ${ultKey}:${f.ultimateSpec.short}`;
+  return `MANTÉN ${punchKey}:${f.special1.short}  MANTÉN ${kickKey}:${f.special2.short}  ${punchKey}+${kickKey}:${f.ultimateSpec.short}`;
 }

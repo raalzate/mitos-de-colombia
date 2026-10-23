@@ -52,21 +52,23 @@ Desde el menú: Modo Aventura.
 
 ### 4.2 Controles
 
-| Acción | Tecla |
+Controles para niños: flechas y solo **dos botones**. Lo fuerte, los poderes y el definitivo salen solos por combinación, por tiempo o por patrones (`src/combat/TwoButton.ts`).
+
+| Acción | Cómo |
 |---|---|
-| Mover | ← / → |
-| Saltar / agacharse | ↑ / ↓ |
-| Puño | ESPACIO |
-| Patada | Z |
-| Puño fuerte | X |
-| Patada fuerte | C |
-| Especial (↓+A: especial 2) | A |
-| Definitivo | S |
-| Bloquear | D o Shift izq. |
+| Mover / saltar / agacharse | Flechas |
+| Golpe | Z o ESPACIO |
+| Patada | X |
+| Golpe / patada fuerte (combo) | El mismo botón 3 veces seguidas (Z Z Z, X X X) |
+| Poder 1 | Mantener Z y soltar, o Z X Z |
+| Poder 2 | Mantener X y soltar, o X Z X |
+| Golpe fuerte doble | Z + X juntos |
+| Definitivo | Z + X juntos con la barra llena |
+| Bloquear | Automático: echarse atrás cuando el rival ataca |
 | Pausa / pausa-menú | Enter / Esc |
 | Pantalla completa / hitboxes | F / H |
 
-- **FR-014** Soporte de mando (Gamepad API estándar): cruceta/stick mover, X puño, Y puño fuerte, A patada, B patada fuerte, RB/RT especial, LB/LT definitivo.
+- **FR-014** Soporte de mando (Gamepad API estándar): cruceta/stick mover, X/Y/RB/RT golpe, A/B/LB/LT patada; mismas combinaciones que el teclado.
 - **FR-015** Menús: flechas, ESPACIO/ENTER aceptan, ESC vuelve. Solo atienden pulsaciones nuevas de la propia pantalla.
 - **FR-016** Pausa automática al perder el foco.
 

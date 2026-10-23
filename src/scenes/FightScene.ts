@@ -29,6 +29,8 @@ import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } fro
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
 import type { ResultData } from './ResultScene';
+import { TwoButtonReader, toInput } from '../combat/TwoButton';
+import { canUseUltimate } from '../combat/CombatRules';
 import type { AdventureFight } from '../adventure/State';
 import { fleeFightChance } from '../adventure/Hunt';
 
@@ -100,6 +102,7 @@ export class FightScene extends Phaser.Scene {
   private views!: Record<PlayerSlot, FighterView>;
   private combat!: CombatSystem;
   private ai: FighterAI | null = null;
+  private readers: Record<PlayerSlot, TwoButtonReader> = { 1: new TwoButtonReader(), 2: new TwoButtonReader() };
   private hud!: CombatHUD;
   private menu = new MenuInput();
 
@@ -359,7 +362,7 @@ export class FightScene extends Phaser.Scene {
   private buildUi(): void {
     const mirror = this.settings.p1 === this.settings.p2;
     this.hud = new CombatHUD(this, this.p1, this.p2, portraitKey(this, this.settings.p1, 'p1', 24), portraitKey(this, this.settings.p2, mirror ? 'p2' : 'p1', 24));
-    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, 'A', 'S');
+    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, 'Z', 'X');
     this.hud.setHints(hint(1), this.settings.mode === 'cpu' ? 'CPU: ' + FIGHTERS[this.settings.p2].name : hint(2));
 
     this.overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05030a, 1).setOrigin(0).setScrollFactor(0).setDepth(15).setAlpha(0);
@@ -419,6 +422,8 @@ export class FightScene extends Phaser.Scene {
   /* ------------------------------------------------------------------ */
 
   private startRound(): void {
+    this.readers[1].reset();
+    this.readers[2].reset();
     this.roundNumber++;
     this.scareUsedRound = false;
     this.phase = 'intro';
@@ -649,14 +654,29 @@ export class FightScene extends Phaser.Scene {
     if (this.phase === 'fight') sfx.setTension(tension(this.p1.hp, this.p2.hp, framesToDisplaySeconds(this.timerFrames, LOGIC_FPS)));
   }
 
+  /** Dos botones (golpe y patada): lo fuerte, los poderes y el definitivo salen por combinaciones. */
+  private twoButton(slot: PlayerSlot, f: Fighter, opp: Fighter): InputState {
+    const raw = inputManager.snapshot(slot);
+    const r = this.readers[slot];
+    const intent = r.update(raw.light, raw.lightkick, canUseUltimate(f.meter));
+    const back = f.facing === 1 ? raw.left : raw.right;
+    const threatened = opp.isAttacking() || this.combat.projectiles.some((p) => p.owner !== slot && Math.abs(p.x - f.x) < 140);
+    // poder cargado: chispas alrededor del luchador para que el niño sepa que ya puede soltar
+    if (r.charge >= 1 && this.logicFrame % 6 === 0) this.sparkEmitter.explode(3, f.x + (Math.random() - 0.5) * 30, f.y - 20 - Math.random() * 40);
+    return toInput(raw, intent, back, threatened);
+  }
+
   private stepFight(): void {
     if (this.cinematic) {
       this.updateCinematic();
     } else {
-      const in1: InputState = inputManager.snapshot(1);
-      const in2: InputState = this.ai ? this.ai.update() : inputManager.snapshot(2);
+      const in1: InputState = this.twoButton(1, this.p1, this.p2);
+      const in2: InputState = this.ai ? this.ai.update() : this.twoButton(2, this.p2, this.p1);
+      const before = [this.p1.attack, this.p2.attack];
       this.p1.update(in1);
       this.p2.update(in2);
+      if (this.p1.attack && this.p1.attack !== before[0]) this.readers[1].consume();
+      if (this.p2.attack && this.p2.attack !== before[1]) this.readers[2].consume();
       this.combat.step();
       this.timerFrames--;
       const sec = framesToDisplaySeconds(this.timerFrames, LOGIC_FPS);
