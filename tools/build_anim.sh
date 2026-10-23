@@ -9,6 +9,7 @@ python3 -I tools/interpolate_walk.py "$OUT" trans                # agacharse / b
 python3 -I tools/interpolate_walk.py "$OUT" idle                 # reposo = primer fotograma de andar (Patasola: salto)
 python3 -I tools/clean_halo.py "$OUT"                            # quita restos claros del fondo en los bordes
 python3 -I tools/import_pixellab.py                              # caídas generadas con PixelLab (si existen)
+python3 -I tools/fix_sprites.py "$OUT"                           # rellena huecos y quita el aura de Juan y los destellos
 python3 - <<'PY'
 import json
 m = json.load(open("public/assets/anim/manifest.json"))

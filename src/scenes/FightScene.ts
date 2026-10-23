@@ -31,9 +31,14 @@ import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageAr
 import type { ResultData } from './ResultScene';
 import { TwoButtonReader, toInput } from '../combat/TwoButton';
 import { pickLine, wantsBanter } from '../combat/Banter';
+import { pickDuel, type DuelLine } from '../combat/Duels';
 import { canUseUltimate } from '../combat/CombatRules';
 import type { AdventureFight } from '../adventure/State';
 import { fleeFightChance } from '../adventure/Hunt';
+
+/** fotogramas de la presentación VS y de cada frase de la charla de reto */
+const VS_FRAMES = 90;
+const DUEL_STEP = 110;
 
 type Phase = 'intro' | 'fight' | 'finish' | 'roundEnd' | 'matchEnd' | 'flee';
 
@@ -143,6 +148,8 @@ export class FightScene extends Phaser.Scene {
   /** globo de texto de quien está hablando (solo uno a la vez) */
   private bubble: { box: Phaser.GameObjects.Container; slot: PlayerSlot; life: number } | null = null;
   private framesSinceBanter = 0;
+  /** conversación de reto antes de la primera ronda */
+  private duel: DuelLine[] = [];
   private lastLine: Record<PlayerSlot, string> = { 1: '', 2: '' };
   private finalScareDone = false;
   private bloodR!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -625,8 +632,22 @@ export class FightScene extends Phaser.Scene {
       case 'intro': {
         this.p1.update(EMPTY_INPUT);
         this.p2.update(EMPTY_INPUT);
-        const delay = this.roundNumber === 1 ? 90 : 0;
+        if (this.roundNumber === 1 && this.phaseFrame === 1) this.duel = pickDuel(this.settings.p1, this.settings.p2, Math.random());
+        const chatEnd = VS_FRAMES + (this.roundNumber === 1 ? this.duel.length * DUEL_STEP : 0);
+        const delay = this.roundNumber === 1 ? chatEnd : 0;
         this.updateVersusIntro();
+        if (this.roundNumber === 1 && this.phaseFrame > VS_FRAMES && this.phaseFrame < chatEnd) {
+          const i = (this.phaseFrame - VS_FRAMES) / DUEL_STEP;
+          if (Number.isInteger(i)) this.say(this.duel[i].who === 'p1' ? 1 : 2, this.duel[i].text, DUEL_STEP - 8);
+          this.ageBubble();
+          // los niños impacientes saltan la charla con cualquiera de los dos botones
+          const pad = inputManager.snapshot(1).pressed;
+          if (this.phaseFrame > VS_FRAMES + 20 && (pad.light || pad.lightkick)) {
+            this.hideBubble();
+            this.phaseFrame = chatEnd;
+          }
+        }
+        if (this.phaseFrame === chatEnd) this.hideBubble();
         if (this.phaseFrame === delay + 1 && this.roundNumber === 1) this.showMessage('RONDA 1', '');
         if (this.phaseFrame === delay + 60) {
           this.showMessage('¡LUCHA!', '');
@@ -663,17 +684,21 @@ export class FightScene extends Phaser.Scene {
   }
 
   /** De lejos, de vez en cuando, uno de los dos dice algo al azar en un globo. */
+  /** El globo abierto sigue al que habla y se apaga solo; devuelve true si sigue abierto. */
+  private ageBubble(): boolean {
+    if (!this.bubble) return false;
+    const f = this.bubble.slot === 1 ? this.p1 : this.p2;
+    const b = this.bubble;
+    b.life--;
+    if (b.life <= 0 || f.state === 'hitstun' || f.state === 'knockdown') { this.hideBubble(); return false; }
+    this.placeBubble(b.box, f);
+    b.box.setAlpha(Math.min(1, b.life / 20));
+    return true;
+  }
+
   private updateBanter(): void {
     this.framesSinceBanter++;
-    if (this.bubble) {
-      const f = this.bubble.slot === 1 ? this.p1 : this.p2;
-      const b = this.bubble;
-      b.life--;
-      if (b.life <= 0 || f.state === 'hitstun' || f.state === 'knockdown') { this.hideBubble(); return; }
-      this.placeBubble(b.box, f);
-      b.box.setAlpha(Math.min(1, b.life / 20));
-      return;
-    }
+    if (this.bubble) { this.ageBubble(); return; }
     const calm = (f: Fighter) => ['idle', 'walk', 'crouch', 'block', 'jump'].includes(f.state);
     if (!calm(this.p1) || !calm(this.p2)) return;
     if (!wantsBanter(Math.abs(this.p1.x - this.p2.x), this.framesSinceBanter, Math.random())) return;
@@ -684,7 +709,8 @@ export class FightScene extends Phaser.Scene {
     this.say(slot, line);
   }
 
-  private say(slot: PlayerSlot, line: string): void {
+  private say(slot: PlayerSlot, line: string, life = 150): void {
+    this.hideBubble();
     const f = slot === 1 ? this.p1 : this.p2;
     const t = this.add.bitmapText(0, 0, 'font_plain', line).setMaxWidth(118).setTint(0x201418).setOrigin(0.5, 1);
     const w = Math.ceil(t.width) + 10, h = Math.ceil(t.height) + 8;
@@ -699,7 +725,7 @@ export class FightScene extends Phaser.Scene {
     this.placeBubble(box, f);
     box.setScale(0.6);
     this.tweens.add({ targets: box, scale: 1, duration: 140, ease: 'Back.out' });
-    this.bubble = { box, slot, life: 150 };
+    this.bubble = { box, slot, life };
     this.framesSinceBanter = 0;
   }
 
