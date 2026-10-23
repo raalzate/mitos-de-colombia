@@ -30,6 +30,7 @@ import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey,
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
 import type { ResultData } from './ResultScene';
 import { TwoButtonReader, toInput } from '../combat/TwoButton';
+import { pickLine, wantsBanter } from '../combat/Banter';
 import { canUseUltimate } from '../combat/CombatRules';
 import type { AdventureFight } from '../adventure/State';
 import { fleeFightChance } from '../adventure/Hunt';
@@ -139,6 +140,10 @@ export class FightScene extends Phaser.Scene {
   private scaring = false;
   private scareUsedRound = false;
   private framesSinceScare = SCARE_COOLDOWN;
+  /** globo de texto de quien está hablando (solo uno a la vez) */
+  private bubble: { box: Phaser.GameObjects.Container; slot: PlayerSlot; life: number } | null = null;
+  private framesSinceBanter = 0;
+  private lastLine: Record<PlayerSlot, string> = { 1: '', 2: '' };
   private finalScareDone = false;
   private bloodR!: Phaser.GameObjects.Particles.ParticleEmitter;
   private bloodL!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -422,6 +427,8 @@ export class FightScene extends Phaser.Scene {
   /* ------------------------------------------------------------------ */
 
   private startRound(): void {
+    this.hideBubble();
+    this.framesSinceBanter = 0;
     this.readers[1].reset();
     this.readers[2].reset();
     this.roundNumber++;
@@ -458,6 +465,7 @@ export class FightScene extends Phaser.Scene {
   }
 
   private endRound(winner: RoundWinner): void {
+    this.hideBubble();
     this.phase = 'roundEnd';
     this.phaseFrame = 0;
     this.roundWinner = winner;
@@ -654,6 +662,60 @@ export class FightScene extends Phaser.Scene {
     if (this.phase === 'fight') sfx.setTension(tension(this.p1.hp, this.p2.hp, framesToDisplaySeconds(this.timerFrames, LOGIC_FPS)));
   }
 
+  /** De lejos, de vez en cuando, uno de los dos dice algo al azar en un globo. */
+  private updateBanter(): void {
+    this.framesSinceBanter++;
+    if (this.bubble) {
+      const f = this.bubble.slot === 1 ? this.p1 : this.p2;
+      const b = this.bubble;
+      b.life--;
+      if (b.life <= 0 || f.state === 'hitstun' || f.state === 'knockdown') { this.hideBubble(); return; }
+      this.placeBubble(b.box, f);
+      b.box.setAlpha(Math.min(1, b.life / 20));
+      return;
+    }
+    const calm = (f: Fighter) => ['idle', 'walk', 'crouch', 'block', 'jump'].includes(f.state);
+    if (!calm(this.p1) || !calm(this.p2)) return;
+    if (!wantsBanter(Math.abs(this.p1.x - this.p2.x), this.framesSinceBanter, Math.random())) return;
+    const slot: PlayerSlot = Math.random() < 0.5 ? 1 : 2;
+    const f = slot === 1 ? this.p1 : this.p2;
+    const line = pickLine(f.stats.id, Math.random(), this.lastLine[slot]);
+    this.lastLine[slot] = line;
+    this.say(slot, line);
+  }
+
+  private say(slot: PlayerSlot, line: string): void {
+    const f = slot === 1 ? this.p1 : this.p2;
+    const t = this.add.bitmapText(0, 0, 'font_plain', line).setMaxWidth(118).setTint(0x201418).setOrigin(0.5, 1);
+    const w = Math.ceil(t.width) + 10, h = Math.ceil(t.height) + 8;
+    t.setPosition(0, -10);
+    const g = this.add.graphics();
+    g.fillStyle(0xfff8e8, 1).fillRoundedRect(-w / 2, -h - 6, w, h, 4);
+    g.lineStyle(1, 0x201418, 1).strokeRoundedRect(-w / 2, -h - 6, w, h, 4);
+    // colita del globo hacia la cabeza de quien habla
+    g.fillStyle(0xfff8e8, 1).fillTriangle(-4, -7, 4, -7, 0, 0);
+    g.lineStyle(1, 0x201418, 1).lineBetween(-4, -6, 0, 0).lineBetween(4, -6, 0, 0);
+    const box = this.add.container(0, 0, [g, t]).setDepth(30).setData('w', w);
+    this.placeBubble(box, f);
+    box.setScale(0.6);
+    this.tweens.add({ targets: box, scale: 1, duration: 140, ease: 'Back.out' });
+    this.bubble = { box, slot, life: 150 };
+    this.framesSinceBanter = 0;
+  }
+
+  /** Encima de la cabeza, sin salirse de la pantalla. */
+  private placeBubble(box: Phaser.GameObjects.Container, f: Fighter): void {
+    const cam = this.cameras.main;
+    const half = (box.getData('w') as number) / 2 + 4;
+    const x = Phaser.Math.Clamp(f.x, cam.scrollX + half, cam.scrollX + GAME_WIDTH - half);
+    box.setPosition(Math.round(x), Math.round(f.y - standHeight(f.stats.id) - 6));
+  }
+
+  private hideBubble(): void {
+    this.bubble?.box.destroy();
+    this.bubble = null;
+  }
+
   /** Dos botones (golpe y patada): lo fuerte, los poderes y el definitivo salen por combinaciones. */
   private twoButton(slot: PlayerSlot, f: Fighter, opp: Fighter): InputState {
     const raw = inputManager.snapshot(slot);
@@ -693,6 +755,7 @@ export class FightScene extends Phaser.Scene {
       this.triggerScare(this.p1.hp >= this.p2.hp ? 1 : 2);
       return;
     }
+    this.updateBanter();
     if (this.tryFlee()) return;
     const winner = resolveRoundEnd(this.p1.hp, this.p2.hp, this.timerFrames);
     if (winner !== null) this.endRound(winner);
@@ -705,6 +768,7 @@ export class FightScene extends Phaser.Scene {
     if (!fight || this.fleeTried || f.hp <= 0 || f.hp > MAX_HP * 0.3 || !f.grounded || f.state !== 'idle' && f.state !== 'walk') return false;
     this.fleeTried = true;
     if (Math.random() >= fleeFightChance(fight.escapes ?? 0)) return false;
+    this.hideBubble();
     this.phase = 'flee';
     this.phaseFrame = 0;
     this.ai = null;
