@@ -1,0 +1,13 @@
+{
+ "description": "Medellin silletero man from Santa Elena carrying a big wooden silleta full of colorful flowers on his back, white hat. chibi pixel art RPG overworld character, night colors, Colombian",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "silletero",
+ "template_id": "mannequin"
+}

@@ -9,7 +9,8 @@ OUT = "public/assets/aventura"
 CELL = 48
 LEGS_FROM = 40
 VILLAGERS = ("cantinero", "cura", "borracho", "nina", "arriero", "vendedora", "campesina", "policia", "cafetero", "nino")
-SPIRITS = ("duende", "pollo", "mano")  # en la caminata de frente el sombrero tapa la cara: arriba se usa el sprite quieto
+SPIRITS = ("duende", "pollo", "mano")
+CITY = ("conductor", "silletero", "acordeonero", "bailarina", "rapero", "perro")  # en la caminata de frente el sombrero tapa la cara: arriba se usa el sprite quieto
 
 def rgba(path):
     return np.array(Image.open(path).convert("RGBA"))
@@ -149,7 +150,7 @@ if __name__ == "__main__":
     tileset()
     os.makedirs(OUT, exist_ok=True)
     hero()
-    for n in ("abuela", "pescador") + VILLAGERS:
+    for n in ("abuela", "pescador") + VILLAGERS + CITY:
         npc(n)
     for n in SPIRITS:
         npc(n, f"spirit_{n}")

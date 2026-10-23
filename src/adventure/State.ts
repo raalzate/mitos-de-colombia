@@ -1,9 +1,12 @@
 import type { Difficulty, FighterId } from '../combat/CombatTypes';
 import { GUARDIANS, HERO_START, type Dir } from './World';
+import type { StoryId } from './Stories';
 
 /** Partida del modo aventura. Se guarda en el navegador si se puede; si no, dura la sesión. */
 export interface AdventureState {
   calmed: FighterId[];
+  /** mapa donde está Juan: el campo, Medellín o un interior (int:cantina0…) */
+  map: string;
   x: number;
   y: number;
   facing: Dir;
@@ -11,6 +14,8 @@ export interface AdventureState {
   flags: string[];
   /** veces que cada mito se le ha volado a Juan */
   escapes: Partial<Record<FighterId, number>>;
+  /** historias que ya le contaron a Juan */
+  stories: StoryId[];
 }
 
 /** Combate en curso del modo aventura: lo lee el FightScene para volver al mapa al terminar. */
@@ -22,10 +27,10 @@ export interface AdventureFight {
 
 export type FightOutcome = 'win' | 'lose' | 'fled';
 
-const KEY = 'mitos-aventura-v4';
+const KEY = 'mitos-aventura-v5';
 
 export function newAdventure(): AdventureState {
-  return { calmed: [], x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {} };
+  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [] };
 }
 
 export function loadAdventure(): AdventureState | null {
@@ -34,6 +39,8 @@ export function loadAdventure(): AdventureState | null {
     if (!raw) return null;
     const s = JSON.parse(raw) as AdventureState;
     s.escapes ??= {};
+    s.stories ??= [];
+    s.map ??= 'campo';
     return s;
   } catch {
     return null;

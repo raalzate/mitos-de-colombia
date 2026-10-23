@@ -4,8 +4,9 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../src/config/game-config';
 import { splashPose } from '../src/art/SplashPose';
 
 describe('escenarios', () => {
-  it('hay seis escenarios con nombre y subtítulo', () => {
-    expect(STAGE_IDS.length).toBe(6);
+  it('hay nueve escenarios con nombre y subtítulo', () => {
+    expect(STAGE_IDS.length).toBe(9);
+    expect(STAGE_IDS).toEqual(expect.arrayContaining(['selva', 'cantina', 'cementerio']));
     for (const id of STAGE_IDS) {
       expect(STAGES[id].id).toBe(id);
       expect(STAGES[id].name.length).toBeGreaterThan(3);
@@ -29,6 +30,25 @@ describe('escenarios', () => {
       for (let y = 0; y < 60; y++) for (let x = 0; x < L.mid.width; x += 4) if (L.mid.alpha(x, y) > 0) opaque++;
       expect(opaque).toBeGreaterThan(200);
     }
+  });
+
+  it('la cantina es un interior: pared de tablas con la luna por la ventana', () => {
+    const t = STAGES.cantina;
+    expect(t.interior).toBe(true);
+    const sky = buildStage(t).sky;
+    // la luna se ve dentro de la ventana
+    expect(sky.get(t.moon!.x, t.moon!.y)[0]).toBeGreaterThan(200);
+    // la pared es madera opaca (no cielo con estrellas)
+    const wall = sky.get(140, 80);
+    expect(wall[3]).toBe(255);
+    expect(wall[0]).toBeGreaterThan(wall[2]);
+  });
+
+  it('la selva tiene cocuyos que titilan entre fotogramas', () => {
+    const [a, b] = buildStage(STAGES.selva).river;
+    let diff = 0;
+    for (let x = 0; x < a.width; x++) for (let y = 0; y < a.height; y++) if (a.get(x, y)[1] !== b.get(x, y)[1]) diff++;
+    expect(diff).toBeGreaterThan(20);
   });
 
   it('los escenarios se distinguen por su cielo', () => {

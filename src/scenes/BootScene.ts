@@ -40,7 +40,7 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('av_hero', 'aventura/hero.png', { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('av_abuela', 'aventura/abuela.png', { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('av_pescador', 'aventura/pescador.png', { frameWidth: 48, frameHeight: 48 });
-    for (const k of ['cantinero', 'cura', 'borracho', 'nina', 'arriero', 'vendedora', 'campesina', 'policia', 'cafetero', 'nino']) {
+    for (const k of ['cantinero', 'cura', 'borracho', 'nina', 'arriero', 'vendedora', 'campesina', 'policia', 'cafetero', 'nino', 'conductor', 'silletero', 'acordeonero', 'bailarina', 'rapero', 'perro']) {
       this.load.spritesheet(`av_${k}`, `aventura/${k}.png`, { frameWidth: 48, frameHeight: 48 });
     }
     for (const k of ['duende', 'pollo', 'mano']) this.load.spritesheet(`av_spirit_${k}`, `aventura/spirit_${k}.png`, { frameWidth: 48, frameHeight: 48 });

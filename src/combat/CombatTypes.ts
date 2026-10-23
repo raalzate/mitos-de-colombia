@@ -205,7 +205,9 @@ export interface HitResult {
 export type Difficulty = 'easy' | 'normal' | 'hard';
 export type GameMode = 'cpu' | 'versus';
 
-export type StageChoice = 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo' | 'random';
+export type StageChoice =
+  | 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo'
+  | 'selva' | 'cantina' | 'cementerio' | 'random';
 
 export interface MatchSettings {
   mode: GameMode;

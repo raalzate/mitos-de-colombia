@@ -9,14 +9,21 @@
 import { heartbeatBpm } from '../combat/Fear';
 import type { FighterId } from '../combat/CombatTypes';
 import { MONSTER_VOICES, SAMPLE_IDS, canVoice, pickVoice, sampleUrl, type SampleId, type VoiceKind } from './Samples';
-import { STAGE_SOUND, pickStageEvent, type SoundscapeId, type StageEvent, type StageSoundTheme } from './StageSound';
+import {
+  MUSIC, STAGE_SOUND, effectiveTension, midiToFreq, musicDuck, pickStageEvent, stepSeconds,
+  type Instrument, type MusicId, type MusicTrack, type SoundscapeId, type StageEvent, type StageSoundTheme,
+} from './StageSound';
 
 export type SfxName =
   | 'hit' | 'heavy' | 'block' | 'whoosh' | 'jump' | 'land' | 'ko'
   | 'wave' | 'roots' | 'mist' | 'vortex' | 'bloom' | 'select' | 'confirm' | 'round' | 'timer' | 'ultimate'
   | 'scream' | 'fire' | 'whistle' | 'bolt' | 'slash'
   | 'screamer' | 'heartbeat' | 'whisper' | 'creak' | 'distantScream' | 'sting'
-  | 'machete' | 'macheteHit' | 'macheteClang' | 'polloMaligno' | 'duende' | 'manoPeluda';
+  | 'machete' | 'macheteHit' | 'macheteClang' | 'polloMaligno' | 'duende' | 'manoPeluda'
+  | 'ladrido' | 'grunido' | 'motor' | 'pito' | 'polvora' | 'puerta';
+
+/** Envolvente por tramos: [segundos desde el inicio, valor]. */
+type Ramp = [number, number][];
 
 class Synth {
   private ctx: AudioContext | null = null;
@@ -26,6 +33,16 @@ class Synth {
   private musicGain: GainNode | null = null;
   private droneFilter: BiquadFilterNode | null = null;
   private droneHigh: GainNode | null = null;
+  private droneGain: GainNode | null = null;
+  /** la música baja con la tensión; cada pieza tiene su propio bus para fundirla al cambiar */
+  private musicDuckNode: GainNode | null = null;
+  private musicBus: GainNode | null = null;
+  private trackId: MusicId | null = null;
+  private track: MusicTrack | null = null;
+  private trackStep = 0;
+  private trackNext = 0;
+  private nextTick = 0;
+  private tickCount = 0;
   private reverbIn: GainNode | null = null;
   /** fuentes continuas del ambiente (zumbido, LFO, tono agudo) para pararlas al detener la música */
   private ambientSources: OscillatorNode[] = [];
@@ -33,6 +50,7 @@ class Synth {
   private bedSource: AudioBufferSourceNode | null = null;
   private bedGain: GainNode | null = null;
   private bedLfo: OscillatorNode | null = null;
+  private bedLfoGain: GainNode | null = null;
   private soundscape: SoundscapeId = 'menu';
   private theme: StageSoundTheme = STAGE_SOUND.menu;
   private tensionLevel = 0;
@@ -356,16 +374,292 @@ class Synth {
           this.tone('sawtooth', 90, 60, 0.5, 0.12, 0.15);
         }
         break;
+      case 'ladrido':
+        this.bark(0, 1);
+        this.bark(0.2, 0.85);
+        break;
+      case 'grunido': {
+        const t = this.ctx!.currentTime;
+        this.shaped('sawtooth', t, [[0, 82], [0.5, 90], [1.1, 74]], [[0.15, 0.22], [0.85, 0.2], [1.15, 0]], undefined, { type: 'lowpass', freq: 420, q: 4 }, { rate: 23, depth: 0.6 });
+        this.shaped('noise', t, [[0, 500]], [[0.2, 0.05], [0.9, 0.04], [1.15, 0]], undefined, { type: 'lowpass', freq: 500 }, { rate: 23, depth: 0.7 });
+        break;
+      }
+      case 'motor': {
+        // jeep viejo: arranque que tose, el motor prende, acelera y se aleja
+        const t = this.ctx!.currentTime;
+        for (let i = 0; i < 4; i++) this.noise(0.08, 0.25, 900, 300, i * 0.13, 'bandpass');
+        this.shaped('square', t, [[0, 22], [0.5, 26]], [[0.02, 0.06], [0.52, 0.06], [0.6, 0]], undefined, { type: 'lowpass', freq: 300 }, { rate: 8, depth: 0.8 });
+        this.shaped('sawtooth', t + 0.6, [[0, 38], [0.2, 70], [0.5, 46], [1.1, 64], [1.9, 80]], [[0.05, 0.3], [0.7, 0.26], [1.9, 0]], undefined, { type: 'lowpass', freq: 700, q: 3 }, { rate: 30, depth: 0.5 });
+        this.noise(0.25, 0.3, 1500, 200, 0.6);
+        break;
+      }
+      case 'pito': {
+        const t = this.ctx!.currentTime;
+        for (const [d, len] of [[0, 0.12], [0.18, 0.26]] as const) {
+          for (const f of [415, 523]) {
+            this.shaped('square', t + d, [[0, f]], [[0.01, 0.1], [len, 0.09], [len + 0.03, 0]], undefined, { type: 'lowpass', freq: 2200, q: 2 });
+          }
+        }
+        break;
+      }
+      case 'polvora':
+        this.firework(1);
+        break;
+      case 'puerta': {
+        // campanita de tienda al abrir y la bisagra de madera que cruje
+        const t = this.ctx!.currentTime;
+        for (const d of [0, 0.09, 0.24]) {
+          for (const [k, v] of [[1, 0.08], [1.5, 0.04], [2.2, 0.025]]) this.tone('sine', 1850 * k, 1850 * k, 0.9, v, d);
+        }
+        this.shaped('sawtooth', t + 0.05, [[0, 170], [0.3, 240], [0.55, 200], [0.8, 150]], [[0.06, 0.05], [0.7, 0.04], [0.85, 0]], undefined, { type: 'bandpass', freq: 900, q: 3 }, { rate: 17, depth: 0.7 });
+        break;
+      }
     }
   }
 
-  /** 0..1: acelera el latido y abre el zumbido de fondo. */
+  /** Ladrido amistoso: tono que cae con formante de boca abierta y un golpe de aire. */
+  private bark(delay: number, vol: number): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime + delay;
+    this.shaped('sawtooth', t, [[0, 420], [0.03, 520], [0.11, 260]], [[0.01, 0.35 * vol], [0.08, 0.25 * vol], [0.13, 0]], undefined, { type: 'bandpass', freq: 1100, q: 1.5 });
+    this.noise(0.07, 0.12 * vol, 1800, 700, delay, 'bandpass');
+  }
+
+  /** Cohete de pólvora: silbido que sube, estallido y chisporroteo. */
+  private firework(vol: number, dest?: AudioNode): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.shaped('sine', t, [[0, 900], [0.7, 2600]], [[0.05, 0.05 * vol], [0.65, 0.07 * vol], [0.72, 0]], dest);
+    this.noise(0.5, 0.5 * vol, 3000, 150, 0.74, 'lowpass', dest);
+    this.tone('sine', 120, 40, 0.4, 0.4 * vol, 0.74, dest);
+    for (let i = 0; i < 14; i++) this.noise(0.02, 0.15 * vol, 7000, 3000, 0.9 + Math.random() * 0.9, 'highpass', dest);
+  }
+
+  /**
+   * Fuente con envolventes por tramos (frecuencia y volumen, desde 0) para sonidos
+   * con forma: motor, gruñido, metro, silbidos. `am` modula el volumen (traqueteo).
+   */
+  private shaped(
+    type: OscillatorType | 'noise', t0: number, freq: Ramp, gain: Ramp, dest?: AudioNode,
+    filter?: { type: BiquadFilterType; freq: number; q?: number }, am?: { rate: number; depth: number },
+  ): void {
+    if (!this.ctx || !this.master || !this.noiseBuffer) return;
+    const ctx = this.ctx;
+    const end = t0 + gain[gain.length - 1][0];
+    let src: AudioScheduledSourceNode;
+    let param: AudioParam | null = null;
+    let node: AudioNode;
+    if (type === 'noise') {
+      const n = ctx.createBufferSource();
+      n.buffer = this.noiseBuffer;
+      n.loop = true;
+      src = n;
+      node = n;
+    } else {
+      const o = ctx.createOscillator();
+      o.type = type;
+      src = o;
+      node = o;
+      param = o.frequency;
+    }
+    if (filter) {
+      const f = ctx.createBiquadFilter();
+      f.type = filter.type;
+      f.frequency.value = filter.freq;
+      f.Q.value = filter.q ?? 0.7;
+      if (type === 'noise') param = f.frequency;
+      node.connect(f);
+      node = f;
+    }
+    if (param) {
+      param.setValueAtTime(freq[0][1], t0 + freq[0][0]);
+      for (const [dt, v] of freq.slice(1)) param.linearRampToValueAtTime(v, t0 + dt);
+    }
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t0);
+    for (const [dt, v] of gain) g.gain.linearRampToValueAtTime(v, t0 + dt);
+    node.connect(g);
+    let out: AudioNode = g;
+    const extra: AudioScheduledSourceNode[] = [];
+    if (am) {
+      const a = ctx.createGain();
+      a.gain.value = 1 - am.depth;
+      const lfo = ctx.createOscillator();
+      const lg = ctx.createGain();
+      lfo.frequency.value = am.rate;
+      lg.gain.value = am.depth;
+      lfo.connect(lg).connect(a.gain);
+      g.connect(a);
+      out = a;
+      extra.push(lfo);
+    }
+    out.connect(dest ?? this.master);
+    for (const s of [src, ...extra]) {
+      s.start(t0);
+      s.stop(end + 0.05);
+    }
+  }
+
+  /** Nota con ataque suave (sin clics); `sustain` la mantiene y la suelta al final. */
+  private note(type: OscillatorType, f: number, t: number, dur: number, vol: number, attack: number, dest: AudioNode, sustain = false, detune = 0): void {
+    if (!this.ctx) return;
+    const o = this.ctx.createOscillator();
+    o.type = type;
+    o.frequency.value = f;
+    o.detune.value = detune;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + attack);
+    let end: number;
+    if (sustain) {
+      g.gain.setValueAtTime(vol, t + Math.max(attack, dur - 0.1));
+      end = t + dur + 0.4;
+      g.gain.linearRampToValueAtTime(0, end);
+    } else {
+      end = t + attack + dur;
+      g.gain.exponentialRampToValueAtTime(0.0005, end);
+    }
+    o.connect(g).connect(dest);
+    o.start(t);
+    o.stop(end + 0.05);
+  }
+
+  /** Toca un paso de un instrumento de la música. */
+  private instrument(inst: Instrument, val: number | number[], t: number, dur: number, vol: number, dest: AudioNode): void {
+    if (!this.ctx) return;
+    const d = Math.max(0, t - this.ctx.currentTime);
+    const f = typeof val === 'number' ? midiToFreq(val) : 0;
+    const lvl = typeof val === 'number' ? val : 1;
+    switch (inst) {
+      case 'bass':
+        this.note('triangle', f, t, dur, vol, 0.006, dest);
+        this.note('sine', f, t, dur * 0.6, vol * 0.5, 0.006, dest);
+        break;
+      case 'brass': {
+        const o = this.ctx.createOscillator();
+        o.type = 'square';
+        o.frequency.value = f;
+        const lp = this.ctx.createBiquadFilter();
+        lp.type = 'lowpass';
+        lp.Q.value = 2;
+        lp.frequency.setValueAtTime(600, t);
+        lp.frequency.linearRampToValueAtTime(2800, t + 0.04);
+        lp.frequency.exponentialRampToValueAtTime(1200, t + dur);
+        const g = this.ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(vol, t + 0.015);
+        g.gain.setValueAtTime(vol * 0.8, t + dur * 0.7);
+        g.gain.exponentialRampToValueAtTime(0.0005, t + dur + 0.05);
+        o.connect(lp).connect(g).connect(dest);
+        o.start(t);
+        o.stop(t + dur + 0.1);
+        break;
+      }
+      case 'pluck':
+        this.note('triangle', f, t, dur, vol, 0.002, dest);
+        this.note('square', f * 2, t, 0.05, vol * 0.25, 0.002, dest);
+        break;
+      case 'strum':
+        if (Array.isArray(val)) val.forEach((n, i) => this.note('square', midiToFreq(n), t + i * 0.014, dur, vol, 0.002, dest));
+        break;
+      case 'keys':
+        this.note('square', f, t, dur, vol, 0.003, dest);
+        break;
+      case 'organ':
+        for (const n of Array.isArray(val) ? val : [val]) {
+          const nf = midiToFreq(n);
+          this.note('sine', nf, t, dur, vol, 0.25, dest, true);
+          this.note('sine', nf * 2, t, dur, vol * 0.45, 0.25, dest, true);
+          this.note('triangle', nf * 4, t, dur, vol * 0.12, 0.3, dest, true);
+        }
+        break;
+      case 'choir':
+        for (const det of [-7, 7]) this.note('sawtooth', f, t, dur, vol, 0.6, dest, true, det);
+        break;
+      case 'shaker':
+        this.noise(0.045, vol * lvl, 7500, 5000, d, 'highpass', dest);
+        break;
+      case 'drum':
+        this.tone('sine', 210, 90, 0.14, vol * lvl, d, dest);
+        break;
+      case 'clave':
+        this.tone('sine', 2500, 2400, 0.035, vol * lvl, d, dest);
+        this.tone('triangle', 1250, 1200, 0.03, vol * lvl * 0.5, d, dest);
+        break;
+      case 'cowbell':
+        this.tone('square', 562, 560, 0.1, vol * lvl, d, dest);
+        this.tone('square', 845, 842, 0.1, vol * lvl * 0.7, d, dest);
+        break;
+    }
+  }
+
+  /** Funde la pieza actual (si la hay) y arranca la del paisaje cuando la anterior ya calló. */
+  private switchTrack(now: number): void {
+    if (!this.ctx) return;
+    const wanted = this.theme.music ?? null;
+    if (wanted === this.trackId && (this.musicBus || !wanted)) return;
+    const old = this.musicBus;
+    if (old) {
+      old.gain.cancelScheduledValues(now);
+      old.gain.setValueAtTime(old.gain.value, now);
+      old.gain.linearRampToValueAtTime(0, now + 1.2);
+      window.setTimeout(() => old.disconnect(), 2500);
+    }
+    this.musicBus = null;
+    this.track = null;
+    this.trackId = wanted;
+    if (!wanted || !this.musicDuckNode) return;
+    const track = MUSIC[wanted];
+    const start = now + (old ? 1.3 : 0.2);
+    const bus = this.ctx.createGain();
+    bus.gain.setValueAtTime(0, now);
+    bus.gain.setValueAtTime(0, start);
+    bus.gain.linearRampToValueAtTime(track.gain, start + 1.5);
+    if (track.muffle) {
+      const lp = this.ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = track.muffle;
+      bus.connect(lp).connect(this.musicDuckNode);
+    } else {
+      bus.connect(this.musicDuckNode);
+    }
+    this.musicBus = bus;
+    this.track = track;
+    this.trackStep = 0;
+    this.trackNext = start;
+  }
+
+  private scheduleTrack(horizon: number): void {
+    const ctx = this.ctx;
+    const tr = this.track;
+    const bus = this.musicBus;
+    if (!ctx || !tr || !bus) return;
+    const sd = stepSeconds(tr);
+    // si la pestaña estuvo dormida, no se recupera el atraso de golpe
+    if (this.trackNext < ctx.currentTime - 0.25) this.trackNext = ctx.currentTime + 0.05;
+    while (this.trackNext < horizon) {
+      for (const v of tr.voices) {
+        const val = v.steps[this.trackStep % v.steps.length];
+        if (val === 0 || (Array.isArray(val) && val.length === 0)) continue;
+        this.instrument(v.inst, val, this.trackNext, v.len * sd, v.vol, bus);
+      }
+      this.trackStep++;
+      this.trackNext += sd;
+    }
+  }
+
+  /**
+   * 0..1: acelera el latido, abre el zumbido de fondo y baja la música. En los paisajes
+   * alegres la tensión se guarda pero no suena.
+   */
   setTension(t: number): void {
     this.tensionLevel = Math.max(0, Math.min(1, t));
     if (this.ctx && this.droneFilter && this.droneHigh) {
       const now = this.ctx.currentTime;
-      this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + this.tensionLevel * 900, now, 0.4);
-      this.droneHigh.gain.setTargetAtTime(this.tensionLevel * 0.05, now, 0.6);
+      const eff = effectiveTension(this.theme, this.tensionLevel);
+      this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + eff * 900, now, 0.4);
+      this.droneHigh.gain.setTargetAtTime(eff * 0.05, now, 0.6);
+      this.musicDuckNode?.gain.setTargetAtTime(musicDuck(this.theme, this.tensionLevel), now, 0.5);
     }
   }
 
@@ -403,8 +697,12 @@ class Synth {
     this.droneFilter.frequency.value = 220;
     this.droneFilter.Q.value = 6;
     const droneG = ctx.createGain();
-    droneG.gain.value = 0.16;
+    droneG.gain.value = this.theme.droneGain ?? 0.16;
+    this.droneGain = droneG;
     this.droneFilter.connect(droneG).connect(this.musicGain);
+    this.musicDuckNode = ctx.createGain();
+    this.musicDuckNode.gain.value = musicDuck(this.theme, this.tensionLevel);
+    this.musicDuckNode.connect(this.musicGain);
     for (const f of this.theme.drone) {
       const o = ctx.createOscillator();
       o.type = f < 30 ? 'sine' : 'sawtooth';
@@ -442,6 +740,7 @@ class Synth {
     // caja de música: frase en menor, desafinada, lenta
     const box = [659.25, 587.33, 523.25, 493.88, 523.25, 440, 415.3, 440];
     const now = ctx.currentTime;
+    this.nextTick = now + 0.5;
     this.nextBeat = now + 1;
     this.nextEvent = now + 4;
     this.nextBox = now + 2;
@@ -449,14 +748,24 @@ class Synth {
       if (!this.ctx || !this.musicGain) return;
       const t0 = ctx.currentTime;
       const horizon = t0 + 0.5;
+      const eff = effectiveTension(this.theme, this.tensionLevel);
       // latido
       while (this.nextBeat < horizon) {
-        if (this.tensionLevel > 0.15) {
+        if (eff > 0.15) {
           const d = Math.max(0, this.nextBeat - t0);
-          this.tone('sine', 62, 38, 0.18, 0.35 + this.tensionLevel * 0.6, d, this.musicGain);
-          this.tone('sine', 55, 34, 0.2, 0.25 + this.tensionLevel * 0.5, d + 0.22, this.musicGain);
+          this.tone('sine', 62, 38, 0.18, 0.35 + eff * 0.6, d, this.musicGain);
+          this.tone('sine', 55, 34, 0.2, 0.25 + eff * 0.5, d + 0.22, this.musicGain);
         }
-        this.nextBeat += 60 / heartbeatBpm(this.tensionLevel);
+        this.nextBeat += 60 / heartbeatBpm(eff);
+      }
+      this.scheduleTrack(horizon);
+      // tic-tac del reloj de pared
+      const tick = this.theme.tick;
+      if (!tick) this.nextTick = horizon;
+      while (tick && this.nextTick < horizon) {
+        const odd = this.tickCount++ % 2 === 1;
+        this.tone('sine', odd ? 1900 : 2300, odd ? 1850 : 2250, 0.03, 0.03, Math.max(0, this.nextTick - t0), this.musicGain);
+        this.nextTick += tick;
       }
       // caja de música (solo en los paisajes que la usan)
       if (this.nextBox < horizon && !this.theme.musicBox) this.nextBox = horizon + 5;
@@ -473,10 +782,12 @@ class Synth {
       if (this.nextEvent < horizon) {
         this.stageEvent(pickStageEvent(this.theme, Math.random()));
         const [a, b] = this.theme.every;
-        this.nextEvent = Math.max(this.nextEvent, t0) + a + Math.random() * (b - a) - this.tensionLevel * Math.min(2, a * 0.5);
+        this.nextEvent = Math.max(this.nextEvent, t0) + a + Math.random() * (b - a) - eff * Math.min(2, a * 0.5);
       }
     };
     this.startBed();
+    this.trackId = null;
+    this.switchTrack(now);
     schedule();
     this.musicTimer = window.setInterval(schedule, 150);
   }
@@ -498,10 +809,19 @@ class Synth {
     this.stopBed();
     this.droneFilter = null;
     this.droneHigh = null;
+    this.droneGain = null;
+    this.musicDuckNode = null;
+    this.musicBus = null;
+    this.track = null;
+    this.trackId = null;
     this.reverbIn = null;
   }
 
-  /** Cambia el paisaje sonoro (escenario o menú) con un fundido de unos segundos. */
+  /**
+   * Cambia el paisaje sonoro (escenario, menú o zona de la aventura) con fundido: el
+   * zumbido se desliza, los lechos se cruzan y la música anterior calla antes de que
+   * entre la nueva (nunca suenan dos piezas a la vez).
+   */
   setSoundscape(id: SoundscapeId): void {
     if (this.soundscape === id) return;
     this.soundscape = id;
@@ -509,10 +829,13 @@ class Synth {
     if (!this.ctx || !this.droneFilter) return;
     const now = this.ctx.currentTime;
     this.theme.drone.forEach((f, i) => this.droneOscs[i]?.frequency.setTargetAtTime(f, now, 1.2));
-    this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + this.tensionLevel * 900, now, 0.8);
+    this.droneGain?.gain.setTargetAtTime(this.theme.droneGain ?? 0.16, now, 0.8);
+    this.setTension(this.tensionLevel);
     this.stopBed();
     this.startBed();
+    this.switchTrack(now);
     this.nextEvent = now + 1.5;
+    this.nextTick = now + 0.5;
   }
 
   /** Lecho continuo del escenario: ruido filtrado con volumen que respira (agua, viento, fuego…). */
@@ -541,6 +864,7 @@ class Synth {
     this.bedSource = src;
     this.bedGain = g;
     this.bedLfo = lfo;
+    this.bedLfoGain = lg;
   }
 
   private stopBed(): void {
@@ -548,12 +872,17 @@ class Synth {
     const t = this.ctx.currentTime;
     const src = this.bedSource;
     const lfo = this.bedLfo;
-    if (this.bedGain) this.bedGain.gain.setTargetAtTime(0, t, 0.5);
+    if (this.bedGain) {
+      this.bedGain.gain.cancelScheduledValues(t);
+      this.bedGain.gain.setTargetAtTime(0, t, 0.5);
+    }
+    this.bedLfoGain?.gain.setTargetAtTime(0, t, 0.3);
     if (src) { try { src.stop(t + 2); } catch { /* ya parado */ } }
     if (lfo) { try { lfo.stop(t + 2); } catch { /* ya parado */ } }
     this.bedSource = null;
     this.bedGain = null;
     this.bedLfo = null;
+    this.bedLfoGain = null;
   }
 
   /** Sonidos característicos de cada escenario (todos suenan "lejos", con eco). */
@@ -630,6 +959,71 @@ class Synth {
       case 'steps':
         for (const t of [0, 0.55, 1.1]) this.noise(0.08, 0.16, 400, 120, t, 'lowpass', far);
         break;
+      case 'chatter':
+      case 'prayer': {
+        // murmullo de voces: ráfagas con formantes; el rezo es más grave y parejo
+        const low = name === 'prayer';
+        const n = low ? 10 : 7;
+        for (let i = 0; i < n; i++) {
+          const f = (low ? 420 : 650) + r() * (low ? 260 : 800);
+          this.noise(0.1 + r() * 0.2, low ? 0.04 : 0.06, f, f * 0.75, i * (low ? 0.22 : 0.17) + r() * 0.1, 'bandpass', far);
+        }
+        break;
+      }
+      case 'glass':
+        for (const [d, f] of [[0, 2600 + r() * 500], [0.07, 3100 + r() * 400]]) {
+          this.tone('sine', f, f, 0.3, 0.03, d, far);
+          this.tone('sine', f * 2.7, f * 2.7, 0.15, 0.01, d, far);
+        }
+        break;
+      case 'laugh': {
+        const base = 240 + r() * 120;
+        for (let i = 0; i < 4; i++) {
+          this.tone('triangle', base * (1 - i * 0.04), base * 0.8, 0.09, 0.05, i * 0.15, far);
+          this.noise(0.08, 0.025, 1400, 900, i * 0.15, 'bandpass', far);
+        }
+        break;
+      }
+      case 'firework':
+        this.firework(0.35, far);
+        break;
+      case 'metro': {
+        // el metro pasa por el viaducto: rumor que crece y se va, con su silbido eléctrico
+        const t = this.ctx!.currentTime;
+        this.shaped('noise', t, [[0, 260]], [[2, 0.12], [3, 0.12], [5.5, 0]], far, { type: 'lowpass', freq: 260 });
+        this.shaped('sine', t, [[0, 480], [2.5, 720], [5.5, 520]], [[2, 0.015], [3, 0.015], [5.5, 0]], far);
+        for (let i = 0; i < 6; i++) this.noise(0.05, 0.05, 700, 300, 1.6 + i * 0.32, 'lowpass', far);
+        break;
+      }
+      case 'horn': {
+        const t = this.ctx!.currentTime;
+        const f = 380 + r() * 120;
+        this.shaped('square', t, [[0, f]], [[0.01, 0.02], [0.2, 0.02], [0.24, 0]], far, { type: 'lowpass', freq: 1500 });
+        break;
+      }
+      case 'moto': {
+        const t = this.ctx!.currentTime;
+        this.shaped('sawtooth', t, [[0, 70], [0.8, 140], [1.8, 85]], [[0.6, 0.03], [1.2, 0.03], [1.9, 0]], far, { type: 'lowpass', freq: 900 }, { rate: 35, depth: 0.4 });
+        break;
+      }
+      case 'farWhistle': {
+        // silbido humano largo en el monte: baja, para y vuelve a subir
+        const t = this.ctx!.currentTime;
+        this.shaped('sine', t, [[0, 1500], [0.9, 1080], [1.3, 1080], [1.7, 1320]], [[0.1, 0.035], [0.9, 0.03], [1.05, 0], [1.35, 0.03], [1.75, 0]], far);
+        break;
+      }
+      case 'branch':
+        this.noise(0.03, 0.18, 3000, 1500, 0, 'bandpass', far);
+        this.noise(0.025, 0.1, 2500, 1200, 0.07, 'bandpass', far);
+        this.tone('sine', 140, 60, 0.12, 0.08, 0.02, far);
+        break;
+      case 'bamboo': {
+        // guaduas que se golpean con el viento: toques huecos irregulares
+        const base = 280 + r() * 90;
+        for (let i = 0; i < 2 + Math.floor(r() * 3); i++) this.tone('sine', base * (1 + r() * 0.15), base * 0.9, 0.12, 0.06, i * (0.12 + r() * 0.25), far);
+        if (r() < 0.4) this.play('creak');
+        break;
+      }
     }
   }
 

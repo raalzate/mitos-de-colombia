@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DRAWN_ANIM } from '../src/art/drawnAnimManifest';
-import { WALK_STRIDE_PX, attackIndex, drawnAnimFile, drawnAnimKey, drawnFrame, walkFrameByDistance, walkPhase } from '../src/art/DrawnAnim';
+import {
+  LAND_FRAMES, LAND_TUCK, STRIKE_FOLLOW, WALK_STRIDE_PX, attackIndex, drawnAnimFile, drawnAnimKey, drawnFrame, drawnMotion, flipPhase, hitRecoil,
+  hitShake, landSquash, standHeight, strikeIndex, strikeKeys, strikeMotion, stripAnchor, walkFrameByDistance, walkPhase,
+} from '../src/art/DrawnAnim';
+import { DRAWN_METRICS } from '../src/art/drawnAnimMetrics';
 import { FIGHTER_IDS } from '../src/data/fighters';
 
 const files = import.meta.glob('../public/assets/anim/*.png');
@@ -100,26 +104,136 @@ describe('animación dibujada', () => {
     expect(back.next).toBe(n - 3);
   });
 
-  it('los golpes recorren los fotogramas según su avance: preparación, impacto sostenido y recuperación', () => {
+  it('attackIndex reparte preparación, impacto sostenido y recuperación', () => {
     const p = { startup: 6, active: 3, recovery: 9 };
     const seq = Array.from({ length: 18 }, (_, f) => attackIndex(0, 2, 4, { ...p, frame: f }));
     expect(seq[0]).toBe(0);
     expect(seq.slice(6, 9)).toEqual([2, 2, 2]);
     expect(seq[17]).toBe(4);
-    for (let k = 1; k < seq.length; k++) expect(seq[k]).toBeGreaterThanOrEqual(seq[k - 1]);
-    expect(new Set(seq).size).toBe(5); // usa los 5 fotogramas (clave + intermedios) del puño
-    // en el juego: cada golpe pasa por sus fotogramas clave y por los intermedios entre ellos
-    for (const id of ['mohan', 'madremonte', 'hombrecaiman'] as const) {
-      const keys = DRAWN_ANIM[id].attack.keys ?? DRAWN_ANIM[id].attack.frames;
-      const half = Math.floor(keys / 2);
-      const punchIds = new Set<number>(); const kickIds = new Set<number>();
-      for (let f = 0; f < 18; f++) {
-        punchIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: f } })!.index);
-        kickIds.add(drawnFrame(id, { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: f } })!.index);
+  });
+
+  it('los golpes sostienen la anticipación, impactan en los frames activos y siguen extendidos', () => {
+    const p = { startup: 9, active: 4, recovery: 15 };
+    for (const id of FIGHTER_IDS) {
+      const k = strikeKeys(id);
+      const n = DRAWN_ANIM[id].attack.frames;
+      expect(k.light).toBeLessThan(n);
+      expect(k.heavy).toBeGreaterThanOrEqual(k.light);
+      for (const heavy of [false, true]) {
+        const seq = Array.from({ length: 28 }, (_, f) => strikeIndex(k, heavy, { ...p, frame: f }));
+        const hit = heavy ? k.heavy : k.light;
+        // guardia un instante, preparación sostenida el resto del arranque
+        expect(seq[0]).toBe(0);
+        expect(new Set(seq.slice(1, 9))).toEqual(new Set([k.wind]));
+        // impacto exacto en los activos y seguimiento: sigue extendido al empezar la recuperación
+        expect(seq.slice(9, 13)).toEqual([hit, hit, hit, hit]);
+        expect(seq[13]).toBe(hit);
+        expect(seq[13 + Math.floor(15 * STRIKE_FOLLOW) - 1]).toBe(hit);
+        // termina en un fotograma de recuperación distinto del impacto
+        expect(seq[27]).not.toBe(hit);
+        // pocos cambios de dibujo: poses clave sostenidas, no un fotograma distinto cada frame
+        let changes = 0;
+        for (let f = 1; f < seq.length; f++) if (seq[f] !== seq[f - 1]) changes++;
+        expect(changes).toBeLessThanOrEqual(4);
       }
-      expect(punchIds.size).toBe(Math.min(3, half));
-      expect(kickIds.size).toBe(Math.min(3, keys - half));
     }
+    // en el juego los golpes ligeros y fuertes impactan con fotogramas distintos
+    const light = drawnFrame('juanmachete', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } })!;
+    const heavy = drawnFrame('juanmachete', { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: 10 } })!;
+    expect(light).toEqual({ action: 'attack', index: strikeKeys('juanmachete').light });
+    expect(heavy.index).toBeGreaterThan(light.index);
+  });
+
+  it('el golpe recoge hacia atrás, se lanza al impacto y vuelve suave a cero', () => {
+    const p = { startup: 6, active: 3, recovery: 10 };
+    const m = Array.from({ length: 19 }, (_, f) => strikeMotion({ ...p, frame: f }, true, false));
+    expect(m[5].dx).toBeLessThan(0);
+    expect(m[6].dx).toBeGreaterThan(3);
+    expect(m[18].dx).toBeLessThan(0.5);
+    for (let f = 10; f < 19; f++) expect(m[f].dx).toBeLessThanOrEqual(m[f - 1].dx + 1e-9);
+    // la patada se inclina hacia atrás; el puño hacia delante
+    expect(strikeMotion({ ...p, frame: 7 }, true, true).rot).toBeLessThan(0);
+    expect(strikeMotion({ ...p, frame: 7 }, true, false).rot).toBeGreaterThan(0);
+  });
+
+  it('al recibir un golpe retrocede, se sostiene y vuelve; el temblor solo dura el hitstop', () => {
+    const full = hitRecoil(20, 20, true);
+    expect(full.dx).toBeLessThan(-3);
+    expect(full.rot).toBeLessThan(-6);
+    expect(hitRecoil(17, 20, true)).toEqual(full);
+    expect(Math.abs(hitRecoil(0, 20, true).dx)).toBeLessThan(1e-9);
+    expect(Math.abs(hitRecoil(10, 20, false).dx)).toBeLessThan(Math.abs(hitRecoil(10, 20, true).dx));
+    expect(hitShake(0)).toBe(0);
+    expect(Math.abs(hitShake(7))).toBe(2);
+    expect(Math.abs(hitShake(3))).toBe(1);
+    expect(hitShake(6)).toBe(-hitShake(7));
+  });
+
+  it('salto: encogido al despegar, voltereta con dirección, encogido en la cima en vertical y aterrizaje aplastado', () => {
+    const jump = (o: object) => drawnFrame('mohan', { ...base, state: 'jump', anim: 'jump', grounded: false, ...o })!;
+    const tuck = { action: 'trans', index: 1 };
+    expect(jump({ stateFrame: 0, vy: -7 })).toEqual(tuck);
+    expect(jump({ stateFrame: 5, vy: -6 }).action).toBe('idle');
+    expect(jump({ stateFrame: 20, vy: 0 })).toEqual(tuck);
+    expect(jump({ stateFrame: 36, vy: 6 }).action).toBe('idle');
+    expect(jump({ stateFrame: 12, vy: -2, vxForward: 1.5 })).toEqual(tuck);
+    // la voltereta da una vuelta completa: hacia delante gira a favor, hacia atrás en contra
+    expect(flipPhase(-6, 1.5)).toBeNull();
+    expect(flipPhase(0, 0)).toBeNull();
+    const start = drawnMotion('mohan', { ...base, anim: 'jump', state: 'jump', grounded: false, stateFrame: 10, vy: -4.9, vxForward: 1.5 });
+    const end = drawnMotion('mohan', { ...base, anim: 'jump', state: 'jump', grounded: false, stateFrame: 30, vy: 4.4, vxForward: 1.5 });
+    const back = drawnMotion('mohan', { ...base, anim: 'jump', state: 'jump', grounded: false, stateFrame: 20, vy: 0, vxForward: -1.2 });
+    expect(start.center).toBe(true);
+    expect(start.rot).toBeLessThan(20);
+    expect(end.rot).toBeGreaterThan(340);
+    expect(back.rot).toBeLessThan(0);
+    // despegue y subida estirados
+    const up = drawnMotion('mohan', { ...base, anim: 'jump', state: 'jump', grounded: false, stateFrame: 4, vy: -6.5 });
+    expect(up.sy).toBeGreaterThan(1);
+    // aterrizaje: encogido unos frames, aplastado y vuelve a 1
+    expect(drawnFrame('mohan', { ...base, landing: 0 })).toEqual(tuck);
+    expect(drawnFrame('mohan', { ...base, landing: LAND_TUCK })!.action).toBe('idle');
+    expect(landSquash(0).sy).toBeLessThan(1);
+    expect(landSquash(LAND_TUCK).sy).toBeLessThan(1);
+    expect(landSquash(LAND_FRAMES)).toEqual({ sx: 1, sy: 1 });
+  });
+
+  it('todas las tiras comparten eje y línea de suelo', () => {
+    for (const id of FIGHTER_IDS) {
+      for (const action of ['walk', 'attack', 'hurt', 'trans', 'idle', 'fall'] as const) {
+        const strip = DRAWN_ANIM[id][action];
+        if (!strip) continue;
+        expect(DRAWN_METRICS[id][action]!.length).toBe(strip.frames);
+        for (let k = 0; k < strip.frames; k++) {
+          const a = stripAnchor(id, action, k, true);
+          const [, pad] = DRAWN_METRICS[id][action]![k];
+          const ref = DRAWN_METRICS[id].idle![0];
+          // en el suelo los pies quedan a la altura de los del reposo (salvo los golpes)
+          if (action !== 'attack') expect(pad - a.dy).toBe(ref[1]);
+          expect(Math.abs(a.dx)).toBeLessThanOrEqual(8);
+        }
+      }
+      // la altura de pie es coherente entre tiras: el fotograma de guardia de cada tira mide casi lo mismo
+      const h = standHeight(id);
+      for (const action of ['walk', 'fall'] as const) expect(Math.abs(DRAWN_METRICS[id][action]![0][2] - h)).toBeLessThanOrEqual(4);
+    }
+    // Patasola tumbada flotaba 11 px: ahora toca el suelo
+    const lying = DRAWN_ANIM.patasola.fall!.lying!;
+    expect(stripAnchor('patasola', 'fall', lying, true).dy).toBeGreaterThanOrEqual(10);
+  });
+
+  it('derribo: impacto y rebote al caer antes de quedar tumbado', () => {
+    const f = DRAWN_ANIM.juanmachete.fall!;
+    const at = (lying: number) => drawnFrame('juanmachete', { ...base, state: 'knockdown', anim: 'knockdown', grounded: true, lying })!.index;
+    expect(at(0)).toBeLessThan(f.lying!);
+    expect(at(20)).toBe(f.lying);
+    for (let k = 1; k < 20; k++) expect(at(k)).toBeGreaterThanOrEqual(at(k - 1));
+    const bounce = drawnMotion('juanmachete', { ...base, state: 'knockdown', anim: 'knockdown', grounded: true, lying: 4 });
+    expect(bounce.dy).toBeLessThan(0);
+    // el golpe usa fotogramas de retroceso de la caída, no los de vuelo
+    const hit = drawnFrame('juanmachete', { ...base, state: 'hitstun', anim: 'hit', animFrame: 1 })!;
+    expect(hit.action).toBe('fall');
+    expect(hit.index).toBeLessThan(f.lying!);
   });
 
   it('agacharse y bloquear entran con transición propia antes de la pose final', () => {
@@ -128,9 +242,6 @@ describe('animación dibujada', () => {
     expect(drawnFrame('mohan', { ...base, anim: 'crouch', stateFrame: 10 })!.action).toBe('hurt');
     expect(drawnFrame('mohan', { ...base, anim: 'block', stateFrame: 1 })).toEqual({ action: 'trans', index: 2 });
     expect(drawnFrame('mohan', { ...base, anim: 'block', stateFrame: 10 })).toEqual({ action: 'attack', index: 0 });
-    const up = drawnFrame('mohan', { ...base, anim: 'jump', vy: -5 })!.index;
-    const down = drawnFrame('mohan', { ...base, anim: 'jump', vy: 5 })!.index;
-    expect(down).toBeGreaterThan(up);
   });
 
   it('Patasola se agacha encorvada, no tumbada', () => {

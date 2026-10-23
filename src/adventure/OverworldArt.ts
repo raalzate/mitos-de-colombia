@@ -123,3 +123,36 @@ export function buildShadow(w: number): Pixmap {
   pm.ellipse(w / 2, 3, w / 2 - 1, 2, C(0x000000, 90));
   return pm;
 }
+
+/** Perro criollo de repuesto (sur, este, norte): café con blanco, orejas caídas. */
+export function buildDog(): Pixmap {
+  const sheet = new Pixmap(144, 48);
+  const brown = C(0x8a5a2c), dark = C(0x5a3818), white = C(0xf0e8d8), nose = C(0x201010), ink = C(0x1a0c06);
+  const south = new Pixmap(48, 48);
+  south.ellipse(24, 34, 9, 8, brown);
+  south.ellipse(24, 37, 5, 5, white);
+  south.ellipse(24, 22, 8, 7, brown);
+  south.ellipse(24, 25, 4, 3, white);
+  south.rect(15, 18, 3, 8, dark); south.rect(30, 18, 3, 8, dark);
+  south.set(21, 21, ink); south.set(27, 21, ink); south.rect(23, 25, 2, 2, nose);
+  for (const x of [18, 28]) south.rect(x, 40, 3, 5, brown);
+  south.outline(ink);
+  const east = new Pixmap(48, 48);
+  east.ellipse(22, 33, 11, 6, brown);
+  east.ellipse(22, 36, 7, 3, white);
+  east.ellipse(33, 25, 6, 5, brown);
+  east.rect(36, 26, 5, 3, white); east.set(40, 26, nose);
+  east.rect(29, 21, 3, 7, dark); east.set(34, 23, ink);
+  east.line(11, 30, 7, 24, 2, brown);
+  for (const x of [14, 18, 26, 30]) east.rect(x, 37, 2, 7, brown);
+  east.outline(ink);
+  const north = new Pixmap(48, 48);
+  north.ellipse(24, 32, 9, 9, brown);
+  north.ellipse(24, 22, 7, 6, brown);
+  north.rect(16, 19, 3, 7, dark); north.rect(29, 19, 3, 7, dark);
+  north.line(24, 40, 24, 45, 2, brown);
+  for (const x of [17, 29]) north.rect(x, 39, 3, 5, brown);
+  north.outline(ink);
+  [south, east, north].forEach((f, i) => sheet.blit(f, i * 48, 0));
+  return sheet;
+}

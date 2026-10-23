@@ -8,8 +8,10 @@ import { Pixmap, hexToRgba, seededRandom, type Rgba } from './PixelPainter';
 
 export const STAGE_LAYER_WIDTH = 640;
 
-export type StageId = 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo';
-export const STAGE_IDS: StageId[] = ['ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo'];
+export type StageId =
+  | 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo'
+  | 'selva' | 'cantina' | 'cementerio';
+export const STAGE_IDS: StageId[] = ['ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo', 'selva', 'cantina', 'cementerio'];
 
 export type AmbientKind = 'fly' | 'ember' | 'leaf' | 'drop' | 'none';
 
@@ -22,12 +24,14 @@ export interface StageTheme {
   stars: number;
   moon: { x: number; y: number; r: number; color: number; light: number } | null;
   sun: { x: number; y: number; r: number; color: number; glow: number } | null;
+  /** interior: el "cielo" es la pared del fondo (la luna se ve por la ventana) */
+  interior?: boolean;
   clouds: { c1: Rgba; c2: Rgba; line: Rgba };
-  far: { kind: 'mountains' | 'flat' | 'hills' | 'town' | 'hacienda'; color: number; color2: number; window?: number };
-  water: { kind: 'river' | 'lagoon' | 'swamp' | 'plain' | 'field' | 'street'; bands: number[]; glint: number; glintDark: number; reflect: number | null };
-  mid: { kind: 'jungle' | 'palms' | 'frailejones' | 'mangrove' | 'cane' | 'houses'; dark: number; mid: number; light: number; soil: number; accent: number };
-  ground: { kind: 'soil' | 'dry' | 'mud' | 'ash' | 'cobble'; soil: number; soilD: number; soilL: number; grass: number; grassL: number; water: number };
-  fore: { kind: 'rocks' | 'grass' | 'reeds' | 'embers' | 'posts'; c1: number; c2: number };
+  far: { kind: 'mountains' | 'flat' | 'hills' | 'town' | 'hacienda' | 'cordillera' | 'shelves' | 'chapel'; color: number; color2: number; window?: number };
+  water: { kind: 'river' | 'lagoon' | 'swamp' | 'plain' | 'field' | 'street' | 'thicket' | 'bar' | 'vaults'; bands: number[]; glint: number; glintDark: number; reflect: number | null };
+  mid: { kind: 'jungle' | 'palms' | 'frailejones' | 'mangrove' | 'cane' | 'houses' | 'guadual' | 'tavern' | 'graves'; dark: number; mid: number; light: number; soil: number; accent: number };
+  ground: { kind: 'soil' | 'dry' | 'mud' | 'ash' | 'cobble' | 'trail' | 'planks'; soil: number; soilD: number; soilL: number; grass: number; grassL: number; water: number };
+  fore: { kind: 'rocks' | 'grass' | 'reeds' | 'embers' | 'posts' | 'ferns' | 'chairs' | 'crosses'; c1: number; c2: number };
   mist: { color: Rgba; color2: Rgba; alpha: number };
   ambient: AmbientKind;
   ambientTint: number;
@@ -154,6 +158,64 @@ export const STAGES: Record<StageId, StageTheme> = {
     ambientTint: 0xffffff,
     lightning: false,
   },
+  selva: {
+    id: 'selva',
+    name: 'Monte de la Patasola',
+    subtitle: 'Selva antioqueña - noche de niebla',
+    sky: [0x04070a, 0x07100f, 0x0a1714, 0x0e1f19, 0x12281e, 0x173023, 0x1d3a28, 0x26442e],
+    stars: 26,
+    moon: { x: 292, y: 62, r: 13, color: 0xc8dcc0, light: 0xeef8e4 },
+    sun: null,
+    clouds: { c1: [40, 60, 56, 170], c2: [60, 84, 76, 140], line: [26, 40, 38, 150] },
+    far: { kind: 'cordillera', color: 0x0e1c1a, color2: 0x16282a },
+    water: { kind: 'thicket', bands: [0x0a140e, 0x0c1810, 0x0e1c12, 0x0a1610], glint: 0xd8ff70, glintDark: 0x8ab040, reflect: null },
+    mid: { kind: 'guadual', dark: 0x07100a, mid: 0x1c3420, light: 0x3a6438, soil: 0x1a140c, accent: 0x6a8a50 },
+    ground: { kind: 'trail', soil: 0x2a2014, soilD: 0x1a140c, soilL: 0x4a3a24, grass: 0x1e3a1c, grassL: 0x2e5428, water: 0x1c2a22 },
+    fore: { kind: 'ferns', c1: 0x050a06, c2: 0x0c180e },
+    mist: { color: [170, 200, 180, 60], color2: [200, 225, 205, 48], alpha: 1 },
+    ambient: 'fly',
+    ambientTint: 0xd8ff70,
+    lightning: false,
+  },
+  cantina: {
+    id: 'cantina',
+    name: 'Cantina La Última Copa',
+    subtitle: 'Pueblo antioqueño - rockola a medianoche',
+    sky: [0x1a0e0a, 0x24140c, 0x2c1a10, 0x341e12, 0x3a2214, 0x40261a, 0x462a1c, 0x4c2e1e],
+    stars: 0,
+    moon: { x: 306, y: 45, r: 7, color: 0xe8e0c0, light: 0xfff8e0 },
+    sun: null,
+    interior: true,
+    clouds: { c1: [150, 140, 130, 22], c2: [180, 170, 160, 18], line: [120, 110, 100, 12] },
+    far: { kind: 'shelves', color: 0x241208, color2: 0x4a2c16, window: 0xffd080 },
+    water: { kind: 'bar', bands: [0xa06a38, 0x5a3418, 0x4a2a14, 0x341c0c], glint: 0xffe0a0, glintDark: 0xc89040, reflect: null },
+    mid: { kind: 'tavern', dark: 0x1a0e08, mid: 0x3a2414, light: 0x6a4424, soil: 0x2a1a10, accent: 0xffc870 },
+    ground: { kind: 'planks', soil: 0x4a2e18, soilD: 0x2e1c0e, soilL: 0x5a3a20, grass: 0x5a3a1e, grassL: 0x7a5230, water: 0x2a1a0e },
+    fore: { kind: 'chairs', c1: 0x0c0604, c2: 0x1e120a },
+    mist: { color: [190, 170, 150, 26], color2: [210, 195, 175, 20], alpha: 0.6 },
+    ambient: 'fly',
+    ambientTint: 0xffd8a0,
+    lightning: false,
+  },
+  cementerio: {
+    id: 'cementerio',
+    name: 'Cementerio de las Ánimas',
+    subtitle: 'Camposanto del pueblo - noche de difuntos',
+    sky: [0x05040c, 0x0a0816, 0x100c20, 0x16122a, 0x1c1834, 0x241e3c, 0x2c2444, 0x3a2c4c],
+    stars: 60,
+    moon: { x: 84, y: 66, r: 22, color: 0xd0d0e0, light: 0xf4f4ff },
+    sun: null,
+    clouds: { c1: [60, 56, 84, 150], c2: [90, 86, 116, 120], line: [40, 36, 60, 130] },
+    far: { kind: 'chapel', color: 0x100c1c, color2: 0x1c1830, window: 0xf0b050 },
+    water: { kind: 'vaults', bands: [0x7a7a94, 0x5a5a74, 0x4c4c64, 0x3a3a50], glint: 0xffd070, glintDark: 0xff8030, reflect: null },
+    mid: { kind: 'graves', dark: 0x0c0a14, mid: 0x3e3e52, light: 0x72728a, soil: 0x1c1a20, accent: 0xc8c8d8 },
+    ground: { kind: 'soil', soil: 0x2a2620, soilD: 0x1c1914, soilL: 0x3e382c, grass: 0x26301e, grassL: 0x34422a, water: 0x22263a },
+    fore: { kind: 'crosses', c1: 0x07060c, c2: 0x12101a },
+    mist: { color: [180, 190, 220, 58], color2: [210, 215, 240, 46], alpha: 0.8 },
+    ambient: 'fly',
+    ambientTint: 0x9fd0ff,
+    lightning: false,
+  },
 };
 
 export interface StageLayers {
@@ -171,7 +233,129 @@ export interface StageLayers {
 /* Cielo                                                               */
 /* ------------------------------------------------------------------ */
 
+function paintMoon(pm: Pixmap, moon: NonNullable<StageTheme['moon']>): void {
+  const { x: mx, y: my, r, color, light } = moon;
+  pm.circle(mx, my, r, hexToRgba(color));
+  pm.circle(mx - 1, my - 1, r - 2, hexToRgba(light));
+  pm.circle(mx - r * 0.3, my - r * 0.25, r * 0.18, hexToRgba(color));
+  pm.circle(mx + r * 0.25, my + r * 0.3, r * 0.12, hexToRgba(color));
+  pm.circle(mx + r * 0.35, my - r * 0.35, r * 0.09, hexToRgba(color));
+  pm.circle(mx - r * 0.1, my + r * 0.4, r * 0.09, hexToRgba(color));
+  for (let rr = r + 2; rr < r + 7; rr++) {
+    for (let a = 0; a < 360; a += 3) {
+      const x = Math.round(mx + Math.cos((a * Math.PI) / 180) * rr);
+      const y = Math.round(my + Math.sin((a * Math.PI) / 180) * rr);
+      if ((x + y) % 2 === 0) pm.set(x, y, [255, 240, 200, 50]);
+    }
+  }
+}
+
+/** Curva colgante entre dos ganchos (guirnaldas, bejucos). */
+function sag(x: number, x0: number, x1: number, y0: number, depth: number): number {
+  const u = (x - x0) / (x1 - x0);
+  return y0 + depth * 4 * u * (1 - u);
+}
+
+/** Pared del fondo de la cantina: tablas, zócalo pintado, ventana con luna, reloj, almanaque y guirnaldas. */
+function buildCantinaWall(t: StageTheme): Pixmap {
+  const pm = new Pixmap(GAME_WIDTH, GAME_HEIGHT);
+  const rnd = seededRandom(31);
+  const boards = [0x3a2214, 0x40261a, 0x351f12].map((c) => hexToRgba(c));
+  const seam = hexToRgba(0x1c0f08);
+  for (let x = 0; x < GAME_WIDTH; x += 12) {
+    pm.rect(x, 0, 12, GAME_HEIGHT, boards[(x / 12) % 3]);
+    pm.vline(x, 0, GAME_HEIGHT, seam);
+    for (let k = 0; k < 4; k++) {
+      const vx = x + 3 + Math.floor(rnd() * 7);
+      const vy = rnd() * GAME_HEIGHT;
+      pm.vline(vx, vy, vy + 6 + rnd() * 18, [90, 56, 30, 70]);
+    }
+  }
+  // zócalo pintado de verde con filete
+  pm.rect(0, 112, GAME_WIDTH, GAME_HEIGHT - 112, hexToRgba(0x1c3a2c));
+  pm.dither(0, 112, GAME_WIDTH, GAME_HEIGHT - 112, hexToRgba(0x16301f), 1);
+  pm.rect(0, 110, GAME_WIDTH, 3, hexToRgba(0x8a5a2a));
+  pm.hline(0, GAME_WIDTH, 110, hexToRgba(0xb07a3a));
+  // techo y vigas
+  pm.rect(0, 0, GAME_WIDTH, 9, hexToRgba(0x120804));
+  for (let x = 6; x < GAME_WIDTH; x += 64) {
+    pm.rect(x, 0, 10, 15, hexToRgba(0x1a0e08));
+    pm.hline(x, x + 9, 14, hexToRgba(0x3a2214));
+  }
+  // ventana a la calle, de noche, con la luna
+  const wx = 292;
+  const wy = 32;
+  pm.rect(wx - 4, wy - 4, 60, 56, hexToRgba(0x140a06));
+  const night = [0x080a1c, 0x0c1024, 0x10162c, 0x161c34];
+  for (let i = 0; i < 4; i++) pm.rect(wx, wy + i * 12, 52, 12, hexToRgba(night[i]));
+  for (let i = 0; i < 8; i++) pm.set(wx + 3 + Math.floor(rnd() * 46), wy + 2 + Math.floor(rnd() * 20), hexToRgba(0xc8c0e0));
+  if (t.moon) paintMoon(pm, t.moon);
+  // tejados del frente al otro lado de la calle
+  pm.polygon([[wx, wy + 48], [wx, wy + 36], [wx + 18, wy + 30], [wx + 34, wy + 36], [wx + 52, wy + 32], [wx + 52, wy + 48]], hexToRgba(0x06060e));
+  pm.rect(wx + 8, wy + 40, 3, 4, hexToRgba(0xf0c060));
+  pm.rect(wx + 38, wy + 41, 3, 3, hexToRgba(0xf0c060));
+  pm.rect(wx + 25, wy, 2, 48, hexToRgba(0x2a160c));
+  pm.rect(wx, wy + 23, 52, 2, hexToRgba(0x2a160c));
+  pm.rect(wx - 4, wy + 48, 60, 3, hexToRgba(0x5a3418));
+  // cortina de cuadros a un lado
+  for (let y = wy - 4; y < wy + 46; y++) {
+    for (let x = wx + 40; x < wx + 58; x++) {
+      const check = (Math.floor(x / 3) + Math.floor(y / 3)) % 2 === 0;
+      pm.set(x, y, hexToRgba(check ? 0x8a1c1c : 0xc8b8a0));
+    }
+  }
+  pm.vline(wx + 40, wy - 4, wy + 46, hexToRgba(0x4a0c0c));
+  // reloj de pared
+  const [ckx, cky] = [42, 62];
+  pm.circle(ckx, cky, 10, hexToRgba(0x2a160c));
+  pm.circle(ckx, cky, 8, hexToRgba(0xe0d4b0));
+  pm.line(ckx, cky, ckx, cky - 6, 1, hexToRgba(0x1a0e08));
+  pm.line(ckx, cky, ckx + 4, cky + 2, 1, hexToRgba(0x1a0e08));
+  for (let a = 0; a < 12; a++) pm.set(ckx + Math.cos((a * Math.PI) / 6) * 7, cky + Math.sin((a * Math.PI) / 6) * 7, hexToRgba(0x5a4a3a));
+  // almanaque viejo con la reina del aguardiente
+  pm.rect(78, 36, 28, 40, hexToRgba(0xd8ccb0));
+  pm.rect(80, 38, 24, 20, hexToRgba(0xb02a28));
+  pm.circle(92, 45, 4, hexToRgba(0xe0a880));
+  pm.rect(88, 49, 8, 9, hexToRgba(0xf0d040));
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 6; c++) pm.rect(81 + c * 4, 61 + r * 3, 2, 1, hexToRgba(0x6a5a4a));
+  pm.rect(91, 34, 2, 2, hexToRgba(0x8a8a8a));
+  // espejo con marco y escudo de equipo al centro
+  pm.rect(170, 40, 46, 30, hexToRgba(0x6a4424));
+  pm.rect(172, 42, 42, 26, hexToRgba(0x2c2a30));
+  for (let i = 0; i < 6; i++) pm.line(176 + i * 7, 66, 184 + i * 7, 44, 1, [200, 200, 220, 40]);
+  pm.rect(232, 44, 14, 18, hexToRgba(0x0a6a3a));
+  pm.rect(234, 46, 10, 6, hexToRgba(0xf0f0f0));
+  pm.rect(234, 52, 10, 8, hexToRgba(0x0a6a3a));
+  pm.hline(234, 243, 55, hexToRgba(0xf0f0f0));
+  // banderines tricolor
+  const flag = [0xf8d030, 0x2040a0, 0xc02020].map((c) => hexToRgba(c));
+  for (let span = 0; span < GAME_WIDTH; span += 128) {
+    let k = 0;
+    for (let x = span; x < span + 128; x++) pm.set(x, sag(x, span, span + 128, 10, 10), hexToRgba(0x2a2420));
+    for (let x = span + 6; x < span + 124; x += 9) {
+      const y = Math.round(sag(x, span, span + 128, 10, 10));
+      pm.polygon([[x - 3, y], [x + 3, y], [x, y + 6]], flag[k++ % 3]);
+    }
+  }
+  // bombillos de colores con su resplandor
+  const bulbs = [0xff5050, 0x50ff70, 0xffd040, 0x50a0ff, 0xff70d0].map((c) => hexToRgba(c));
+  for (let span = -32; span < GAME_WIDTH; span += 96) {
+    for (let x = span; x < span + 96; x++) pm.set(x, sag(x, span, span + 96, 26, 14), hexToRgba(0x1a1410));
+    let k = Math.abs(span) % 5;
+    for (let x = span + 8; x < span + 92; x += 12) {
+      const y = Math.round(sag(x, span, span + 96, 26, 14));
+      const c = bulbs[k++ % 5];
+      pm.dither(x - 4, y - 2, 9, 9, [c[0], c[1], c[2], 60], x);
+      pm.rect(x - 1, y + 1, 3, 3, c);
+      pm.set(x, y + 1, hexToRgba(0xffffff));
+      pm.set(x, y, hexToRgba(0x2a2420));
+    }
+  }
+  return pm;
+}
+
 export function buildSky(t: StageTheme): Pixmap {
+  if (t.interior) return buildCantinaWall(t);
   const pm = new Pixmap(GAME_WIDTH, GAME_HEIGHT);
   const bandH = Math.ceil(150 / t.sky.length);
   for (let i = 0; i < t.sky.length; i++) {
@@ -190,22 +374,7 @@ export function buildSky(t: StageTheme): Pixmap {
       pm.set(x, y + 1, hexToRgba(0x8078a0));
     }
   }
-  if (t.moon) {
-    const { x: mx, y: my, r, color, light } = t.moon;
-    pm.circle(mx, my, r, hexToRgba(color));
-    pm.circle(mx - 1, my - 1, r - 2, hexToRgba(light));
-    pm.circle(mx - r * 0.3, my - r * 0.25, r * 0.18, hexToRgba(color));
-    pm.circle(mx + r * 0.25, my + r * 0.3, r * 0.12, hexToRgba(color));
-    pm.circle(mx + r * 0.35, my - r * 0.35, r * 0.09, hexToRgba(color));
-    pm.circle(mx - r * 0.1, my + r * 0.4, r * 0.09, hexToRgba(color));
-    for (let rr = r + 2; rr < r + 7; rr++) {
-      for (let a = 0; a < 360; a += 3) {
-        const x = Math.round(mx + Math.cos((a * Math.PI) / 180) * rr);
-        const y = Math.round(my + Math.sin((a * Math.PI) / 180) * rr);
-        if ((x + y) % 2 === 0) pm.set(x, y, [255, 240, 200, 50]);
-      }
-    }
-  }
+  if (t.moon) paintMoon(pm, t.moon);
   if (t.sun) {
     const { x, y, r, color, glow } = t.sun;
     for (let rr = r + 14; rr > r; rr -= 2) {
@@ -363,6 +532,140 @@ export function buildFar(t: StageTheme): Pixmap {
       pm.rect(cx + 14, 60, 6, 10, win);
       break;
     }
+    case 'cordillera': {
+      // montañas empinadas de Antioquia con bancos de niebla entre filos
+      const back = hexToRgba(0x1e3432);
+      const ridge = (base: number, a: number, b: number, ph: number, c: Rgba) => {
+        const pts: [number, number][] = [[0, h]];
+        for (let x = 0; x <= STAGE_LAYER_WIDTH; x += 8) {
+          pts.push([x, base + Math.sin(x * a + ph) * 14 + Math.sin(x * b) * 6 + rnd() * 3]);
+        }
+        pts.push([STAGE_LAYER_WIDTH, h]);
+        pm.polygon(pts, c);
+      };
+      ridge(32, 0.019, 0.071, 0, back);
+      pm.dither(0, 40, STAGE_LAYER_WIDTH, 12, [170, 200, 190, 46], 0);
+      pm.rect(0, 50, STAGE_LAYER_WIDTH, 6, [170, 200, 190, 30]);
+      ridge(56, 0.027, 0.09, 2, c2);
+      // palmas de cera asomando sobre el filo
+      for (let i = 0; i < 7; i++) {
+        const x = 30 + i * 92 + rnd() * 30;
+        const base = 58 + Math.sin(x * 0.027 + 2) * 14;
+        const top = base - 22 - rnd() * 10;
+        pm.vline(x, top, base, c2);
+        for (let a = -3; a <= 3; a++) pm.line(x, top, x + a * 3, top - 3 + Math.abs(a) * 2, 1, c2);
+      }
+      pm.dither(0, 66, STAGE_LAYER_WIDTH, 10, [170, 200, 190, 40], 1);
+      // bosque cercano: copas redondas y yarumos plateados
+      pm.rect(0, 84, STAGE_LAYER_WIDTH, h - 84, c1);
+      for (let x = 0; x < STAGE_LAYER_WIDTH; x += 7) pm.circle(x + rnd() * 4, 82 + rnd() * 5, 5 + rnd() * 5, c1);
+      const silver = hexToRgba(0x5a7a70);
+      for (let i = 0; i < 9; i++) {
+        const x = 20 + i * 72 + rnd() * 20;
+        const top = 64 + rnd() * 8;
+        pm.vline(x, top, 86, silver);
+        for (const d of [-1, 1]) {
+          pm.line(x, top + 6, x + d * 6, top + 1, 1, silver);
+          for (let a = 0; a < 5; a++) pm.line(x + d * 6, top + 1, x + d * 6 + (a - 2) * 2, top - 2 + Math.abs(a - 2), 1, silver);
+        }
+      }
+      break;
+    }
+    case 'shelves': {
+      // contrabarra: paneles de madera, espejos y repisas con botellas
+      const sh0 = 16;
+      pm.rect(0, sh0, STAGE_LAYER_WIDTH, 94 - sh0, c1);
+      const shelf = hexToRgba(t.far.color2);
+      const edge = hexToRgba(0x7a4a24);
+      const mirror = hexToRgba(0x2a2628);
+      for (let bay = 0; bay < STAGE_LAYER_WIDTH; bay += 120) {
+        pm.rect(bay + 8, sh0 + 4, 104, 70, mirror);
+        for (let k = 0; k < 7; k++) pm.line(bay + 14 + k * 15, 88, bay + 30 + k * 15, sh0 + 6, 1, [220, 200, 180, 22]);
+        pm.rect(bay, sh0, 8, 94 - sh0, shelf);
+        pm.vline(bay + 1, sh0, 94, edge);
+      }
+      // licorera: aguardiente (tapa roja), ron, guaro verde, whisky
+      const kinds = [
+        { body: [150, 180, 170, 210] as Rgba, label: 0xc82020, cap: 0xd02020, w: 4, h: 14 },
+        { body: hexToRgba(0x7a3c10), label: 0xf0d040, cap: 0x2a1408, w: 5, h: 12 },
+        { body: hexToRgba(0x1e5a2a), label: 0xe8e0c8, cap: 0xc8a040, w: 4, h: 15 },
+        { body: hexToRgba(0x9a5a18), label: 0x202020, cap: 0x101010, w: 6, h: 11 },
+      ];
+      for (const sy of [38, 62, 86]) {
+        pm.rect(0, sy, STAGE_LAYER_WIDTH, 3, shelf);
+        pm.hline(0, STAGE_LAYER_WIDTH, sy, edge);
+        pm.hline(0, STAGE_LAYER_WIDTH, sy + 3, hexToRgba(0x120804));
+        let x = 2 + rnd() * 4;
+        while (x < STAGE_LAYER_WIDTH - 6) {
+          if (x % 120 < 9) { x += 9; continue; }
+          const b = kinds[Math.floor(rnd() * kinds.length)];
+          const bh = b.h - Math.floor(rnd() * 3);
+          const top = sy - bh;
+          pm.rect(x, top + 4, b.w, bh - 4, b.body);
+          pm.rect(x + Math.floor(b.w / 2) - 1, top, 2, 4, b.body);
+          pm.rect(x + Math.floor(b.w / 2) - 1, top - 1, 2, 1, hexToRgba(b.cap));
+          pm.rect(x, top + 8, b.w, 3, hexToRgba(b.label));
+          pm.vline(x, top + 4, sy - 1, [255, 240, 210, 90]);
+          x += b.w + 1 + Math.floor(rnd() * 3);
+        }
+      }
+      // puerta de vaivén hacia la calle oscura
+      const dx = 392;
+      pm.rect(dx - 4, 0, 46, 94, hexToRgba(0x120804));
+      for (let y = 4; y < 94; y++) pm.hline(dx, dx + 37, y, hexToRgba(y < 40 ? 0x080a18 : y < 70 ? 0x0a0e1e : 0x101424));
+      pm.dither(dx + 22, 4, 14, 14, [255, 210, 120, 70], 0);
+      pm.rect(dx + 28, 8, 3, 3, hexToRgba(0xffe0a0));
+      pm.vline(dx + 29, 11, 70, hexToRgba(0x04040a));
+      pm.polygon([[dx, 70], [dx + 12, 60], [dx + 26, 64], [dx + 37, 58], [dx + 37, 94], [dx, 94]], hexToRgba(0x05050c));
+      for (let x = dx + 2; x < dx + 37; x += 5) pm.set(x, 88, hexToRgba(0x2a2a3a));
+      for (const side of [0, 19]) {
+        pm.rect(dx + side, 34, 18, 30, hexToRgba(0x5a3418));
+        for (let k = 2; k < 18; k += 3) pm.vline(dx + side + k, 36, 62, hexToRgba(0x3a200e));
+        pm.hline(dx + side, dx + side + 17, 34, hexToRgba(0x8a5a2a));
+      }
+      break;
+    }
+    case 'chapel': {
+      // loma con capilla, cipreses y el pueblo dormido a lo lejos
+      const pts: [number, number][] = [[0, h]];
+      for (let x = 0; x <= STAGE_LAYER_WIDTH; x += 6) {
+        const hill = 22 * Math.exp(-(((x - 320) / 130) ** 2));
+        pts.push([x, 88 - hill + Math.sin(x * 0.04) * 2]);
+      }
+      pts.push([STAGE_LAYER_WIDTH, h]);
+      pm.polygon(pts, c1);
+      const win = hexToRgba(t.far.window ?? 0xf0b050);
+      for (let i = 0; i < 9; i++) {
+        const x = 10 + i * 22 + rnd() * 6;
+        const w = 12 + rnd() * 8;
+        const top = 80 + rnd() * 4;
+        pm.rect(x, top, w, 90 - top, c2);
+        pm.polygon([[x - 1, top], [x + w / 2, top - 4], [x + w + 1, top]], c2);
+        if (rnd() > 0.5) pm.rect(x + 3, top + 3, 2, 2, win);
+      }
+      const wall = hexToRgba(0x3a3650);
+      const cx = 320;
+      pm.rect(cx - 26, 46, 52, 22, wall);
+      pm.polygon([[cx - 30, 47], [cx, 32], [cx + 30, 47]], hexToRgba(0x241e30));
+      pm.rect(cx + 18, 22, 14, 46, wall);
+      pm.polygon([[cx + 16, 23], [cx + 25, 8], [cx + 34, 23]], hexToRgba(0x241e30));
+      pm.vline(cx + 25, 2, 8, wall);
+      pm.hline(cx + 22, cx + 28, 4, wall);
+      pm.rect(cx + 22, 28, 6, 7, hexToRgba(0x0c0a14));
+      pm.vline(cx - 1, 54, 67, hexToRgba(0x0c0a14));
+      pm.rect(cx - 5, 56, 10, 12, hexToRgba(0x0c0a14));
+      pm.circle(cx, 41, 2.5, win);
+      pm.rect(cx - 18, 52, 4, 6, win);
+      pm.vline(cx - 26, 46, 67, [200, 200, 230, 60]);
+      const cypress = (x: number, base: number, ch: number) => {
+        pm.polygon([[x - 4, base], [x - 3, base - ch * 0.6], [x, base - ch], [x + 3, base - ch * 0.6], [x + 4, base]], hexToRgba(0x07060e));
+      };
+      for (const [x, ch] of [[262, 30], [278, 38], [368, 34], [384, 26], [180, 22], [470, 26], [560, 30], [60, 20]] as const) {
+        const base = 88 - 22 * Math.exp(-(((x - 320) / 130) ** 2)) + 2;
+        cypress(x, base, ch);
+      }
+      break;
+    }
   }
   return pm;
 }
@@ -371,7 +674,120 @@ export function buildFar(t: StageTheme): Pixmap {
 /* Agua / franja media lejana (3 fotogramas)                          */
 /* ------------------------------------------------------------------ */
 
+/** Franja media de los escenarios sin agua: maleza con cocuyos, barra de la cantina, muro de bóvedas. */
+function buildBand(t: StageTheme): Pixmap[] {
+  const frames: Pixmap[] = [];
+  const h = 44;
+  const W = STAGE_LAYER_WIDTH;
+  const b = t.water.bands.map((c) => hexToRgba(c));
+  for (let f = 0; f < 3; f++) {
+    const pm = new Pixmap(W, h);
+    const rnd = seededRandom(404);
+    if (t.water.kind === 'thicket') {
+      for (let y = 0; y < h; y++) pm.hline(0, W, y, b[y < 10 ? 0 : y < 24 ? 1 : y < 36 ? 2 : 3]);
+      // hojas grandes (bijao, plátano) y helechos
+      for (let i = 0; i < 70; i++) {
+        const x = rnd() * W;
+        const y = 4 + rnd() * (h - 6);
+        const c = hexToRgba([0x10241a, 0x163020, 0x0c1c12][i % 3]);
+        pm.ellipse(x, y, 4 + rnd() * 7, 2 + rnd() * 2, c);
+        pm.hline(x - 3, x + 3, y, hexToRgba(0x1e3c26));
+      }
+      for (let i = 0; i < 30; i++) {
+        const x = rnd() * W;
+        const y = 10 + rnd() * 30;
+        for (let k = 0; k < 6; k++) pm.line(x + k * 2, y - k, x + k * 2 + 2, y - k + 3, 1, hexToRgba(0x24442a));
+      }
+      // cocuyos que se prenden y apagan
+      for (let i = 0; i < 46; i++) {
+        const x = rnd() * W;
+        const y = 2 + rnd() * (h - 4);
+        if ((i + f) % 3 === 0) continue;
+        const c = hexToRgba((i + f) % 3 === 1 ? t.water.glint : t.water.glintDark);
+        pm.set(x, y, c);
+        pm.set(x - 1, y, [c[0], c[1], c[2], 70]);
+        pm.set(x + 1, y, [c[0], c[1], c[2], 70]);
+        pm.set(x, y - 1, [c[0], c[1], c[2], 70]);
+        pm.set(x, y + 1, [c[0], c[1], c[2], 70]);
+      }
+    } else if (t.water.kind === 'bar') {
+      // mostrador: cubierta, frente con tableros y baranda de bronce
+      pm.rect(0, 0, W, 6, b[0]);
+      pm.hline(0, W, 0, hexToRgba(0xc89060));
+      pm.hline(0, W, 5, hexToRgba(0x2a1608));
+      pm.rect(0, 6, W, h - 6, b[2]);
+      for (let x = 0; x < W; x += 40) {
+        pm.rect(x, 6, 5, h - 6, b[1]);
+        pm.rect(x + 9, 10, 27, 22, b[3]);
+        pm.hline(x + 9, x + 35, 10, hexToRgba(0x241208));
+        pm.vline(x + 9, 10, 31, hexToRgba(0x241208));
+        pm.hline(x + 9, x + 35, 31, hexToRgba(0x6a4220));
+        pm.vline(x + 35, 10, 31, hexToRgba(0x6a4220));
+        pm.rect(x + 14, 15, 17, 12, b[2]);
+      }
+      pm.rect(0, 36, W, 2, hexToRgba(0xb08838));
+      pm.hline(0, W, 36, hexToRgba(0xf0d080));
+      for (let x = 20; x < W; x += 80) pm.rect(x, 38, 2, 4, hexToRgba(0x6a5020));
+      // reflejos de los bombillos en la cubierta (titilan)
+      const glow = [0xff5050, 0x50ff70, 0xffd040, 0x50a0ff, 0xff70d0];
+      for (let i = 0; i < 26; i++) {
+        const x = (i * 47 + 11) % W;
+        if ((i + f) % 3 === 2) continue;
+        pm.hline(x, x + 2, 2, rgba(glow[i % 5], 170));
+      }
+      for (let i = 0; i < 12; i++) {
+        const x = (i * 97 + f * 3) % W;
+        pm.hline(x, x + 3, 36, hexToRgba((i + f) % 2 ? t.water.glint : t.water.glintDark));
+      }
+    } else {
+      // muro de bóvedas encalado con lápidas, flores y velas
+      pm.rect(0, 0, W, h, b[1]);
+      pm.rect(0, 0, W, 4, b[0]);
+      pm.hline(0, W, 4, b[3]);
+      const flowers = [0xd02030, 0xf0c020, 0xf0f0f0, 0xe060a0].map((c) => hexToRgba(c));
+      for (let row = 0; row < 3; row++) {
+        for (let col = 0; col < W / 20; col++) {
+          const x = col * 20 + 3;
+          const y = 7 + row * 12;
+          if (col % 16 === 15) continue;
+          const roll = rnd();
+          if (roll < 0.12) {
+            pm.rect(x, y, 15, 10, hexToRgba(0x14121c));
+            continue;
+          }
+          pm.rect(x, y, 15, 10, b[0]);
+          pm.hline(x, x + 14, y + 9, b[3]);
+          pm.vline(x + 14, y, y + 9, b[3]);
+          pm.vline(x + 7, y + 2, y + 6, b[2]);
+          pm.hline(x + 6, x + 8, y + 3, b[2]);
+          if (roll > 0.55) {
+            for (let k = 0; k < 3; k++) pm.set(x + 2 + k * 2 + Math.floor(rnd() * 2), y + 8 - (k % 2), flowers[Math.floor(rnd() * 4)]);
+          }
+          if (roll > 0.8) {
+            pm.vline(x + 12, y + 6, y + 8, hexToRgba(0xf0ead0));
+            const lit = (col + row + f) % 4 !== 0;
+            if (lit) {
+              pm.set(x + 12, y + 5, hexToRgba((col + f) % 2 ? t.water.glint : t.water.glintDark));
+              pm.dither(x + 10, y + 3, 5, 5, rgba(t.water.glint, 60), 0);
+            }
+          }
+        }
+      }
+      // arco de entrada al fondo
+      for (let col = 0; col < W / 20; col += 16) {
+        const x = col * 20 + 15 * 20 + 1;
+        pm.rect(x, 10, 18, h - 10, hexToRgba(0x07060c));
+        pm.ellipse(x + 9, 10, 9, 6, hexToRgba(0x07060c));
+      }
+      pm.dither(0, h - 6, W, 6, rgba(0x14121c, 140), 0);
+    }
+    frames.push(pm);
+  }
+  return frames;
+}
+
 export function buildRiver(t: StageTheme): Pixmap[] {
+  if (t.water.kind === 'thicket' || t.water.kind === 'bar' || t.water.kind === 'vaults') return buildBand(t);
   const frames: Pixmap[] = [];
   const h = 44;
   const rnd = seededRandom(404);
@@ -646,8 +1062,267 @@ export function buildMid(t: StageTheme): Pixmap {
       }
       break;
     }
+    case 'guadual':
+      paintGuadual(pm, t, rnd);
+      break;
+    case 'tavern':
+      paintTavern(pm, t, rnd);
+      break;
+    case 'graves':
+      paintGraves(pm, t, rnd);
+      break;
   }
   return pm;
+}
+
+/** Monte antioqueño: guaduales, una ceiba, yarumos plateados, helechos de palo y bejucos. */
+function paintGuadual(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const dark = hexToRgba(t.mid.dark);
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const accent = hexToRgba(t.mid.accent);
+  // bejucos colgando entre los árboles
+  for (let x0 = -40; x0 < W; x0 += 90 + Math.floor(rnd() * 40)) {
+    const x1 = x0 + 70 + rnd() * 60;
+    const y0 = 6 + rnd() * 16;
+    const d = 14 + rnd() * 18;
+    for (let x = x0; x < x1; x++) pm.set(x, sag(x, x0, x1, y0, d), mid);
+    for (let k = 0; k < 3; k++) {
+      const lx = x0 + rnd() * (x1 - x0);
+      const ly = sag(lx, x0, x1, y0, d);
+      const len = 16 + rnd() * 40;
+      for (let y = ly; y < ly + len; y++) pm.set(lx + Math.sin(y * 0.3) * 1.2, y, dark);
+      pm.ellipse(lx, ly + len, 2, 1.5, mid);
+    }
+  }
+  // ceiba con estribos
+  const cx = 330;
+  pm.polygon([[cx - 16, h], [cx + 16, h], [cx + 9, 16], [cx - 9, 16]], dark);
+  pm.polygon([[cx - 44, h], [cx - 14, h - 40], [cx - 10, h]], dark);
+  pm.polygon([[cx + 46, h], [cx + 13, h - 36], [cx + 10, h]], dark);
+  pm.polygon([[cx - 26, h], [cx - 8, h - 60], [cx - 4, h]], dark);
+  pm.line(cx - 6, h, cx - 4, 18, 1, mid);
+  pm.line(cx + 5, h - 10, cx + 6, 30, 1, [60, 80, 64, 120]);
+  for (let k = 0; k < 9; k++) {
+    const ex = cx + (k - 4) * 15 + rnd() * 6;
+    const ey = 4 + Math.abs(k - 4) * 2 + rnd() * 4;
+    pm.ellipse(ex, ey, 18 + rnd() * 8, 6 + rnd() * 3, k % 2 ? dark : mid);
+    pm.ellipse(ex - 4, ey - 3, 7, 2, light);
+  }
+  for (const d of [-1, 1]) pm.line(cx, 20, cx + d * 40, 6, 3, dark);
+  // guaduales: cañas que se arquean, con nudos y follaje plumoso
+  for (const gx of [70, 200, 470, 600]) {
+    for (let k = 0; k < 13; k++) {
+      const bx = gx + (k - 6) * 3 + rnd() * 2;
+      const lean = (k - 6) * 3.2 + (rnd() - 0.5) * 6;
+      const top = 2 + rnd() * 14;
+      let px = bx;
+      let py = h - 9;
+      const steps = 14;
+      for (let i = 1; i <= steps; i++) {
+        const u = i / steps;
+        const nx = bx + lean * u * u * 2.2;
+        const ny = h - 9 - (h - 9 - top) * u;
+        pm.line(px, py, nx, ny, 2, k % 3 === 0 ? light : mid);
+        pm.set(px - 1, py, dark);
+        if (i % 2 === 0) pm.hline(nx - 1, nx + 1, ny, accent);
+        if (u > 0.45) {
+          for (const d of [-1, 1]) {
+            pm.line(nx, ny, nx + d * (4 + rnd() * 5), ny + 3 + rnd() * 4, 1, rnd() > 0.5 ? light : mid);
+            pm.line(nx, ny + 2, nx + d * (2 + rnd() * 4), ny + 6 + rnd() * 3, 1, mid);
+          }
+        }
+        px = nx;
+        py = ny;
+      }
+    }
+  }
+  // yarumos de hojas plateadas
+  const silver = hexToRgba(0x9ab4a8);
+  const silverD = hexToRgba(0x5a7a70);
+  for (const yx of [128, 548]) {
+    const top = 14 + rnd() * 6;
+    pm.line(yx, h - 9, yx, top + 12, 2, hexToRgba(0x6a7a70));
+    for (const [d, len] of [[-1, 18], [1, 16], [0, 0]] as const) {
+      const ex = yx + d * len;
+      const ey = top + (d === 0 ? 0 : 6);
+      pm.line(yx, top + 16, ex, ey, 1, hexToRgba(0x6a7a70));
+      for (let a = 0; a < 7; a++) {
+        const ang = Math.PI + (a / 6) * Math.PI;
+        pm.line(ex, ey, ex + Math.cos(ang) * 6, ey + Math.sin(ang) * 4 + 4, 1, a % 2 ? silver : silverD);
+      }
+    }
+  }
+  // helechos de palo
+  for (const fx of [262, 418, 20]) {
+    const top = 40 + rnd() * 8;
+    pm.line(fx, h - 9, fx + 2, top, 2, dark);
+    for (let a = 0; a < 8; a++) {
+      const dir = a % 2 ? 1 : -1;
+      const len = 10 + (a >> 1) * 3;
+      let px = fx + 2;
+      let py = top;
+      for (let i = 1; i <= 6; i++) {
+        const nx = fx + 2 + dir * (len * i) / 6;
+        const ny = top - 4 + ((i * i) / 36) * 12 + (a >> 1) * 2 - 4;
+        pm.line(px, py, nx, ny, 1, mid);
+        pm.set(nx, ny + 1, light);
+        px = nx;
+        py = ny;
+      }
+    }
+  }
+  // sotobosque
+  for (let i = 0; i < 40; i++) {
+    const x = rnd() * W;
+    pm.ellipse(x, h - 12, 5 + rnd() * 9, 3 + rnd() * 3, i % 3 === 0 ? mid : dark);
+  }
+}
+
+/** Interior de cantina: columnas, lámparas colgantes, rockola, mesas con botellas y butacos. */
+function paintTavern(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const dark = hexToRgba(t.mid.dark);
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const warm = t.mid.accent;
+  // luz de las lámparas (debajo de todo lo demás)
+  const lamps = [216, 436, 620];
+  for (const lx of lamps) {
+    for (let y = 30; y < h - 10; y++) {
+      const half = 6 + (y - 30) * 0.45;
+      pm.dither(lx - half, y, half * 2, 1, rgba(warm, 26), y);
+    }
+  }
+  for (const px of [100, 320, 540]) {
+    pm.rect(px - 4, 0, 8, h - 8, dark);
+    pm.vline(px - 3, 0, h - 9, mid);
+    pm.line(px - 4, 16, px - 18, 0, 2, dark);
+    pm.line(px + 4, 16, px + 18, 0, 2, dark);
+  }
+  for (const lx of lamps) {
+    pm.vline(lx, 0, 24, hexToRgba(0x0c0806));
+    pm.polygon([[lx - 3, 24], [lx + 3, 24], [lx + 9, 31], [lx - 9, 31]], hexToRgba(0x1e5a3a));
+    pm.hline(lx - 8, lx + 8, 30, hexToRgba(0x2e7a4c));
+    pm.rect(lx - 2, 31, 5, 2, hexToRgba(0xfff0b0));
+  }
+  // rockola con el arco de luces
+  const rx = 164;
+  const top = 44;
+  pm.dither(rx - 22, top - 14, 44, 70, [255, 120, 190, 36], 0);
+  pm.rect(rx - 14, top + 6, 28, h - 10 - top - 6, hexToRgba(0x3a1c22));
+  const arc = [0xff9a30, 0xff5aa0, 0x60ffa0, 0xffe060];
+  arc.forEach((c, i) => pm.ellipse(rx, top + 8, 14 - i * 2, 12 - i * 2, hexToRgba(c)));
+  pm.ellipse(rx, top + 8, 6, 4, hexToRgba(0x2a1418));
+  pm.rect(rx - 10, top + 14, 20, 12, hexToRgba(0x1a0e14));
+  pm.circle(rx, top + 20, 4, hexToRgba(0x080608));
+  pm.set(rx, top + 20, hexToRgba(0xff5aa0));
+  for (let k = 0; k < 5; k++) pm.rect(rx - 9 + k * 4, top + 28, 2, 2, hexToRgba(arc[k % 4]));
+  pm.rect(rx - 11, top + 32, 22, 22, hexToRgba(0x5a3a28));
+  for (let gx = rx - 9; gx < rx + 10; gx += 3) pm.vline(gx, top + 34, top + 52, hexToRgba(0x2a160e));
+  pm.vline(rx - 14, top + 8, h - 11, hexToRgba(0xff9a30));
+  pm.vline(rx + 13, top + 8, h - 11, hexToRgba(0xff9a30));
+  // mesas con botellas de cerveza y copitas, y sus sillas
+  const table = (x: number) => {
+    const ty = h - 32;
+    for (const d of [-1, 1]) {
+      const cx = x + d * 22;
+      pm.rect(cx - 5, ty + 8, 10, 2, mid);
+      pm.vline(cx - 5 * d, ty - 8, ty + 21, mid);
+      pm.vline(cx + 4 * d, ty + 10, ty + 21, mid);
+      for (let y = ty - 6; y < ty + 8; y += 4) pm.hline(cx - 5 * d, cx - 2 * d, y, light);
+    }
+    pm.ellipse(x, ty, 18, 3, light);
+    pm.hline(x - 16, x + 16, ty - 2, hexToRgba(0x8a5a30));
+    pm.vline(x, ty + 3, ty + 20, dark);
+    pm.ellipse(x, ty + 21, 7, 1.5, dark);
+    for (let i = 0; i < 4; i++) {
+      const bx = x - 10 + i * 6 + Math.floor(rnd() * 2);
+      pm.rect(bx, ty - 9, 3, 7, hexToRgba(0x6a3010));
+      pm.rect(bx + 1, ty - 12, 1, 3, hexToRgba(0x6a3010));
+      pm.set(bx, ty - 7, hexToRgba(0xffd080));
+      pm.rect(bx, ty - 6, 3, 2, hexToRgba(0xe8e0c0));
+    }
+    pm.rect(x + 12, ty - 4, 2, 2, [220, 230, 230, 200]);
+  };
+  table(270);
+  table(490);
+  // butacos frente al mostrador
+  for (const sx of [360, 396, 590, 30]) {
+    pm.ellipse(sx, h - 36, 6, 2, light);
+    pm.line(sx - 4, h - 35, sx - 6, h - 10, 1, mid);
+    pm.line(sx + 4, h - 35, sx + 6, h - 10, 1, mid);
+    pm.line(sx, h - 35, sx, h - 10, 1, dark);
+    pm.hline(sx - 5, sx + 5, h - 20, mid);
+  }
+}
+
+/** Camposanto: cipreses, mausoleo, ángel de piedra, lápidas, cruces y una verja de hierro. */
+function paintGraves(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const dark = hexToRgba(t.mid.dark);
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const pale = hexToRgba(t.mid.accent);
+  const cypress = (x: number, top: number, w: number) => {
+    pm.polygon([[x - w, h - 9], [x - w * 0.8, top + (h - top) * 0.4], [x, top], [x + w * 0.8, top + (h - top) * 0.4], [x + w, h - 9]], dark);
+    for (let y = top + 6; y < h - 12; y += 4) pm.set(x - w * 0.6 * ((y - top) / (h - top)) - 1, y, mid);
+  };
+  for (const [x, top, w] of [[40, 0, 10], [130, 14, 8], [404, 2, 11], [430, 20, 7], [610, 8, 9]] as const) cypress(x, top, w);
+  // mausoleo
+  const mx = 520;
+  pm.rect(mx - 24, h - 54, 48, 45, mid);
+  pm.polygon([[mx - 28, h - 54], [mx, h - 68], [mx + 28, h - 54]], light);
+  pm.polygon([[mx - 22, h - 56], [mx, h - 65], [mx + 22, h - 56]], mid);
+  pm.vline(mx, h - 78, h - 68, light);
+  pm.hline(mx - 3, mx + 3, h - 75, light);
+  for (const c of [-18, -12, 12, 18]) pm.vline(mx + c, h - 52, h - 10, light);
+  pm.rect(mx - 7, h - 40, 14, 31, dark);
+  for (let k = mx - 5; k < mx + 6; k += 3) pm.vline(k, h - 38, h - 10, hexToRgba(0x2a2a36));
+  pm.vline(mx - 24, h - 54, h - 10, pale);
+  // ángel sobre pedestal
+  const ax = 250;
+  pm.rect(ax - 7, h - 24, 14, 15, mid);
+  pm.hline(ax - 8, ax + 7, h - 24, light);
+  pm.polygon([[ax - 3, h - 46], [ax - 16, h - 64], [ax - 9, h - 40]], light);
+  pm.polygon([[ax + 3, h - 46], [ax + 15, h - 66], [ax + 9, h - 40]], mid);
+  pm.polygon([[ax - 4, h - 48], [ax + 4, h - 48], [ax + 7, h - 25], [ax - 7, h - 25]], light);
+  pm.circle(ax, h - 51, 3, light);
+  pm.line(ax + 3, h - 46, ax + 5, h - 58, 1, light);
+  pm.vline(ax - 5, h - 46, h - 26, pale);
+  // lápidas y cruces
+  const flowers = [0xd02030, 0xf0c020, 0xf07020].map((c) => hexToRgba(c));
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * W;
+    if (Math.abs(x - mx) < 32 || Math.abs(x - ax) < 14) continue;
+    const kind = i % 3;
+    if (kind === 0) {
+      const w = 8 + rnd() * 5;
+      const th = 10 + rnd() * 8;
+      pm.rect(x - w / 2, h - 9 - th, w, th, mid);
+      pm.ellipse(x, h - 9 - th, w / 2, 3, mid);
+      pm.vline(x - w / 2, h - 9 - th, h - 10, light);
+      pm.hline(x - 2, x + 2, h - 5 - th, dark);
+    } else {
+      const ch = 14 + rnd() * 14;
+      const lean = (rnd() - 0.5) * 6;
+      const wood = kind === 1 ? hexToRgba(0x3a2a20) : light;
+      pm.line(x, h - 9, x + lean, h - 9 - ch, 2, wood);
+      const by = h - 9 - ch * 0.72;
+      pm.line(x + lean * 0.7 - 5, by, x + lean * 0.7 + 5, by, 1, wood);
+    }
+    if (rnd() > 0.5) pm.set(x + 2, h - 10, flowers[i % 3]);
+  }
+  // verja de hierro alrededor de una tumba
+  for (let x = 300; x < 360; x += 4) {
+    pm.vline(x, h - 22, h - 9, dark);
+    pm.set(x, h - 23, mid);
+  }
+  pm.hline(300, 356, h - 19, dark);
+  pm.hline(300, 356, h - 12, dark);
 }
 
 /* ------------------------------------------------------------------ */
@@ -678,6 +1353,27 @@ export function buildGround(t: StageTheme): Pixmap {
     pm.hline(0, STAGE_LAYER_WIDTH, top - 3, soilD);
     return pm;
   }
+  if (g.kind === 'planks') {
+    // tablado de madera con juntas, clavos y manchas de trago
+    for (let y = top; y < h; y += 6) {
+      pm.rect(0, y, STAGE_LAYER_WIDTH, 6, (y / 6) % 2 ? soil : soilL);
+      pm.hline(0, STAGE_LAYER_WIDTH, y + 5, soilD);
+      let x = Math.floor(rnd() * 40);
+      while (x < STAGE_LAYER_WIDTH) {
+        pm.vline(x, y, y + 5, soilD);
+        pm.set(x + 2, y + 2, hexToRgba(0x8a7a6a));
+        x += 40 + Math.floor(rnd() * 50);
+      }
+      for (let k = 0; k < 14; k++) {
+        const vx = rnd() * STAGE_LAYER_WIDTH;
+        pm.hline(vx, vx + 4 + rnd() * 10, y + 1 + Math.floor(rnd() * 3), [20, 10, 4, 50]);
+      }
+    }
+    for (let i = 0; i < 10; i++) pm.ellipse(rnd() * STAGE_LAYER_WIDTH, top + 8 + rnd() * 20, 5 + rnd() * 8, 1.5 + rnd(), [20, 10, 4, 70]);
+    pm.rect(0, top - 3, STAGE_LAYER_WIDTH, 3, grassL);
+    pm.hline(0, STAGE_LAYER_WIDTH, top - 3, soilD);
+    return pm;
+  }
   pm.rect(0, top - 2, STAGE_LAYER_WIDTH, 4, grass);
   for (let x = 0; x < STAGE_LAYER_WIDTH; x += 2) {
     if (rnd() > 0.5) pm.set(x, top - 3, grassL);
@@ -698,6 +1394,24 @@ export function buildGround(t: StageTheme): Pixmap {
     for (let i = 0; i < 14; i++) {
       const x = rnd() * STAGE_LAYER_WIDTH;
       pm.line(x, top, x + 3 + rnd() * 6, top - 6 - rnd() * 6, 2, soilD);
+    }
+  } else if (g.kind === 'trail') {
+    // hojarasca, raíces y la trocha pisada (con huellas de un solo pie)
+    const litter = [0x5a3418, 0x7a4a20, 0x3a2a14, 0x2a3a1c].map((c) => hexToRgba(c));
+    for (let i = 0; i < 520; i++) pm.set(rnd() * STAGE_LAYER_WIDTH, top + 2 + rnd() * (h - top - 2), litter[i % 4]);
+    for (let x = 0; x < STAGE_LAYER_WIDTH; x++) {
+      const y = top + 9 + Math.sin(x * 0.02) * 2;
+      pm.dither(x, y, 1, 8, soilL, 0);
+    }
+    for (let x = 30; x < STAGE_LAYER_WIDTH; x += 46) {
+      const y = top + 11 + Math.sin(x * 0.02) * 2;
+      pm.ellipse(x, y, 2, 1.2, soilD);
+      pm.set(x - 2, y - 1, soilD);
+    }
+    for (let i = 0; i < 9; i++) {
+      const x = rnd() * STAGE_LAYER_WIDTH;
+      const y = top + 3 + rnd() * 16;
+      for (let k = 0; k < 18; k++) pm.set(x + k, y + Math.sin(k * 0.4) * 1.5, soilD);
     }
   } else if (g.kind === 'mud') {
     for (let i = 0; i < 10; i++) {
@@ -772,6 +1486,70 @@ export function buildForeground(t: StageTheme): Pixmap {
         const x = rnd() * STAGE_LAYER_WIDTH;
         pm.line(x, h, x + (rnd() - 0.5) * 4, h - 4 - rnd() * 10, 1, i % 3 === 0 ? c2 : c1);
       }
+      break;
+    }
+    case 'ferns': {
+      // frondas de helecho y hojas anchas a contraluz
+      for (let i = 0; i < 16; i++) {
+        const x = rnd() * STAGE_LAYER_WIDTH;
+        const len = 18 + rnd() * 20;
+        const dir = rnd() > 0.5 ? 1 : -1;
+        let px = x;
+        let py = h;
+        for (let k = 1; k <= 10; k++) {
+          const u = k / 10;
+          const nx = x + dir * len * u;
+          const ny = h - len * 1.1 * Math.sin(u * 2.4) * 0.9;
+          pm.line(px, py, nx, ny, 1, c1);
+          if (k < 9) {
+            pm.line(nx, ny, nx - dir * 2, ny - 4 + u * 2, 1, i % 2 ? c2 : c1);
+            pm.line(nx, ny, nx + dir * 2, ny + 3, 1, c1);
+          }
+          px = nx;
+          py = ny;
+        }
+      }
+      for (let i = 0; i < 6; i++) {
+        const x = rnd() * STAGE_LAYER_WIDTH;
+        pm.polygon([[x, h], [x - 10, h - 16], [x - 4, h - 30], [x + 6, h - 18]], c1);
+        pm.line(x, h, x - 3, h - 26, 1, c2);
+      }
+      break;
+    }
+    case 'chairs': {
+      // respaldos de silla, canasta de cerveza y botellas vacías en el piso
+      for (const x of [70, 300, 520]) {
+        pm.rect(x - 9, h - 40, 3, 40, c1);
+        pm.rect(x + 7, h - 40, 3, 40, c1);
+        for (const y of [h - 38, h - 31, h - 24]) pm.rect(x - 8, y, 17, 3, c2);
+      }
+      for (const x of [180, 430]) {
+        pm.rect(x - 12, h - 14, 24, 14, c2);
+        for (let k = -10; k < 12; k += 4) {
+          pm.rect(x + k, h - 22, 2, 8, c1);
+          pm.rect(x + k, h - 24, 1, 2, c1);
+        }
+      }
+      for (const x of [240, 610]) {
+        pm.polygon([[x, h], [x + 3, h - 3], [x + 14, h - 4], [x + 14, h - 1]], c1);
+      }
+      break;
+    }
+    case 'crosses': {
+      for (let i = 0; i < 110; i++) {
+        const x = rnd() * STAGE_LAYER_WIDTH;
+        pm.line(x, h, x + (rnd() - 0.5) * 6, h - 6 - rnd() * 14, 1, i % 3 === 0 ? c2 : c1);
+      }
+      for (const x of [90, 350, 580]) {
+        pm.rect(x - 1, h - 30, 3, 30, c1);
+        pm.rect(x - 7, h - 24, 15, 3, c1);
+      }
+      for (let x = 180; x < 250; x += 5) {
+        pm.vline(x, h - 26, h, c1);
+        pm.polygon([[x - 1, h - 26], [x, h - 30], [x + 1, h - 26]], c1);
+      }
+      pm.hline(178, 250, h - 22, c1);
+      pm.hline(178, 250, h - 8, c1);
       break;
     }
     case 'posts': {

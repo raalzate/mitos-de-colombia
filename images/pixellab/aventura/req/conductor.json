@@ -1,0 +1,13 @@
+{
+ "description": "Colombian jeep driver man, cap, plaid shirt, mustache, keys in hand, smiling. chibi pixel art RPG overworld character, night colors, Colombian",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "conductor",
+ "template_id": "mannequin"
+}

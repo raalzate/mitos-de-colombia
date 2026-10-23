@@ -1,15 +1,20 @@
 import type { FighterId } from '../combat/CombatTypes';
 import type { StageId } from '../art/StageArtist';
+import { CITY_BUILDING_FOOTPRINT, CITY_PROP_FOOTPRINT, type CityBuildingKind, type CityPropKind } from './CityArt';
+import type { StoryId } from './Stories';
 import { BUILDING_FOOTPRINT, PROP_FOOTPRINT, type BuildingKind, type ClueKind, type PropKind, type SpiritKind, type VillagerKind } from './TownArt';
 
 /** Mapa del modo aventura en baldosas de 16 px. Puro: se puede probar sin Phaser. */
 
 export const TILE = 16;
-export const MAP_W = 96;
+export const MAP_W = 120;
 export const MAP_H = 72;
 
-/** . hierba  = camino  " hierba alta  ~ agua  B puente  T árbol  H edificio  P objeto que estorba  f flores  S letrero  c tierra de cementerio */
-export type Cell = '.' | '=' | '"' | '~' | 'B' | 'T' | 'H' | 'P' | 'f' | 'S' | 'c';
+/**
+ * . hierba  = camino  " hierba alta  ~ agua  B puente  T árbol  H edificio  P objeto que estorba  f flores  S letrero  c tierra de cementerio
+ * ciudad: a asfalto  d andén  z cebra  l ladrillo  o adoquín   interiores: W pared  F piso  M tapete de salida
+ */
+export type Cell = '.' | '=' | '"' | '~' | 'B' | 'T' | 'H' | 'P' | 'f' | 'S' | 'c' | 'a' | 'd' | 'z' | 'l' | 'o' | 'W' | 'F' | 'M';
 
 export type Dir = 'up' | 'down' | 'left' | 'right';
 export const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -19,16 +24,21 @@ const R = (x0: number, y0: number, x1: number, y1: number): Rect => ({ x0, y0, x
 export const inRect = (r: Rect, x: number, y: number) => x >= r.x0 && x <= r.x1 && y >= r.y0 && y <= r.y1;
 
 /** Zonas con nombre; la primera que contiene la casilla es la que manda. */
-export const AREAS: { name: string; r: Rect }[] = [
+/** alegre = fiesta, música y gente; tensión = monte, río y espantos. El campo es 3/4 tensión. */
+export type Mood = 'tension' | 'alegre';
+export interface Area { name: string; r: Rect; mood?: Mood; /** ambiente sonoro propio del sitio */ sound?: 'pueblo' }
+export const AREAS: Area[] = [
+  { name: 'TERMINAL DE JEEPS', r: R(96, 1, 118, 17), mood: 'alegre' },
+  { name: 'FIESTAS DE SAN AGUSTÍN', r: R(96, 18, 118, 43), mood: 'alegre' },
   { name: 'CEMENTERIO DE SAN AGUSTÍN', r: R(43, 8, 59, 16) },
-  { name: 'PLAZA PRINCIPAL', r: R(32, 25, 48, 32) },
-  { name: 'PUEBLO DE SAN AGUSTÍN', r: R(21, 17, 60, 43) },
-  { name: 'VEREDA LA ESPERANZA', r: R(1, 17, 20, 43) },
+  { name: 'PLAZA PRINCIPAL', r: R(32, 25, 48, 32), mood: 'alegre' },
+  { name: 'PUEBLO DE SAN AGUSTÍN', r: R(21, 17, 60, 43), sound: 'pueblo' },
+  { name: 'VEREDA LA ESPERANZA', r: R(1, 17, 20, 43), sound: 'pueblo' },
   { name: 'EL LLANO', r: R(1, 1, 61, 16) },
   { name: 'EL MONTE', r: R(62, 1, 94, 43) },
-  { name: 'EL RÍO GRANDE', r: R(1, 44, 94, 51) },
+  { name: 'EL RÍO GRANDE', r: R(1, 44, 118, 51) },
   { name: 'LA CIÉNAGA', r: R(1, 52, 30, 70) },
-  { name: 'LAGUNA DE BACHUÉ', r: R(59, 52, 94, 70) },
+  { name: 'LAGUNA DE BACHUÉ', r: R(59, 52, 118, 70) },
   { name: 'POTREROS DEL SUR', r: R(31, 52, 58, 70) },
 ];
 
@@ -36,7 +46,11 @@ export function areaName(x: number, y: number): string {
   return AREAS.find((a) => inRect(a.r, x, y))?.name ?? 'SAN AGUSTÍN';
 }
 
-export interface Placed<K> { kind: K; x: number; y: number }
+export function moodAt(x: number, y: number): Mood {
+  return AREAS.find((a) => inRect(a.r, x, y))?.mood ?? 'tension';
+}
+
+export interface Placed<K> { kind: K; x: number; y: number; id?: string }
 export interface Sign { x: number; y: number; lines: string[] }
 
 /** Ruido determinista para repartir árboles y charcos sin que cambien entre partidas. */
@@ -93,9 +107,41 @@ export const BUILDINGS: Placed<BuildingKind>[] = [
   ...row(['finca'], 36, 58),
 ];
 
-/** Nombre del dueño o del sitio que dice cada edificio cuando Juan toca la puerta */
-export function doorOf(b: Placed<BuildingKind>): [number, number] {
-  const [w, h] = BUILDING_FOOTPRINT[b.kind];
+// cada edificio tiene un nombre propio (cantina0, casa_blanca1…) que es la llave de su interior
+{
+  const n: Partial<Record<BuildingKind, number>> = {};
+  for (const b of BUILDINGS) { const i = n[b.kind] ?? 0; b.id = `${b.kind}${i}`; n[b.kind] = i + 1; }
+}
+
+/** Arte de la ciudad que también se usa en el campo: la terminal de jeeps y la fonda de las fiestas. */
+export const CAMPO_CITY_BUILDINGS: Placed<CityBuildingKind>[] = [
+  { kind: 'terminal', x: 100, y: 14 - CITY_BUILDING_FOOTPRINT.terminal[1] + 1, id: 'terminal_campo' },
+  { kind: 'fonda', x: 109, y: 23 - CITY_BUILDING_FOOTPRINT.fonda[1] + 1, id: 'fonda_campo' },
+];
+
+export const CAMPO_CITY_PROPS: Placed<CityPropKind>[] = [
+  { kind: 'jeep', x: 113, y: 15 },
+  { kind: 'tarima', x: 108, y: 28 },
+  { kind: 'castillo_polvora', x: 115, y: 27 },
+  { kind: 'puesto_arepas', x: 101, y: 30 },
+  { kind: 'puesto_fruta', x: 101, y: 35 },
+  ...[25, 31, 37].flatMap((y) => [101, 105, 111, 115].map((x) => ({ kind: 'bombillos' as const, x, y }))),
+  ...[100, 116].map((x) => ({ kind: 'poste' as const, x, y: 38 })),
+  { kind: 'guayacan', x: 98, y: 20 },
+  { kind: 'guayacan', x: 117, y: 41 },
+];
+
+export function cityPropCells(p: Placed<CityPropKind>): [number, number][] {
+  const [w, h] = CITY_PROP_FOOTPRINT[p.kind];
+  const x0 = p.x - Math.floor((w - 1) / 2);
+  const out: [number, number][] = [];
+  for (let y = p.y - h + 1; y <= p.y; y++) for (let x = x0; x < x0 + w; x++) out.push([x, y]);
+  return out;
+}
+
+/** La puerta queda abajo al centro de la huella: Juan entra parado en la casilla de abajo mirando arriba. */
+export function doorOf(b: Placed<BuildingKind> | Placed<CityBuildingKind>): [number, number] {
+  const [w, h] = b.kind in BUILDING_FOOTPRINT ? BUILDING_FOOTPRINT[b.kind as BuildingKind] : CITY_BUILDING_FOOTPRINT[b.kind as CityBuildingKind];
   return [b.x + Math.floor(w / 2), b.y + h];
 }
 
@@ -180,10 +226,10 @@ export function buildMap(): Cell[][] {
   rect(g, 43, 7, 59, 17, 'c');
 
   // el río grande y sus orillas
-  rect(g, 1, 44, 94, 47, '~');
-  for (let x = 1; x <= 94; x++) { if (hash(x, 43, 7) < 0.3) g[44][x] = '.'; if (hash(x, 48, 7) < 0.35) g[48][x] = '~'; }
-  rect(g, 1, 49, 94, 51, '"');
-  for (let x = 1; x <= 94; x++) for (let y = 49; y <= 51; y++) if (hash(x, y, 8) < 0.3) g[y][x] = '.';
+  rect(g, 1, 44, 118, 47, '~');
+  for (let x = 1; x <= 118; x++) { if (hash(x, 43, 7) < 0.3) g[44][x] = '.'; if (hash(x, 48, 7) < 0.35) g[48][x] = '~'; }
+  rect(g, 1, 49, 118, 51, '"');
+  for (let x = 1; x <= 118; x++) for (let y = 49; y <= 51; y++) if (hash(x, y, 8) < 0.3) g[y][x] = '.';
 
   // la ciénaga: charcos, juncos y algún árbol
   for (let y = 52; y <= 70; y++) for (let x = 1; x <= 30; x++) {
@@ -193,7 +239,14 @@ export function buildMap(): Cell[][] {
   // potreros del sur
   for (let y = 52; y <= 70; y++) for (let x = 31; x <= 58; x++) g[y][x] = hash(x >> 2, y >> 2, 12) < 0.3 ? '"' : '.';
   // laguna de Bachué
-  for (let y = 52; y <= 70; y++) for (let x = 59; x <= 94; x++) g[y][x] = hash(x, y, 13) < 0.22 ? 'T' : '.';
+  for (let y = 52; y <= 70; y++) for (let x = 59; x <= 118; x++) g[y][x] = hash(x, y, 13) < 0.22 ? 'T' : '.';
+  // el alto: terminal de jeeps y la plaza de las fiestas, separados del monte por una fila de árboles
+  rect(g, 95, 1, 95, 43, 'T');
+  rect(g, 96, 1, 118, 43, '.');
+  for (let y = 1; y <= 43; y++) for (let x = 96; x <= 118; x++) if (hash(x, y, 16) < 0.06) g[y][x] = 'f';
+  rect(g, 99, 24, 117, 39, '=');
+  rect(g, 99, 15, 117, 16, '=');
+  rect(g, 108, 4, 108, 24, '=');
   ellipse(g, 78, 62, 15, 9, '"');
   ellipse(g, 78, 62, 12, 6, '~');
   rect(g, 77, 63, 79, 64, '.'); // islote en el centro
@@ -204,34 +257,36 @@ export function buildMap(): Cell[][] {
   rect(g, 21, 17, 21, 42, '='); rect(g, 60, 17, 60, 43, '=');
   rect(g, 40, 3, 40, 24, '='); rect(g, 4, 8, 40, 8, '='); // al llano
   rect(g, 2, 24, 21, 24, '='); rect(g, 10, 17, 10, 50, '='); // vereda
-  rect(g, 60, 33, 90, 33, '='); rect(g, 75, 4, 75, 33, '='); rect(g, 75, 4, 88, 4, '='); // trochas del monte
+  rect(g, 60, 33, 99, 33, '='); rect(g, 75, 4, 75, 33, '='); rect(g, 75, 4, 88, 4, '='); // trochas del monte
   rect(g, 75, 33, 75, 43, '=');
   rect(g, 40, 42, 40, 58, '='); rect(g, 31, 57, 58, 57, '='); rect(g, 58, 53, 58, 57, '='); rect(g, 58, 53, 66, 53, '=');
   rect(g, 10, 50, 10, 53, '='); rect(g, 75, 48, 75, 54, '=');
   // puentes sobre el río
-  for (const x of [10, 40, 75]) { rect(g, x, 44, x, 48, 'B'); rect(g, x, 43, x, 43, '='); }
+  rect(g, 108, 39, 108, 43, '=');
+  for (const x of [10, 40, 75, 108]) { rect(g, x, 44, x, 48, 'B'); rect(g, x, 43, x, 43, '='); }
   // trocha a la ciénaga
   rect(g, 4, 54, 24, 54, '='); rect(g, 10, 53, 10, 54, '=');
   for (let y = 55; y <= 68; y++) if (g[y][16] === '~') g[y][16] = 'B';
   rect(g, 16, 55, 16, 68, g[55][16] === 'B' ? 'B' : '=');
   for (let y = 55; y <= 68; y++) g[y][16] = g[y][16] === '~' || g[y][16] === 'B' ? 'B' : '=';
 
-  for (const b of BUILDINGS) {
-    const [w, h] = BUILDING_FOOTPRINT[b.kind];
+  for (const b of [...BUILDINGS, ...CAMPO_CITY_BUILDINGS]) {
+    const [w, h] = b.kind in BUILDING_FOOTPRINT ? BUILDING_FOOTPRINT[b.kind as BuildingKind] : CITY_BUILDING_FOOTPRINT[b.kind as CityBuildingKind];
     rect(g, b.x, b.y, b.x + w - 1, b.y + h - 1, 'H');
     const [dx, dy] = doorOf(b);
     if (g[dy]?.[dx] && g[dy][dx] !== '=' && g[dy][dx] !== 'B') g[dy][dx] = '=';
   }
   for (const p of PROPS) for (const [x, y] of propCells(p)) if (g[y]?.[x] && g[y][x] !== 'H') g[y][x] = 'P';
+  for (const p of CAMPO_CITY_PROPS) for (const [x, y] of cityPropCells(p)) if (g[y]?.[x] && g[y][x] !== 'H') g[y][x] = 'P';
   for (const [x, y] of [[5, 26], [16, 38], [26, 26], [55, 26], [44, 35], [34, 35], [8, 20], [24, 40]] as const) if (g[y][x] === '.') g[y][x] = 'f';
   for (const s of SIGNS) g[s.y][s.x] = 'S';
   return g;
 }
 
-export const BLOCKING = new Set<Cell>(['~', 'T', 'H', 'P', 'S']);
+export const BLOCKING = new Set<Cell>(['~', 'T', 'H', 'P', 'S', 'W']);
 
 export function walkable(g: Cell[][], x: number, y: number): boolean {
-  return x >= 0 && y >= 0 && x < MAP_W && y < MAP_H && !BLOCKING.has(g[y][x]);
+  return y >= 0 && y < g.length && x >= 0 && x < g[y].length && !BLOCKING.has(g[y][x]);
 }
 
 /** Probabilidad de que algo se mueva en la hierba alta y asuste a Juan (sin pelea) */
@@ -268,7 +323,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'EL SOMBRERÓN SE TAPA CON EL SOMBRERO... ¡Y DEBAJO NO QUEDA NADIE!',
   },
   {
-    id: 'muelona', zone: R(21, 25, 31, 36), stage: 'pueblo', clue: 'diente',
+    id: 'muelona', zone: R(21, 25, 31, 36), stage: 'cantina', clue: 'diente',
     clueText: '¿UN DIENTE? ¡ESTE DIENTE ES MÁS GRANDE QUE MI DEDO! ALGUIEN CON MUCHA MUELA ANDA POR AQUÍ...',
     fright: '¿Y ESA SEÑORA TAN BONITA?... ¡AVE MARÍA, QUÉ DIENTES! ¡ES LA MUELONA!',
     taunt: 'JI, JI, JI... VEN, PAISITA, QUE TE QUIERO DAR UN BESITO...',
@@ -300,7 +355,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA LLORONA SE DESHACE EN NEBLINA... ¡AAAAY! EL LLANTO SIGUE RÍO ABAJO.',
   },
   {
-    id: 'patasola', zone: R(63, 1, 94, 20), stage: 'pantano', clue: 'huella_pata',
+    id: 'patasola', zone: R(63, 1, 94, 20), stage: 'selva', clue: 'huella_pata',
     clueText: 'HUELLAS DE UN SOLO PIE... UNA, OTRA, OTRA... ¡SIN EL OTRO PIE! ¡ALGO VA SALTANDO POR AQUÍ!',
     fright: '¡TUM... TUM... TUM! ¡ALGO SALTA EN UNA SOLA PATA! ¡VIRGEN SANTÍSIMA!',
     taunt: '¡NADIE SALE DEL MONTE CUANDO YO LO DIGO!',
@@ -308,7 +363,7 @@ export const GUARDIANS: Guardian[] = [
     flee: '¡TUM, TUM, TUM! LA PATASOLA SE PIERDE DE UN SALTO ENTRE LOS ÁRBOLES.',
   },
   {
-    id: 'madremonte', zone: R(63, 21, 94, 43), stage: 'pantano', clue: 'ramas',
+    id: 'madremonte', zone: R(63, 21, 94, 43), stage: 'selva', clue: 'ramas',
     clueText: 'RAMAS PARTIDAS Y MUSGO FRESCO... COMO SI EL MONTE MISMO HUBIERA CAMINADO POR AQUÍ.',
     fright: '¡LOS ÁRBOLES SE MUEVEN SOLOS! ¡ESA SEÑORA ESTÁ HECHA DE MUSGO Y RAÍCES!',
     taunt: '¿QUIÉN ANDA TUMBANDO MI MONTE CON ESE MACHETE?',
@@ -316,7 +371,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA MADREMONTE SE VUELVE HOJAS Y EL VIENTO SE LA LLEVA.',
   },
   {
-    id: 'mohan', zone: R(61, 48, 94, 51), stage: 'ribera', clue: 'oro',
+    id: 'mohan', zone: R(61, 48, 118, 51), stage: 'ribera', clue: 'oro',
     clueText: '¡PEPITAS DE ORO EN LA ORILLA! ...UY, NO. EL ABUELO DECÍA QUE ASÍ ENGAÑA EL MOHÁN A LA GENTE.',
     fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!',
     taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?',
@@ -324,7 +379,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'JE, JE, JE... EL MOHÁN SE ZAMBULLE Y EL RÍO SE QUEDA QUIETICO.',
   },
   {
-    id: 'bachue', zone: R(60, 53, 94, 70), stage: 'laguna', clue: 'escamas',
+    id: 'bachue', zone: R(60, 53, 118, 70), stage: 'laguna', clue: 'escamas',
     clueText: 'ESCAMAS DORADAS, GRANDES COMO MONEDAS... DE UNA CULEBRA MUY, MUY GRANDE.',
     fright: '¡DE LA LAGUNA SALE UNA SERPIENTE GIGANTE CON CARA DE MUJER! ¡MAMITA LINDA!',
     taunt: 'SOY LA MADRE DE TODOS. DEMUÉSTRAME QUE ERES DIGNO DE ESTA TIERRA.',
@@ -336,7 +391,7 @@ export const GUARDIANS: Guardian[] = [
 /** El protagonista: Juan Machete, campesino paisa de carne y hueso. Siempre pelea él. */
 export const HERO_FIGHTER: FighterId = 'juanmachete';
 
-export type NpcKey = 'abuela' | 'pescador' | VillagerKind;
+export type NpcKey = 'abuela' | 'pescador' | VillagerKind | 'conductor' | 'silletero' | 'acordeonero' | 'bailarina' | 'rapero';
 
 export interface Npc {
   key: NpcKey;
@@ -348,52 +403,84 @@ export interface Npc {
   lines?: string[][];
   /** casillas que se aleja de su sitio cuando camina; 0 = quieto */
   wander?: number;
+  /** historia que cuenta si Juan quiere oírla */
+  story?: StoryId;
+  /** algo que hace además de hablar: llevar a Juan en el jeep o ponerlo a bailar */
+  action?: 'carro' | 'baile';
 }
 
 export const NPCS: Npc[] = [
   { key: 'abuela', name: 'ABUELA ROSA', x: 6, y: 24, facing: 'down' },
-  { key: 'pescador', name: 'DON TOÑO', x: 37, y: 50, facing: 'left' },
-  { key: 'cantinero', name: 'DON EFRAÍN', x: 27, y: 33, facing: 'down', lines: [
+  { key: 'pescador', name: 'DON TOÑO', story: 'mohan', x: 37, y: 50, facing: 'left' },
+  { key: 'cantinero', name: 'DON EFRAÍN', story: 'muelona', x: 27, y: 33, facing: 'down', lines: [
     ['BIENVENIDO A LA CANTINA LA ÚLTIMA LÁGRIMA, MIJO. ¿UN AGUARDIENTICO PA\'L SUSTO?'],
     ['AQUÍ VIENE UNA SEÑORA MUY BONITA TODAS LAS NOCHES... PERO NUNCA SONRÍE. DICEN QUE TIENE UNOS DIENTES...'],
   ] },
-  { key: 'borracho', name: 'EL MONO', x: 33, y: 34, facing: 'left', wander: 2, lines: [
+  { key: 'borracho', name: 'EL MONO', story: 'sombreron', x: 33, y: 34, facing: 'left', wander: 2, lines: [
     ['¡HIP! YO VI UN SOMBRERO GIGANTE CAMINANDO SOLO POR LA CALLE DE ABAJO... ¡HIP! ¡NO ES EL GUARO, LO JURO!'],
     ['¡A MÍ ME PERSIGUIÓ UN POLLO NEGRO CON LOS OJOS ROJOS! ¡ESO FUE EN EL MONTE, NO SE META POR ALLÁ!'],
   ] },
-  { key: 'cura', name: 'PADRE ANSELMO', x: 41, y: 25, facing: 'down', lines: [
+  { key: 'cura', name: 'PADRE ANSELMO', story: 'navidad', x: 41, y: 25, facing: 'down', lines: [
     ['QUE DIOS LO ACOMPAÑE, HIJO. ESOS ESPANTOS NO SE VEN A SIMPLE VISTA: HAY QUE BUSCAR LAS SEÑALES QUE DEJAN.'],
     ['HUESOS EN EL LLANO, LÁGRIMAS EN EL RÍO, HUELLAS DE UNA SOLA PATA EN EL MONTE... DONDE HAY SEÑAL, HAY ESPANTO.'],
   ] },
-  { key: 'policia', name: 'CABO RAMÍREZ', x: 23, y: 24, facing: 'right', lines: [
+  { key: 'policia', name: 'CABO RAMÍREZ', story: 'dorado', x: 23, y: 24, facing: 'right', lines: [
     ['ALTO AHÍ, CIUDADANO. ¿USTED NO SABE QUE HAY TOQUE DE QUEDA?... AH, ¿USTED ES EL QUE VA A CAZAR ESPANTOS? SIGA, PUES.'],
     ['ANOCHE UNA SEÑORA DEJÓ UN DIENTE EN LA PUERTA DE LA CANTINA. NO ERA UN DIENTE NORMAL.'],
   ] },
-  { key: 'vendedora', name: 'DOÑA GLORIA', x: 46, y: 26, facing: 'down', lines: [
+  { key: 'vendedora', name: 'DOÑA GLORIA', story: 'bandeja', x: 46, y: 26, facing: 'down', lines: [
     ['¡ARREPAS, BUÑUELOS, EMPANADAS!... BUENO, A ESTA HORA YA NO HAY NADA, MIJO.'],
     ['UN DUENDECITO ME ESCONDE LAS CANASTAS TODAS LAS NOCHES. ¡ESE BICHO SABE COSAS, PREGÚNTELE A ÉL!'],
   ] },
-  { key: 'nina', name: 'MARIQUITA', x: 30, y: 37, facing: 'up', wander: 2, lines: [
+  { key: 'nina', name: 'MARIQUITA', story: 'llorona', x: 30, y: 37, facing: 'up', wander: 2, lines: [
     ['MI MAMÁ DICE QUE NO ME DEJE TRENZAR EL PELO DEL DUENDE... ¿USTED HA VISTO UN DUENDE?'],
   ] },
-  { key: 'nino', name: 'PEPITO', x: 52, y: 43, facing: 'left', wander: 3, lines: [
+  { key: 'nino', name: 'PEPITO', story: 'silbon', x: 52, y: 43, facing: 'left', wander: 3, lines: [
     ['¡YO NO LE TENGO MIEDO A NADA!... BUENO, AL SILBÓN SÍ. DICEN QUE SI LO OYE LEJOS ES QUE ESTÁ CERQUITA.'],
     ['EN EL CEMENTERIO SALE UNA MANO PELUDA DE LA TIERRA. ¡MI PRIMO LA VIO!'],
   ] },
-  { key: 'arriero', name: 'DON RUBÉN', x: 14, y: 26, facing: 'left', lines: [
+  { key: 'arriero', name: 'DON RUBÉN', story: 'arrieros', x: 14, y: 26, facing: 'left', lines: [
     ['ESTA MULA SE NIEGA A PASAR POR EL LLANO DE NOCHE. ALLÁ SE OYE SILBAR Y HAY HUESOS REGADOS.'],
     ['YO ATRAVESÉ EL MONTE UNA VEZ. LA MADREMONTE ME ENREDÓ LA MULA EN LOS BEJUCOS. ¡NUNCA MÁS!'],
   ] },
-  { key: 'campesina', name: 'DOÑA ELVIRA', x: 6, y: 42, facing: 'up', lines: [
+  { key: 'campesina', name: 'DOÑA ELVIRA', story: 'caiman', x: 6, y: 42, facing: 'up', lines: [
     ['EN LA CIÉNAGA VIVE UN SEÑOR QUE SE VOLVIÓ CAIMÁN POR ESPIAR A LAS MUCHACHAS EN EL RÍO. ¡DEJA HUELLAS RARÍSIMAS!'],
   ] },
-  { key: 'cafetero', name: 'DON ALIRIO', x: 9, y: 31, facing: 'right', wander: 2, lines: [
+  { key: 'cafetero', name: 'DON ALIRIO', story: 'cafe', x: 9, y: 31, facing: 'right', wander: 2, lines: [
     ['ESTE CAFÉ LO RECOGEMOS DE DÍA, PORQUE DE NOCHE EL DUENDE SE ROBA LOS GRANOS.'],
     ['LA LAGUNA DEL SUR ES SAGRADA. ALLÁ BRILLAN ESCAMAS DE ORO EN LA ORILLA. NADIE SE ACERCA.'],
   ] },
-  { key: 'arriero', name: 'DON JAIRO', x: 55, y: 57, facing: 'down', lines: [
+  { key: 'arriero', name: 'DON JAIRO', story: 'chiva', x: 55, y: 57, facing: 'down', lines: [
     ['¿VA PA\' LA LAGUNA? ESTA CHIVA YA NO SALE HASTA EL AMANECER. TOCA A PIE.'],
     ['EN LA ORILLA DEL RÍO, PA\'LLÁ ABAJO, BRILLA ORO. NO LO COJA: ES TRAMPA DEL MOHÁN.'],
+  ] },
+  // las fiestas y la terminal: la gente alegre del pueblo
+  { key: 'conductor', name: 'DON EVELIO', x: 111, y: 16, facing: 'down', action: 'carro', story: 'chiva', lines: [
+    ['¡PA\' MEDELLÍN, PA\' MEDELLÍN! EL YIPAO SALE YA MISMO, MIJO. ¿SE VA O SE QUEDA?'],
+  ] },
+  { key: 'acordeonero', name: 'EL MAESTRO ALEJO', x: 106, y: 29, facing: 'down', action: 'baile', story: 'vallenato', lines: [
+    ['¡AY HOMBE! ESTA NOCHE NO SE LLORA, ESTA NOCHE SE BAILA. ¡ARRIMESE AL TABLADO!'],
+  ] },
+  { key: 'bailarina', name: 'LUZ DARY', x: 104, y: 32, facing: 'right', wander: 2, story: 'cumbia', lines: [
+    ['¿Y USTED NO BAILA, PUES? ¡CON ESE MACHETE ASUSTA, PERO CON ESOS PIES QUIÉN SABE!'],
+  ] },
+  { key: 'borracho', name: 'DON CHUCHO', x: 112, y: 36, facing: 'left', wander: 1, story: 'tiple', lines: [
+    ['¡SALUD, PARCERO! AQUÍ EN LAS FIESTAS NO HAY ESPANTO QUE SE ATREVA... ¡HIP! LA PÓLVORA LOS ESPANTA.'],
+  ] },
+  { key: 'vendedora', name: 'DOÑA MARINA', x: 102, y: 32, facing: 'right', story: 'bandeja', lines: [
+    ['¡AREPAS DE CHÓCLO CON QUESITO, CALIENTICAS! PRUEBE, MIJO, QUE ESTO ESPANTA EL FRÍO Y EL MIEDO.'],
+  ] },
+  { key: 'bailarina', name: 'DORIS', x: 109, y: 33, facing: 'left', wander: 2, story: 'navidad', lines: [
+    ['¡ESTO SÍ ES VIDA! ¡LA BANDA PAPAYERA ESTÁ TOCANDO DESDE LAS OCHO!'],
+  ] },
+  { key: 'campesina', name: 'DOÑA ROSALBA', x: 113, y: 30, facing: 'down', wander: 1, story: 'cumbia', lines: [
+    ['CUANDO YO ERA JOVEN BAILABA CUMBIA CON VELAS EN LA MANO. ¡TODAVÍA ME SÉ LOS PASOS!'],
+  ] },
+  { key: 'nina', name: 'VALENTINA', x: 103, y: 36, facing: 'right', wander: 2, lines: [
+    ['¡ME COMPRARON UN ALGODÓN DE AZÚCAR Y UNA BOMBA DE COLORES!'],
+  ] },
+  { key: 'nino', name: 'JUANCHO', x: 110, y: 35, facing: 'up', wander: 3, lines: [
+    ['¡VA A EMPEZAR LA PÓLVORA! ¡MI PAPÁ DICE QUE EL CASTILLO TIENE MIL VOLADORES!'],
   ] },
 ];
 

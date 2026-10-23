@@ -1,0 +1,13 @@
+{
+ "description": "friendly Colombian mutt street dog, brown and white short fur, floppy ears, wagging tail, loyal companion. chibi pixel art RPG overworld character, night colors, Colombian",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "perro",
+ "template_id": "dog"
+}

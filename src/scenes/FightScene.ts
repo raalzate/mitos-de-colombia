@@ -16,7 +16,7 @@ import { CombatHUD } from '../ui/CombatHUD';
 import { FIGHTERS, specialHint } from '../data/fighters';
 import { ORIGIN_Y } from '../art/CharacterArtist';
 import { splashPose, splashPoseIndex, type SplashPose } from '../art/SplashPose';
-import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, walkPhase } from '../art/DrawnAnim';
+import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, drawnMotion, frameCenterY, hitShake, standHeight, stripAnchor, walkPhase } from '../art/DrawnAnim';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
 import { sfx, type SfxName } from '../audio/Sfx';
@@ -43,11 +43,12 @@ interface FighterView {
   drawn: boolean;
   /** pose suavizada actual (modo dibujado) */
   pose: SplashPose;
-  /** fundido del fotograma anterior al cambiar de fotograma (modo dibujado) */
-  ghost: Phaser.GameObjects.Sprite | null;
-  /** fundido cruzado continuo del siguiente fotograma al andar (modo dibujado) */
-  blend: Phaser.GameObjects.Sprite | null;
   lastFootfallIndex: number;
+  /** aterrizaje: si estaba en el suelo el paso anterior y paso lógico en que aterrizó (-1 = no) */
+  wasGrounded: boolean;
+  landAt: number;
+  /** aturdimiento al recibir el golpe (para el retroceso) */
+  stunStart: number;
   /** distancia andada acumulada para el ciclo de andar por distancia */
   walkDist: number;
   lastX: number;
@@ -346,12 +347,10 @@ export class FightScene extends Phaser.Scene {
       const pose = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
       if (splash) {
         const sprite = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11 : 10);
-        const ghost = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 10.5 : 9.5).setAlpha(0);
-        const blend = this.add.sprite(0, 0, splash).setOrigin(0.5, 1).setDepth(slot === 1 ? 11.1 : 10.1).setAlpha(0);
-        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, ghost, blend, walkDist: 0, lastX: 0, lastFootfallIndex: -1, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
+        return { sprite, shadow, key, flash: 0, drawn: true, id, pal, pose, walkDist: 0, lastX: 0, lastFootfallIndex: -1, wasGrounded: true, landAt: -1, stunStart: 0, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
       }
       const sprite = this.add.sprite(0, 0, key, 0).setOrigin(0.5, ORIGIN_Y).setDepth(slot === 1 ? 11 : 10);
-      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, ghost: null, blend: null, walkDist: 0, lastX: 0, lastFootfallIndex: -1, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
+      return { sprite, shadow, key, flash: 0, drawn: false, id, pal, pose, walkDist: 0, lastX: 0, lastFootfallIndex: -1, wasGrounded: true, landAt: -1, stunStart: 0, turn: -1, lastFacing: slot === 1 ? 1 : -1, lastRenderLf: -1 };
     };
     const mirror = this.settings.p1 === this.settings.p2;
     this.views = { 1: mk(1), 2: mk(2) };
@@ -1101,79 +1100,70 @@ export class FightScene extends Phaser.Scene {
     for (const slot of [1, 2] as PlayerSlot[]) {
       const f = slot === 1 ? this.p1 : this.p2;
       const v = this.views[slot];
-      const shake = f.hitstop > 0 ? (f.hitstop % 2 === 0 ? 1 : -1) : 0;
+      // solo tiembla quien recibe el golpe; el atacante se congela en su pose de impacto
+      const shake = f.isAttacking() ? 0 : hitShake(f.hitstop);
       v.sprite.setFlipX(f.facing === -1);
       if (v.drawn) {
+        const newStep = v.lastRenderLf !== this.logicFrame;
+        v.lastRenderLf = this.logicFrame;
         if (f.anim === 'walk') v.walkDist += Math.abs(f.x - v.lastX);
         else v.walkDist = 0;
         v.lastX = f.x;
+        if (newStep) {
+          // aterrizaje de un salto o golpe aéreo: aplastamiento y polvo; caída derribado: temblor de cámara
+          if (!v.wasGrounded && f.grounded) {
+            if (f.state === 'knockdown') this.cameras.main.shake(90, 0.004);
+            else v.landAt = this.logicFrame;
+          }
+          if (!f.grounded) v.landAt = -1;
+          v.wasGrounded = f.grounded;
+          if (f.state === 'hitstun' && f.stun > v.stunStart) v.stunStart = f.stun;
+          if (f.state !== 'hitstun') v.stunStart = 0;
+        }
+        const landing = v.landAt >= 0 && (f.state === 'idle' || f.state === 'walk') ? this.logicFrame - v.landAt : undefined;
+        // durante el hitstop la lógica no actualiza la animación: el golpe se ve ya en el primer frame
+        const struck = (f.state === 'hitstun' || f.state === 'knockdown') && f.anim !== 'hit' && f.anim !== 'knockdown';
         const input = {
-          state: f.state, anim: f.anim, animFrame: f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
+          state: f.state, anim: struck ? 'hit' : f.anim, animFrame: struck ? 1 : f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
           backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
-          stateFrame: f.stateFrame,
+          vxForward: f.vx * f.facing, stateFrame: f.stateFrame, lying: f.knockdownLying, landing,
+          stun: struck ? 20 : f.stun, stunStart: struck ? 20 : v.stunStart, hitstop: f.hitstop,
           attackProgress: f.attack && (f.state === 'attack' || f.state === 'special')
             ? { frame: f.attackFrame, startup: f.attack.startup, active: f.attack.active, recovery: f.attack.recovery }
             : undefined,
         };
         const df = drawnFrame(v.id, input);
         const animKey = df ? drawnAnimKey(v.id, v.pal, df.action) : null;
-        let target: SplashPose;
-        let snap = false;
         if (animKey && this.textures.exists(animKey)) {
-          // todos los estados salen de las tiras: el fotograma ya lleva la pose, sin giro
-          if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) {
-            // fundido: el fotograma anterior se queda 2-3 frames desvaneciéndose (suaviza el cambio)
-            // un solo fotograma visible: superponer dos se ve como un contorno o una mano de más
-            v.sprite.setTexture(animKey, df!.index);
-            snap = true;
-          }
-          target = { dx: 0, dy: 0, rot: 0, sx: 1, sy: 1 };
-          // andar: fundido cruzado continuo hacia el siguiente fotograma + balanceo + polvo en las pisadas
-          if (f.anim === 'walk' && v.blend) {
-            const m = DRAWN_ANIM[v.id].walk;
-            const ph = walkPhase(v.walkDist, m.frames, m.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX, input.backward);
-            target.dy = ph.bob;
-            v.blend.setAlpha(0);
+          // un solo fotograma original visible; el movimiento sale del ritmo y de transformar el fotograma entero
+          if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) v.sprite.setTexture(animKey, df!.index);
+          if (f.anim === 'walk') {
+            const ph = walkPhase(v.walkDist, DRAWN_ANIM[v.id].walk.frames, WALK_STRIDE_PX, input.backward);
             if (ph.footfall && v.lastFootfallIndex !== ph.index && f.grounded) {
               v.lastFootfallIndex = ph.index;
               this.spawnEffect({ kind: 'dust', x: f.x - f.facing * 6, y: f.y, facing: f.facing, data: { small: true } }, v.id);
             }
-          } else if (f.anim === 'knockdown' && !f.grounded && v.blend && !DRAWN_ANIM[v.id].fall) {
-            // caída en el aire: gira hacia atrás según la velocidad vertical y funde la pose tumbada al bajar
-            const down = Math.min(1, Math.max(0, f.vy / 6));
-            target.rot = -8 - down * 30;
-            v.blend.setAlpha(0);
-            snap = false;
-            v.lastFootfallIndex = -1;
-          } else if (v.blend) {
-            v.blend.setAlpha(0);
-            v.lastFootfallIndex = -1;
+          } else v.lastFootfallIndex = -1;
+          if (newStep && landing === 0) this.spawnEffect({ kind: 'dust', x: f.x, y: f.y, facing: f.facing }, v.id);
+          const pose = drawnMotion(v.id, input);
+          const anchor = stripAnchor(v.id, df!.action, df!.index, f.grounded);
+          const turn = this.turnScale(v, f.facing);
+          v.sprite.setFlipX(turn.flip);
+          const x = Math.round(f.x + (pose.dx + anchor.dx) * f.facing) + shake;
+          if (pose.center) {
+            // volteretas: gira alrededor del centro del cuerpo, a media altura de la figura de pie
+            const fh = v.sprite.frame.height;
+            v.sprite.setOrigin(0.5, 1 - frameCenterY(v.id, df!.action, df!.index) / fh);
+            v.sprite.setPosition(x, Math.round(f.y - standHeight(v.id) / 2 + pose.dy));
+          } else {
+            v.sprite.setOrigin(0.5, 1);
+            v.sprite.setPosition(x, Math.round(f.y + pose.dy + anchor.dy));
           }
-          if (f.anim === 'idle') {
-            // respiración sutil sobre el ciclo de guardia; Patasola además se eleva en su salto en el sitio
-            if (v.id === 'patasola') target.dy = -Math.abs(Math.round(Math.sin(this.logicFrame / 13) * 2));
-            else target.sy = 1 + Math.sin(this.logicFrame / 11) * 0.008;
-          }
-          else if (f.anim === 'jump') target.sy = f.vy < -0.5 ? 1.05 : 0.98;
-          else if (f.anim === 'hit') {
-            // retroceso: la cabeza y el torso se van hacia atrás y vuelven al recuperarse
-            target.dx = -3;
-            target.rot = f.animFrame > 0 ? -9 : -4;
-            snap = false;
-          }
-          else if ((f.anim === 'crouch' || f.anim === 'crouchblock') && f.stateFrame < 6) {
-            // al agacharse la figura de pie se achata hacia los pies antes de pasar a la pose agachada
-            target.sy = 1 - 0.38 * (f.stateFrame / 6);
-            target.sx = 1 + 0.06 * (f.stateFrame / 6);
-            snap = false;
-          }
-          else if (f.state === 'attack' || f.state === 'special') {
-            // impulso: anticipación atrás, extensión adelante (interpolado por el lerp de abajo)
-            target.dx = f.animFrame === 0 ? -2 : f.animFrame === 1 ? 4 : 1;
-            snap = false;
-          }
+          v.sprite.setAngle(pose.rot * f.facing);
+          v.sprite.setScale(pose.sx * turn.sx, pose.sy);
         } else {
-          target = splashPose(input);
+          const target: SplashPose = splashPose(input);
+          let snap = false;
           const n = splashPoseIndex(f.anim, f.animFrame);
           const poseKey = n === null ? null : `splash_${v.id}_${v.pal}_pose${n}_72`;
           const tex = poseKey && this.textures.exists(poseKey) ? poseKey : `splash_${v.id}_${v.pal}_72`;
@@ -1181,38 +1171,20 @@ export class FightScene extends Phaser.Scene {
             v.sprite.setTexture(tex);
             snap = v.sprite.texture.key.includes('_pose');
           }
-        }
-        // transición suave entre poses (lerp); al cambiar de fotograma dibujado se salta directo
-        const k = snap ? 1 : f.anim === 'hit' || f.anim === 'knockdown' ? 0.6 : 0.35;
-        const newStep = v.lastRenderLf !== this.logicFrame;
-        v.lastRenderLf = this.logicFrame;
-        if (newStep && v.ghost && v.ghost.alpha > 0) v.ghost.setAlpha(Math.max(0, v.ghost.alpha - 0.18));
-        const cp = v.pose;
-        const kk = snap ? 1 : newStep ? k : 0;
-        cp.dx += (target.dx - cp.dx) * kk;
-        cp.dy += (target.dy - cp.dy) * kk;
-        cp.rot += (target.rot - cp.rot) * kk;
-        cp.sx += (target.sx - cp.sx) * kk;
-        cp.sy += (target.sy - cp.sy) * kk;
-        // giro: al cambiar de lado la figura se estrecha hasta casi cero y se vuelve a abrir ya volteada
-        const TURN = 8;
-        if (f.facing !== v.lastFacing) { v.turn = this.logicFrame; v.lastFacing = f.facing; }
-        let turnSx = 1;
-        let turnFlip = f.facing === -1;
-        if (v.turn >= 0) {
-          const t = (this.logicFrame - v.turn) / TURN; // 0 → 1 en 8 pasos lógicos
-          if (t >= 1) v.turn = -1;
-          else {
-            turnSx = Math.max(0.08, Math.abs(Math.cos(t * Math.PI)));
-            if (t < 0.5) turnFlip = !turnFlip; // primera mitad: aún mirando al lado anterior
-          }
-        }
-        v.sprite.setFlipX(turnFlip);
-        v.sprite.setPosition(Math.round(f.x + cp.dx * f.facing) + shake, Math.round(f.y + cp.dy));
-        v.sprite.setAngle(cp.rot * f.facing);
-        v.sprite.setScale(cp.sx * turnSx, cp.sy);
-        if (v.blend && v.blend.alpha > 0) {
-          v.blend.setPosition(v.sprite.x, v.sprite.y).setFlipX(v.sprite.flipX).setAngle(v.sprite.angle).setScale(v.sprite.scaleX, v.sprite.scaleY);
+          // transición suave entre poses del arte de cuerpo entero (sin tiras)
+          const k = snap ? 1 : f.anim === 'hit' || f.anim === 'knockdown' ? 0.6 : 0.35;
+          const cp = v.pose;
+          const kk = snap ? 1 : newStep ? k : 0;
+          cp.dx += (target.dx - cp.dx) * kk;
+          cp.dy += (target.dy - cp.dy) * kk;
+          cp.rot += (target.rot - cp.rot) * kk;
+          cp.sx += (target.sx - cp.sx) * kk;
+          cp.sy += (target.sy - cp.sy) * kk;
+          const turn = this.turnScale(v, f.facing);
+          v.sprite.setFlipX(turn.flip).setOrigin(0.5, 1);
+          v.sprite.setPosition(Math.round(f.x + cp.dx * f.facing) + shake, Math.round(f.y + cp.dy));
+          v.sprite.setAngle(cp.rot * f.facing);
+          v.sprite.setScale(cp.sx * turn.sx, cp.sy);
         }
       } else {
         const table = ANIM_TABLES[v.key];
@@ -1222,8 +1194,6 @@ export class FightScene extends Phaser.Scene {
         v.sprite.setPosition(Math.round(f.x) + shake, Math.round(f.y));
       }
       v.sprite.setAlpha(f.alpha);
-      if (v.ghost && f.alpha < 1) v.ghost.setAlpha(0);
-      if (v.blend && f.alpha < 1) v.blend.setAlpha(0);
       if (v.flash > 0) v.sprite.setTintFill(0xffffff);
       else if (f.invuln > 0 && f.state === 'getup') v.sprite.setTint(0xa0c0ff);
       else v.sprite.clearTint();
@@ -1262,6 +1232,23 @@ export class FightScene extends Phaser.Scene {
     if (this.flashRect.alpha > 0) this.flashRect.setAlpha(Math.max(0, this.flashRect.alpha - 0.08));
 
     this.renderDebug();
+  }
+
+  /** Giro al cambiar de lado: la figura se estrecha hasta casi cero y se vuelve a abrir ya volteada. */
+  private turnScale(v: FighterView, facing: number): { sx: number; flip: boolean } {
+    const TURN = 8;
+    if (facing !== v.lastFacing) { v.turn = this.logicFrame; v.lastFacing = facing; }
+    let sx = 1;
+    let flip = facing === -1;
+    if (v.turn >= 0) {
+      const t = (this.logicFrame - v.turn) / TURN;
+      if (t >= 1) v.turn = -1;
+      else {
+        sx = Math.max(0.08, Math.abs(Math.cos(t * Math.PI)));
+        if (t < 0.5) flip = !flip;
+      }
+    }
+    return { sx, flip };
   }
 
   private renderDebug(): void {

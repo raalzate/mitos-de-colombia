@@ -29,4 +29,5 @@ for cid, acts in m.items():
 lines.append("};")
 open("src/art/drawnAnimManifest.ts", "w").write("\n".join(lines) + "\n")
 PY
+python3 -I tools/measure_anim.py                              # eje y línea de suelo por fotograma
 rm -rf "$TMP"

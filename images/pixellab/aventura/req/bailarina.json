@@ -1,0 +1,13 @@
+{
+ "description": "young Colombian woman salsa dancer, colorful ruffled skirt, flower in hair, dancing, joyful. chibi pixel art RPG overworld character, night colors, Colombian",
+ "image_size": {
+  "width": 48,
+  "height": 48
+ },
+ "view": "low top-down",
+ "no_background": true,
+ "outline": "single color black outline",
+ "detail": "medium detail",
+ "name": "bailarina",
+ "template_id": "mannequin"
+}

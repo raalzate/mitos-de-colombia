@@ -5,7 +5,7 @@ Juego web de lucha 2D 1 vs 1 en pixel art de 16 bits, ambientado en leyendas col
 ## 1. Objetivo y alcance
 
 - Juego jugable en navegador (Chrome, Edge, Firefox modernos), un jugador contra la CPU.
-- 10 luchadores, 6 escenarios, 3 dificultades de IA, modo aventura con 9 combates.
+- 10 luchadores, 9 escenarios, 3 dificultades de IA, modo aventura con 9 combates.
 - Fuera de alcance: multijugador en línea, combate por turnos, peleas aleatorias en el mapa.
 
 ## 2. Stack y restricciones técnicas
@@ -124,47 +124,11 @@ Cada uno es un `StageTheme` con cielo, lejanía, franja de agua o llanura (3 fot
 - **FR-031** Al aparecer, un mito puede esfumarse sin pelear; en la pelea, con poca vida, puede volarse (como un salvaje que huye). Cada huida baja la probabilidad de la siguiente. Huir no calma al mito.
 - **FR-032** Personajes secundarios que no pelean: el Duende, el Pollo Maligno y la Mano Peluda. Aparecen, asustan, dan pistas y se esfuman. Aldeanos con diálogos que dan pistas de dónde buscar.
 - **FR-033** Sonidos grabados reales (CC0, `public/assets/audio/CREDITS.md`): machete al cortar, al golpear y al chocar; voces de monstruo por mito al atacar y al recibir golpes.
-
-## 5. Criterios de éxito
-
-- **SC-001** Flujo completo menú → combate → KO → ronda 2 → victoria → resultado → revancha sin errores.
-- **SC-002** Velocidad y daño idénticos en cualquier tasa de refresco o tamaño de ventana.
-- **SC-003** `pnpm test` y `pnpm build` (typecheck + build) pasan.
-- **SC-004** Sin imagen fantasma ni manchas blancas de fondo en ningún personaje.
-- **SC-005** Se puede completar el modo aventura derrotando a los 9 guardianes.
-
-## 6. Pruebas (Vitest, ~100)
-
-Daño y bloqueo; resolución de golpes; energía y enfriamientos; rondas y victoria; máquina de estados (caminar, saltar, atacar, no duplicar impacto, derribo, KO, reinicio de ronda); proyectiles; niebla; teletransporte interrumpido; IA por dificultad; gestor de entrada; plantel completo (sprites, retratos, habilidades, definitivos, robo de vida); 6 escenarios (capas, tamaños); poses y manifiestos de animación contra archivos en disco; balance IA vs IA.
-
-## 7. Estructura sugerida
-
-```text
-src/
-├── main.ts, config/game-config.ts
-├── combat/      CombatTypes, CombatRules, HitboxSystem, CombatSystem, InputManager
-├── entities/    Fighter, SpecBehavior, Projectile
-├── ai/          FighterAI
-├── data/        fighters.ts
-├── art/         PixelPainter, PixelFont, CharacterArtist, EffectsArtist, StageArtist, DrawnAnim
-├── audio/       Sfx, StageSound
-├── adventure/   World, State, DialogBox, OverworldArt
-├── scenes/      Boot, Warning, Menu, CharacterSelect, StageSelect, Fight, Result, Adventure
-├── ui/          CombatHUD, Screamer
-└── utils/
-public/assets/   portraits/, splash/, anim/
-tests/
-```
-
-## 8. Plan por fases
-
-1. Núcleo de combate + tests con arte procedimental.
-2. HUD y pantallas.
-3. Escenarios y audio.
-4. Plantel completo y balance.
-5. Arte dibujado y animación por tiras.
-6. Modo aventura.
-
-## 9. Dependencias de arte externas
-
-Hojas de sprites generadas con Gemini (caras, poses, tiras de animación) y PixelLab (sprites del mapa de aventura). Sin esos PNG, aplica TC-03.
+- **FR-034** Cada mito pelea donde ocurre su leyenda: Patasola y Madremonte en la selva del monte, la Muelona en la cantina, el Silbón en el llano, el Mohán y la Llorona en la ribera, el Hombre Caimán en la ciénaga, Bachué en la laguna, el Sombrerón en el pueblo. Escenario extra: cementerio.
+- **FR-035** Mapas: el campo de San Agustín (120×72, con fiestas y terminal de jeeps), Medellín (80×60: Plaza Botero, Parque Berrío, metro elevado, Pueblito Paisa, Comuna 13, Feria de las Flores) y 28 interiores (casas, cantinas, tienda, iglesia, capilla, alcaldía, fondas, teatro…). Se entra por la puerta y se sale por el tapete.
+- **FR-036** Un jeep (yipao) lleva entre el campo y Medellín con escena de carretera de montaña.
+- **FR-037** Firulais, el perro de Juan, lo sigue a todas partes y gruñe cuando un mito escondido anda cerca.
+- **FR-038** La gente cuenta 23 historias de la cultura colombiana (leyendas, café, arrieros, bandeja paisa, vallenato, cumbia, silleteros, metro, Comuna 13, Botero…); el menú lleva la cuenta.
+- **FR-039** Ritmo ~75 % tensión / 25 % alegría: monte, río y llano oscuros con ambiente de terror; fiestas, ciudad e interiores con más luz y música (cumbia, carrilera, bambuco, salsa, órgano). Momentos alegres: bailar en el tablado, castillo de pólvora, rockola, comida.
+- **FR-040** En el mapa los mitos se ven en proporción con Juan (un poco más altos), no al doble.
+- **FR-041** Animación de pelea: anticipación, impacto sostenido y recuperación por golpe; saltos con estiramiento, voltereta y aterrizaje con polvo; reacción al golpe inmediata; caídas con rebote. Siempre un solo fotograma original a la vez (TC-04).
