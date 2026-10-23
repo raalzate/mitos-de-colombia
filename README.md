@@ -104,3 +104,12 @@ vercel deploy --prod
 - Sonidos grabados: paquetes CC0 de OpenGameArt (rubberduck, HaelDB, AntumDeluge, Kenney y otros). Lista completa
   en [public/assets/audio/CREDITS.md](public/assets/audio/CREDITS.md).
 - Leyendas y costumbres: tradición oral colombiana.
+
+## Licencia
+
+- **Código**: [MIT](LICENSE). Puedes usarlo, cambiarlo y compartirlo citando al autor.
+- **Sonidos grabados**: CC0 (dominio público), según cada paquete de origen en
+  [public/assets/audio/CREDITS.md](public/assets/audio/CREDITS.md).
+- **Arte** (`images/` y `public/assets/`): creado para este juego por el autor con ayuda de Gemini y PixelLab. Se
+  incluye para que el juego funcione completo; si lo vas a reutilizar fuera de este proyecto, revisa antes los
+  términos de esas herramientas.
