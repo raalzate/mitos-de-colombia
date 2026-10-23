@@ -171,7 +171,7 @@ export function musicDuck(theme: StageSoundTheme, t: number): number {
 /* Música                                                              */
 /* ------------------------------------------------------------------ */
 
-export type MusicId = 'cumbia' | 'carrilera' | 'bambuco' | 'salsa' | 'organo';
+export type MusicId = 'cumbia' | 'carrilera' | 'bambuco' | 'salsa' | 'organo' | 'batalla';
 
 /**
  * Instrumentos chiptune: bajo (triángulo), metal (cuadrada con filtro, tipo bombardino/trompeta),
@@ -180,9 +180,9 @@ export type MusicId = 'cumbia' | 'carrilera' | 'bambuco' | 'salsa' | 'organo';
  */
 export type Instrument =
   | 'bass' | 'brass' | 'pluck' | 'strum' | 'keys' | 'organ' | 'choir'
-  | 'shaker' | 'drum' | 'clave' | 'cowbell';
+  | 'shaker' | 'drum' | 'clave' | 'cowbell' | 'taiko';
 
-export const PERCUSSION: readonly Instrument[] = ['shaker', 'drum', 'clave', 'cowbell'];
+export const PERCUSSION: readonly Instrument[] = ['shaker', 'drum', 'clave', 'cowbell', 'taiko'];
 
 export interface MusicVoice {
   inst: Instrument;
@@ -309,7 +309,30 @@ const ORGAN_CHORDS = [[53, 57, 60], [52, 55, 60], [50, 57, 62], [53, 58, 62], [4
 const ORGAN_PEDAL = [41, 36, 38, 34, 36, 36, 38, 41];
 const CHOIR = [72, 72, 74, 74, 72, 67, 69, 69];
 
+// Música de batalla, oscura y de miedo (nada de circo): bajo grave que late en La con el roce de medio tono a Si bemol,
+// tambores graves tipo taiko, cuerdas sostenidas en menor y una campanita lejana que aparece de vez en cuando
+const BATTLE_ROOTS = [33, 33, 34, 33];
+const BATTLE_BASS = BATTLE_ROOTS.flatMap((r) => at(16, [[0, r], [2, r], [4, r], [6, r], [8, r], [10, r], [12, r], [14, r]]));
+const BATTLE_PAD = [[57, 60, 64], [57, 60, 65], [58, 62, 65], [56, 59, 64]];
+const BATTLE_BELL = [
+  ...new Array(16).fill(0),
+  81, 0, 0, 0, 0, 0, 80, 0, 0, 0, 0, 0, 77, 0, 0, 0,
+  ...new Array(16).fill(0),
+  76, 0, 0, 0, 0, 0, 77, 0, 0, 0, 0, 0, 76, 0, 0, 0,
+];
+const TAIKO_BAR = at(16, [[0, 1], [3, 0.55], [6, 0.8], [8, 1], [11, 0.55], [12, 0.7], [14, 0.85]]);
+const TAIKO_FILL = at(16, [[0, 1], [3, 0.55], [6, 0.8], [8, 1], [10, 0.6], [11, 0.7], [12, 0.8], [13, 0.85], [14, 0.9], [15, 1]]);
+
 export const MUSIC: Record<MusicId, MusicTrack> = {
+  batalla: {
+    bpm: 112, stepsPerBeat: 4, gain: 0.55, muffle: 3200,
+    voices: [
+      { inst: 'bass', steps: BATTLE_BASS, vol: 0.36, len: 1.7 },
+      { inst: 'taiko', steps: [...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_FILL], vol: 0.38, len: 1 },
+      { inst: 'choir', steps: BATTLE_PAD.flatMap((c) => at(16, [[0, c]])), vol: 0.022, len: 16 },
+      { inst: 'pluck', steps: BATTLE_BELL, vol: 0.06, len: 5 },
+    ],
+  },
   cumbia: {
     bpm: 100, stepsPerBeat: 4, gain: 0.5,
     voices: [

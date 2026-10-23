@@ -160,6 +160,7 @@ export class AdventureScene extends Phaser.Scene {
     this.dogAt = { x: -99, y: -99, facing: 'down' };
     this.dogWarnCd = 0;
     sfx.setTension(0);
+    sfx.setBattle(false);
 
     this.gm = getMap(this.st.map);
     this.map = this.gm.grid;
@@ -1578,6 +1579,9 @@ export class AdventureScene extends Phaser.Scene {
     setSettings(this, { ...getSettings(this), mode: 'cpu', p1: HERO_FIGHTER, p2: id, stage: g.stage, difficulty: fightDifficulty(this.st) });
     saveAdventure(this.st);
     sfx.play(id === 'silbon' ? 'whistle' : 'screamer');
+    // como en los juegos de bolsillo: al aparecer el mito cambia de una la música a la de batalla
+    sfx.play('encuentro');
+    sfx.setBattle(true);
     const cam = this.cameras.main;
     for (let i = 0; i < 3; i++) {
       cam.flash(90, 255, 255, 255);

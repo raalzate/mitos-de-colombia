@@ -197,6 +197,7 @@ export class FightScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.game.events.off(Phaser.Core.Events.BLUR, this.onBlur);
       this.game.events.off(Phaser.Core.Events.HIDDEN, this.onBlur);
+      sfx.setBattle(false);
       this.anims.resumeAll();
       this.projectileSprites.clear();
       this.timedFx = [];
@@ -242,6 +243,7 @@ export class FightScene extends Phaser.Scene {
     this.stageId = choice === 'random' ? STAGE_IDS[Math.floor(Math.random() * STAGE_IDS.length)] : choice;
     this.theme = STAGES[this.stageId];
     sfx.setSoundscape(this.stageId);
+    sfx.setBattle(true);
     const k = ensureStage(this, this.stageId);
     this.stageTex = k;
     this.add.image(0, 0, k.sky).setOrigin(0).setScrollFactor(0).setDepth(0);
@@ -984,6 +986,9 @@ export class FightScene extends Phaser.Scene {
         const f = this.matchWinnerSlot === 1 ? this.p1 : this.p2;
         if (f.state !== 'victory' && f.grounded) f.setState('victory');
         this.showMessage('¡VICTORIA!', f.stats.name);
+        // se acaba la batalla: calla la música y suena la fanfarria (si gana el jugador o en versus)
+        sfx.setBattle(false);
+        if (this.settings.mode !== 'cpu' || this.matchWinnerSlot === 1) sfx.play('victoria');
       } else {
         this.startRound();
       }

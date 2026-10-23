@@ -76,6 +76,17 @@ describe('paisajes de la aventura y música', () => {
     expect(musicDuck(c, 1)).toBeCloseTo(0.2);
   });
 
+  it('la música de batalla es de miedo, no de circo: tambor grave fuerte en el 1 y el 3, bajo que no salta, sin metales', () => {
+    const b = MUSIC.batalla;
+    expect(b.bpm).toBeGreaterThanOrEqual(100);
+    for (const v of b.voices) expect(64 % v.steps.length, v.inst).toBe(0);
+    const taiko = b.voices.find((v) => v.inst === 'taiko')!;
+    for (let beat = 0; beat < 64; beat += 8) expect(taiko.steps[beat], `tiempo ${beat}`).toBeGreaterThanOrEqual(1);
+    expect(b.voices.some((v) => ['brass', 'keys', 'strum', 'cowbell'].includes(v.inst))).toBe(false);
+    const bass = b.voices.find((v) => v.inst === 'bass')!.steps.filter((n) => n !== 0) as number[];
+    expect(Math.max(...bass) - Math.min(...bass)).toBeLessThanOrEqual(2);
+  });
+
   it('cada pieza es válida: notas en rango, percusión 0..1, pasos razonables', () => {
     for (const [id, tr] of Object.entries(MUSIC)) {
       expect(tr.bpm, id).toBeGreaterThan(30);

@@ -21,7 +21,7 @@ export type SfxName =
   | 'scream' | 'fire' | 'whistle' | 'bolt' | 'slash'
   | 'screamer' | 'heartbeat' | 'whisper' | 'creak' | 'distantScream' | 'sting'
   | 'machete' | 'macheteHit' | 'macheteClang' | 'polloMaligno' | 'duende' | 'manoPeluda'
-  | 'ladrido' | 'grunido' | 'motor' | 'pito' | 'polvora' | 'puerta' | 'galope' | 'relincho';
+  | 'ladrido' | 'grunido' | 'motor' | 'pito' | 'polvora' | 'puerta' | 'galope' | 'relincho' | 'encuentro' | 'victoria';
 
 /** Envolvente por tramos: [segundos desde el inicio, valor]. */
 type Ramp = [number, number][];
@@ -39,6 +39,8 @@ class Synth {
   private musicDuckNode: GainNode | null = null;
   private musicBus: GainNode | null = null;
   private trackId: MusicId | null = null;
+  /** en combate suena la música de batalla, sea cual sea el escenario */
+  private battle = false;
   private track: MusicTrack | null = null;
   private trackStep = 0;
   private trackNext = 0;
@@ -433,6 +435,26 @@ class Synth {
         this.shaped('sawtooth', t + 0.05, [[0, 170], [0.3, 240], [0.55, 200], [0.8, 150]], [[0.06, 0.05], [0.7, 0.04], [0.85, 0]], undefined, { type: 'bandpass', freq: 900, q: 3 }, { rate: 17, depth: 0.7 });
         break;
       }
+      case 'encuentro': {
+        // ¡apareció un mito!: golpe grave, viento que sube y un acorde disonante de cuerdas que se corta seco
+        const t = this.ctx!.currentTime;
+        this.tone('sine', 70, 30, 0.9, 0.7);
+        this.noise(0.7, 0.3, 300, 4000, 0, 'bandpass');
+        for (const [f, det] of [[110, 0], [116.5, 8], [164.8, -6]] as const) {
+          this.shaped('sawtooth', t + 0.25, [[0, f]], [[0.05, 0.07], [0.55, 0.06], [0.75, 0]], undefined, { type: 'lowpass', freq: 900 }, { rate: 6 + det * 0.1, depth: 0.15 });
+        }
+        this.tone('sine', 55, 28, 0.8, 0.5, 0.25);
+        break;
+      }
+      case 'victoria': {
+        // victoria: acorde mayor de cuerdas que se abre despacio y un golpe grave, sin trompetica
+        const t = this.ctx!.currentTime;
+        for (const n of [48, 55, 60, 64, 67]) {
+          for (const det of [-6, 6]) this.shaped('sawtooth', t, [[0, midiToFreq(n) * 2 ** (det / 1200)]], [[0.4, 0.035], [1.4, 0.03], [2, 0]], undefined, { type: 'lowpass', freq: 1800 });
+        }
+        this.tone('sine', 65, 32, 0.6, 0.5);
+        break;
+      }
       case 'galope':
         // cascos sobre la tierra: tres golpes y un silencio, una y otra vez
         for (let i = 0; i < 6; i++) for (const [d, v] of [[0, 0.5], [0.09, 0.35], [0.17, 0.45]] as const) {
@@ -608,13 +630,20 @@ class Synth {
         }
         break;
       case 'choir':
-        for (const det of [-7, 7]) this.note('sawtooth', f, t, dur, vol, 0.6, dest, true, det);
+        if (Array.isArray(val)) {
+          for (const n of val) for (const det of [-7, 7]) this.note('sawtooth', midiToFreq(n), t, dur, vol, 0.6, dest, true, det);
+        } else for (const det of [-7, 7]) this.note('sawtooth', f, t, dur, vol, 0.6, dest, true, det);
         break;
       case 'shaker':
         this.noise(0.045, vol * lvl, 7500, 5000, d, 'highpass', dest);
         break;
       case 'drum':
         this.tone('sine', 210, 90, 0.14, vol * lvl, d, dest);
+        break;
+      case 'taiko':
+        // tambor grande: golpe grave que baja y el cuero que suena seco encima
+        this.tone('sine', 95, 38, 0.35, vol * lvl, d, dest);
+        this.noise(0.08, vol * lvl * 0.35, 900, 200, d, 'lowpass', dest);
         break;
       case 'clave':
         this.tone('sine', 2500, 2400, 0.035, vol * lvl, d, dest);
@@ -630,7 +659,7 @@ class Synth {
   /** Funde la pieza actual (si la hay) y arranca la del paisaje cuando la anterior ya calló. */
   private switchTrack(now: number): void {
     if (!this.ctx) return;
-    const wanted = this.theme.music ?? null;
+    const wanted = this.battle ? 'batalla' : this.theme.music ?? null;
     if (wanted === this.trackId && (this.musicBus || !wanted)) return;
     const old = this.musicBus;
     if (old) {
@@ -644,7 +673,8 @@ class Synth {
     this.trackId = wanted;
     if (!wanted || !this.musicDuckNode) return;
     const track = MUSIC[wanted];
-    const start = now + (old ? 1.3 : 0.2);
+    // la batalla entra de golpe, como en los juegos de bolsillo; lo demás espera a que calle lo anterior
+    const start = now + (this.battle ? 0.05 : old ? 1.3 : 0.2);
     const bus = this.ctx.createGain();
     bus.gain.setValueAtTime(0, now);
     bus.gain.setValueAtTime(0, start);
@@ -693,8 +723,22 @@ class Synth {
       const eff = effectiveTension(this.theme, this.tensionLevel);
       this.droneFilter.frequency.setTargetAtTime(this.theme.droneCutoff + eff * 900, now, 0.4);
       this.droneHigh.gain.setTargetAtTime(eff * 0.05, now, 0.6);
-      this.musicDuckNode?.gain.setTargetAtTime(musicDuck(this.theme, this.tensionLevel), now, 0.5);
+      this.musicDuckNode?.gain.setTargetAtTime(this.duck(), now, 0.5);
     }
+  }
+
+  /** En combate la música no se apaga con la tensión: apenas baja para que se oiga el latido. */
+  private duck(): number {
+    return this.battle ? 1 - 0.3 * this.tensionLevel : musicDuck(this.theme, this.tensionLevel);
+  }
+
+  /** Entra o sale la música de batalla. */
+  setBattle(on: boolean): void {
+    if (this.battle === on) return;
+    this.battle = on;
+    if (!this.ctx || !this.droneFilter) return;
+    this.switchTrack(this.ctx.currentTime);
+    this.musicDuckNode?.gain.setTargetAtTime(this.duck(), this.ctx.currentTime, 0.3);
   }
 
   /**
@@ -735,7 +779,7 @@ class Synth {
     this.droneGain = droneG;
     this.droneFilter.connect(droneG).connect(this.musicGain);
     this.musicDuckNode = ctx.createGain();
-    this.musicDuckNode.gain.value = musicDuck(this.theme, this.tensionLevel);
+    this.musicDuckNode.gain.value = this.duck();
     this.musicDuckNode.connect(this.musicGain);
     for (const f of this.theme.drone) {
       const o = ctx.createOscillator();
