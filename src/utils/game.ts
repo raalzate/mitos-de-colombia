@@ -27,6 +27,7 @@ export const MENU_KEYS = {
   pause: ['Enter', 'Escape'],
   fullscreen: ['KeyF'],
   map: ['KeyM'],
+  mission: ['KeyQ'],
   debug: ['KeyH'],
 };
 

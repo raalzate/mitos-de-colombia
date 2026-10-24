@@ -77,6 +77,9 @@ const MYTH_MAP_SCALE = 0.72;
 const NPC_FALLBACK: Record<string, VillagerKind> = { conductor: 'arriero', silletero: 'cafetero', acordeonero: 'arriero', bailarina: 'vendedora', rapero: 'nino' };
 const CITY_GROUND: Partial<Record<Cell, CityGround>> = { a: 'asfalto', d: 'anden', z: 'cebra', l: 'ladrillo', o: 'adoquin', '.': 'grama', '=': 'tierra_roja' };
 
+/** Cuánto baja el panel de la misión para quedar fuera de la pantalla. */
+const PANEL_HIDE = 48;
+
 /** Colores del mapa de avistamientos, como pintado a mano sobre papel. */
 const MAP_INK: Partial<Record<Cell, string>> = {
   T: '#4f6e34', '"': '#a8b066', '~': '#4a7aa8', B: '#7a5030', '=': '#9a6a3a', H: '#8a3a2a', P: '#b89a64', c: '#8a8070', S: '#9a6a3a', f: '#d8b880',
@@ -137,9 +140,16 @@ export class AdventureScene extends Phaser.Scene {
   private mapView: Phaser.GameObjects.Container | null = null;
   private hudTop!: Phaser.GameObjects.Container;
   private hudMission!: Phaser.GameObjects.Container;
-  private hudArrow!: Phaser.GameObjects.Triangle;
+  private hudArrow!: Phaser.GameObjects.Polygon;
   private hudKey = '';
   private hudGoal: Spot | null = null;
+  private hudTab!: Phaser.GameObjects.Container;
+  private hudArrowY = 0;
+  private hudMissionId: string | null = null;
+  /** cuánto está escondido el panel de la misión: 0 a la vista, PANEL_HIDE abajo fuera de la pantalla */
+  private mission = { drop: PANEL_HIDE };
+  /** avisos grandes en fila: uno termina y sale el otro */
+  private announcing: Promise<void> = Promise.resolve();
   private owned: ItemId[] = [];
   private belt: Phaser.GameObjects.Image | null = null;
 
@@ -178,6 +188,9 @@ export class AdventureScene extends Phaser.Scene {
     this.mapView = null;
     this.belt = null;
     this.hudKey = '';
+    this.hudMissionId = null;
+    this.mission = { drop: PANEL_HIDE };
+    this.announcing = Promise.resolve();
     sfx.setTension(0);
     sfx.setBattle(false);
 
@@ -1823,7 +1836,12 @@ export class AdventureScene extends Phaser.Scene {
     }
     this.hudTop = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
     this.hudMission = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
-    this.hudArrow = this.add.triangle(0, 0, 0, 0, 9, 4.5, 0, 9, 0xf8e040).setStrokeStyle(1, 0x140a10).setScrollFactor(0).setDepth(3951);
+    // flecha con cola, que se lea a primera vista; apunta en una de ocho direcciones
+    this.hudArrow = this.add.polygon(0, 0, [0, 3, 6, 3, 6, 0, 12, 5, 6, 10, 6, 7, 0, 7], 0xf8e040).setStrokeStyle(1, 0x140a10).setScrollFactor(0).setDepth(3951);
+    // pestañita que queda cuando el panel se esconde: la flecha y cómo volver a ver la misión
+    this.hudTab = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
+    this.hudTab.add(this.add.rectangle(4, GAME_HEIGHT - 17, 96, 14, 0x101828, 0.8).setOrigin(0).setStrokeStyle(1, 0x8a6a40));
+    this.hudTab.add(this.add.bitmapText(24, GAME_HEIGHT - 14, 'font', 'Q: MISIÓN').setTint(0xf8d048));
     this.owned = items(this.st);
     this.refreshHud();
   }
@@ -1850,11 +1868,51 @@ export class AdventureScene extends Phaser.Scene {
       const lines = wrap(m.step.text, 44).slice(0, 2);
       const y0 = GAME_HEIGHT - 14 - lines.length * 10;
       this.hudMission.add(this.add.rectangle(4, y0 - 2, GAME_WIDTH - 8, 14 + lines.length * 10, 0x101828, 0.8).setOrigin(0).setStrokeStyle(1, 0x8a6a40));
-      this.hudMission.add(this.add.bitmapText(20, y0 + 1, 'font', `MISIÓN: ${m.title}`).setTint(0xf8d048));
+      this.hudMission.add(this.add.bitmapText(24, y0 + 1, 'font', `MISIÓN: ${m.title}`).setTint(0xf8d048));
       lines.forEach((l, i) => this.hudMission.add(this.add.bitmapText(10, y0 + 12 + i * 10, 'font', l).setTint(0xf0e8d0)));
-      this.hudArrow.setPosition(11, y0 + 5);
+      this.hudArrowY = y0 + 5;
     }
-    for (const id of fresh) void this.newItem(id);
+    // como en Zelda: al llegar a un mapa o al cambiar el objetivo, el panel sube, se queda un rato y se va
+    const prev = this.hudMissionId;
+    this.hudMissionId = m ? `${m.id}|${m.step.text}` : null;
+    const prevId = prev?.split('|')[0];
+    const queue = (f: () => Promise<void> | void) => { this.announcing = this.announcing.then(f).catch(() => undefined); };
+    if (prev === null) { if (m) this.showMission(2600); }
+    else if (prev !== this.hudMissionId) {
+      const finished = prevId && prevId !== m?.id ? missions(this.st).find((x) => x.id === prevId && x.done) : undefined;
+      if (finished) queue(() => this.missionDone(finished.title));
+      for (const id of fresh) queue(() => this.newItem(id));
+      if (m) queue(() => this.showMission());
+      return;
+    }
+    for (const id of fresh) queue(() => this.newItem(id));
+  }
+
+  /** Sube el panel de la misión, lo deja un rato y lo vuelve a bajar. */
+  private showMission(hold = 4500): void {
+    this.tweens.killTweensOf(this.mission);
+    this.tweens.chain({
+      targets: this.mission,
+      tweens: [
+        { drop: 0, duration: 320, ease: 'Cubic.out' },
+        { drop: PANEL_HIDE, delay: hold, duration: 280, ease: 'Cubic.in' },
+      ],
+    });
+  }
+
+  /** ¡Misión cumplida!, en grande en la mitad de la pantalla. */
+  private async missionDone(title: string): Promise<void> {
+    sfx.play('ultimate');
+    const c = this.add.container(GAME_WIDTH / 2, 96).setScrollFactor(0).setDepth(5400).setAlpha(0);
+    const t2 = this.add.bitmapText(0, 8, 'font', title).setOrigin(0.5).setTint(0xf0e8d0);
+    c.add(this.add.rectangle(0, 0, Math.max(t2.width + 28, 190), 36, 0x101828, 0.9).setStrokeStyle(1, 0xf8d048));
+    c.add(this.add.bitmapText(0, -7, 'font', '¡MISIÓN CUMPLIDA!').setOrigin(0.5).setTint(0xf8d048));
+    c.add(t2);
+    c.setScale(1.4, 0.2);
+    await this.tween({ targets: c, alpha: 1, scaleX: 1, scaleY: 1, duration: 260, ease: 'Back.out' });
+    await this.wait(1600);
+    await this.tween({ targets: c, alpha: 0, scaleY: 0.2, duration: 220 });
+    c.destroy();
   }
 
   private updateHud(): void {
@@ -1862,11 +1920,19 @@ export class AdventureScene extends Phaser.Scene {
     if (this.frame % 10 === 0 && !this.dialog.busy && !this.locked && !this.mapView) this.refreshHud();
     const quiet = !this.dialog.busy && !this.mapView;
     this.hudTop.setVisible(!this.mapView);
-    this.hudMission.setVisible(quiet && !!currentMission(this.st));
+    const has = quiet && !!this.hudMissionId;
+    if (has && !this.locked && this.menu.pressed(MENU_KEYS.mission)) this.showMission();
+    const out = this.mission.drop < PANEL_HIDE / 2;
+    this.hudMission.setVisible(has).setY(Math.round(this.mission.drop));
+    this.hudTab.setVisible(has && !out);
+    this.hudArrow.setPosition(13, out ? this.hudArrowY + Math.round(this.mission.drop) : GAME_HEIGHT - 10);
     const wp = this.hudGoal ? waypoint(this.gm.id, this.hudGoal, (id) => this.exitOf(id)) : null;
     const near = wp && Math.abs(wp.x - this.st.x) + Math.abs(wp.y - this.st.y) <= 1;
-    this.hudArrow.setVisible(this.hudMission.visible && !!wp && !near);
-    if (wp && !near) this.hudArrow.setRotation(Math.atan2(feetY(wp.y) - this.hero.y, feetX(wp.x) - this.hero.x));
+    this.hudArrow.setVisible(has && !!wp && !near);
+    if (wp && !near) {
+      const a = Math.atan2(feetY(wp.y) - this.hero.y, feetX(wp.x) - this.hero.x);
+      this.hudArrow.setRotation(Math.round(a / (Math.PI / 4)) * (Math.PI / 4));
+    }
   }
 
   /** Algo nuevo para Juan: se anuncia en grande; el machete, además, queda al cinto. */
