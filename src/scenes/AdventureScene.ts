@@ -194,6 +194,7 @@ export class AdventureScene extends Phaser.Scene {
     else if (!this.st.flags.includes('intro')) void this.intro();
     else if (data.arrive === 'car' || data.arrive === 'horse') void this.arriveBy(data.arrive);
     else if (this.gm.id === 'monte' && !this.st.flags.includes('llegó_monte')) void this.monteIntro();
+    else if (this.gm.id === 'int:trapiche0' && !hasMachete(this.st)) void this.julioCalls();
     else this.showArea();
   }
 
@@ -1378,6 +1379,9 @@ export class AdventureScene extends Phaser.Scene {
     if (sv) { await this.spiritMeet(sv); return; }
     const prop = this.propAt(tx, ty);
     if (prop && await this.useProp(prop)) { this.locked = false; return; }
+    // parado en la puerta, el botón de acción también entra (los galpones abiertos no tienen puerta dibujada)
+    const door = this.st.facing === 'up' ? this.doorAbove() : null;
+    if (door) { await this.enter(door); return; }
     const b = this.buildingAt(tx, ty);
     if (b && this.st.facing === 'up') {
       const name = buildingName(b);
@@ -1510,6 +1514,22 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('ultimate');
     await this.dialog.say(['¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON LA TECLA M O DESDE EL MENÚ.']);
     this.openMap();
+  }
+
+  /** Al entrar al trapiche sin machete, don Julio llama a Juan para que nadie se vaya sin hablarle. */
+  private async julioCalls(): Promise<void> {
+    const julio = this.npcs.find((n) => n.npc.name === 'DON JULIO');
+    if (!julio) return;
+    this.locked = true;
+    await this.wait(400);
+    this.faceNpc(julio, julio.x < this.st.x ? 'right' : julio.x > this.st.x ? 'left' : 'down');
+    await this.bubble(julio.sprite, 1);
+    const line = this.st.flags.includes('lena') ? '¡ESO, MIJO! ¿ME TRAJO LA LEÑA? ¡ARRÍMESE, PUES!'
+      : this.st.flags.includes('encargo_lena') ? '¿YA VOLVIÓ DEL MONTE PURO, MIJO? ¡ACUÉRDESE DE LA LEÑA!'
+        : '¡EH, JUAN! ¿USTED ES EL NIETO DE DOÑA ROSA? ¡VENGA, ARRÍMESE, QUE AQUÍ TENGO ALGO DE SU ABUELO!';
+    await this.dialog.say([line], { speaker: 'DON JULIO' });
+    this.locked = false;
+    this.showArea();
   }
 
   /** Primera vez en el monte puro: silencio, neblina y la sensación de que alguien mira. */

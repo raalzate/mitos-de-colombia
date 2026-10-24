@@ -112,7 +112,7 @@ function stamp(g: Cell[][], buildings: MapBuilding[], props: MapProp[], signs: S
 
 function campo(): GameMap {
   const buildings: MapBuilding[] = [
-    ...BUILDINGS.map((b) => ({ set: 'town' as const, ...b })),
+    ...BUILDINGS.map((b) => ({ set: 'town' as const, ...b, ...(b.id === 'trapiche0' ? { name: 'TRAPICHE EL DULCE, DE DON JULIO' } : {}) })),
     ...CAMPO_CITY_BUILDINGS.map((b) => ({ set: 'city' as const, ...b })),
   ];
   const props: MapProp[] = [
