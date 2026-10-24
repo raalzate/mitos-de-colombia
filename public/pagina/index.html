@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Mitos de Colombia</title>
+<meta name="description" content="Juan Machete sale de noche a buscar a los nueve espantos de Colombia. Juego de lucha y aventura en pixel art, gratis en el navegador." />
+<meta property="og:title" content="Mitos de Colombia: Sangre de leyenda" />
+<meta property="og:description" content="Nueve espantos andan sueltos esta noche. Juego gratis en el navegador." />
+<meta property="og:image" content="https://raalzate.github.io/mitos-de-colombia/capturas/05-combate.png" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Grenze+Gotisch:wght@500;700;900&family=Alegreya:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --noche: #16122b;
+    --noche-honda: #0c0a1a;
+    --monte: #1f3a2c;
+    --vela: #f4b046;
+    --calabaza: #e06a1e;
+    --hueso: #efe6d2;
+    --hueso-tenue: #b9ae98;
+    --sangre: #a3192e;
+    --display: "Grenze Gotisch", "Times New Roman", serif;
+    --texto: "Alegreya", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--noche);
+    color: var(--hueso);
+    font-family: var(--texto);
+    font-size: 1.1875rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  img.pixel { image-rendering: pixelated; image-rendering: crisp-edges; }
+  a { color: var(--vela); }
+  a:focus-visible, button:focus-visible {
+    outline: 3px solid var(--vela);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+  .ancho { width: min(1120px, 100% - 32px); margin-inline: auto; }
+
+  /* ---------- Portada: el monte a oscuras ---------- */
+  .monte {
+    position: relative;
+    min-height: 100svh;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 60% 40% at 50% 100%, #2a4a37 0%, transparent 70%),
+      linear-gradient(#1b1638 0%, #231c44 45%, #1a2e26 100%);
+    touch-action: pan-y;
+    cursor: none;
+  }
+  .monte.sin-linterna { cursor: auto; }
+  .luna {
+    position: absolute;
+    top: 9%; right: 12%;
+    width: clamp(70px, 10vw, 130px); aspect-ratio: 1;
+    border-radius: 50%;
+    background: radial-gradient(circle at 38% 36%, #fffbe8, #f1e6bd 60%, #d8c890);
+    box-shadow: 0 0 60px 18px rgba(241, 230, 189, .22);
+    z-index: 6;
+  }
+  .arboles { position: absolute; inset: auto 0 0 0; width: 100%; height: 72%; z-index: 1; }
+  .espantos { position: absolute; inset: 0; z-index: 2; }
+  .espanto {
+    position: absolute;
+    height: clamp(120px, 19vw, 232px);
+    transform: translate(-50%, -100%);
+    filter: drop-shadow(0 0 14px rgba(163, 25, 46, .55));
+    pointer-events: none;
+  }
+  .espanto.voltear { transform: translate(-50%, -100%) scaleX(-1); }
+  .niebla {
+    position: absolute; inset: auto -10% 0 -10%; height: 38%;
+    background:
+      radial-gradient(ellipse 30% 50% at 20% 70%, rgba(200, 200, 230, .16), transparent 70%),
+      radial-gradient(ellipse 35% 45% at 70% 80%, rgba(200, 200, 230, .14), transparent 70%),
+      radial-gradient(ellipse 25% 40% at 45% 90%, rgba(200, 200, 230, .12), transparent 70%);
+    z-index: 4;
+    animation: niebla 26s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes niebla { to { transform: translateX(6%); } }
+  /* La oscuridad es una capa encima; la linterna le abre un hueco con la máscara. */
+  .oscuridad {
+    position: absolute; inset: 0; z-index: 5;
+    background: rgba(8, 6, 18, .965);
+    --x: 50%; --y: 70%; --r: clamp(90px, 13vw, 150px);
+    -webkit-mask-image: radial-gradient(circle at var(--x) var(--y), transparent 0, transparent var(--r), #000 calc(var(--r) * 1.9));
+            mask-image: radial-gradient(circle at var(--x) var(--y), transparent 0, transparent var(--r), #000 calc(var(--r) * 1.9));
+    pointer-events: none;
+    transition: opacity .9s ease;
+  }
+  .monte.todo-visto .oscuridad { opacity: .35; }
+  .halo {
+    position: absolute; z-index: 6; left: 0; top: 0;
+    width: 30px; height: 30px; margin: -15px 0 0 -15px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(244, 176, 70, .55), transparent 70%);
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+  .monte.sin-linterna .halo { display: none; }
+
+  .cartel {
+    position: relative; z-index: 7;
+    min-height: 100svh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: clamp(40px, 9vh, 96px) 16px 28px;
+    text-align: center;
+    pointer-events: none;
+  }
+  .cartel > * { pointer-events: auto; }
+  .titulo {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 900;
+    line-height: .82;
+    letter-spacing: -.01em;
+    font-size: clamp(3.6rem, 13vw, 10rem);
+    color: var(--hueso);
+    text-shadow: 0 0 2px #000, 0 6px 0 var(--sangre), 0 0 40px rgba(163, 25, 46, .55);
+  }
+  .titulo span { display: block; font-size: .42em; line-height: 1.05; color: var(--vela); text-shadow: 0 0 18px rgba(244, 176, 70, .45), 0 3px 0 #000; }
+  .bajada {
+    max-width: 34em;
+    margin: 1.4rem auto 0;
+    font-size: clamp(1.1rem, 2.2vw, 1.375rem);
+    color: var(--hueso);
+    text-shadow: 0 2px 8px #000;
+  }
+  .acciones { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 1.8rem; }
+  .boton {
+    display: inline-block;
+    padding: .7em 1.5em .75em;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.6rem;
+    line-height: 1;
+    text-decoration: none;
+    color: #1b0e04;
+    background: var(--calabaza);
+    border: 0;
+    border-radius: 4px;
+    box-shadow: 0 4px 0 #8a3a0b, 0 0 32px rgba(224, 106, 30, .45);
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .boton:hover { transform: translateY(-2px); box-shadow: 0 6px 0 #8a3a0b, 0 0 44px rgba(224, 106, 30, .6); }
+  .boton:active { transform: translateY(3px); box-shadow: 0 1px 0 #8a3a0b; }
+  .boton.secundario {
+    color: var(--hueso);
+    background: rgba(12, 10, 26, .6);
+    box-shadow: inset 0 0 0 2px var(--hueso-tenue);
+  }
+  .boton.secundario:hover { box-shadow: inset 0 0 0 2px var(--vela); }
+
+  .pista {
+    margin-top: auto;
+    padding-top: 2rem;
+    font-style: italic;
+    color: var(--hueso-tenue);
+    text-shadow: 0 2px 6px #000;
+    min-height: 3.4em;
+  }
+  .pista strong { font-style: normal; color: var(--vela); font-family: var(--display); font-weight: 700; font-size: 1.35em; }
+
+  /* ---------- Secciones ---------- */
+  section { padding: clamp(72px, 11vw, 136px) 0; }
+  h2 {
+    margin: 0 0 .4em;
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(2.6rem, 6vw, 4.4rem);
+    line-height: .95;
+    color: var(--hueso);
+  }
+  .entrada { max-width: 36em; color: var(--hueso-tenue); margin: 0 0 2.5rem; }
+  p { margin: 0 0 1em; }
+
+  /* La historia: Juan junto al fogón */
+  .historia { background: linear-gradient(var(--noche-honda), var(--noche)); }
+  .historia .ancho { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: clamp(32px, 6vw, 88px); align-items: center; }
+  .fogon { position: relative; display: grid; place-items: end center; min-height: 380px; }
+  .fogon::before {
+    content: ""; position: absolute; inset: 10% 0 0;
+    background: radial-gradient(ellipse 50% 45% at 50% 85%, rgba(244, 176, 70, .38), rgba(224, 106, 30, .1) 55%, transparent 75%);
+    animation: llama 3.2s ease-in-out infinite alternate;
+  }
+  @keyframes llama { 50% { opacity: .78; } 100% { opacity: .95; transform: scale(1.03); } }
+  .fogon img { position: relative; height: 320px; width: auto; }
+  .historia blockquote {
+    margin: 1.6rem 0;
+    padding: 0 0 0 1.1rem;
+    border-left: 3px solid var(--sangre);
+    font-style: italic;
+    font-size: 1.3rem;
+    color: var(--hueso);
+  }
+  .historia blockquote cite { display: block; margin-top: .4rem; font-style: normal; font-size: 1rem; color: var(--hueso-tenue); }
+
+  /* Cuaderno de avistamientos */
+  .cuaderno { background: var(--noche); }
+  .avistamientos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 0 48px; }
+  .avistamiento {
+    display: grid; grid-template-columns: 112px 1fr; gap: 20px; align-items: start;
+    padding: 28px 0;
+    border-top: 1px dashed rgba(185, 174, 152, .28);
+  }
+  .avistamiento .retrato {
+    width: 112px; height: 136px;
+    display: grid; place-items: end center;
+    background: radial-gradient(ellipse 60% 30% at 50% 92%, rgba(163, 25, 46, .4), transparent 70%);
+  }
+  .avistamiento .retrato img { max-width: 112px; max-height: 136px; }
+  .avistamiento h3 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 2rem; line-height: 1; color: var(--hueso); }
+  .avistamiento .apodo { margin: .25em 0 .6em; font-style: italic; color: var(--vela); }
+  .avistamiento p { font-size: 1.0625rem; line-height: 1.55; }
+  .avistamiento dl { margin: .4em 0 0; font-size: 1rem; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; color: var(--hueso-tenue); }
+  .avistamiento dt { font-weight: 700; color: var(--hueso); }
+  .avistamiento dd { margin: 0; }
+
+  /* Triqui triqui */
+  .triqui {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(ellipse 40% 60% at 85% 50%, rgba(224, 106, 30, .22), transparent 70%),
+      var(--noche-honda);
+    border-block: 2px solid #2b2350;
+  }
+  .triqui .ancho { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+  .copla {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: clamp(2rem, 4.6vw, 3.4rem);
+    line-height: 1.05;
+    color: var(--calabaza);
+    text-shadow: 0 0 26px rgba(224, 106, 30, .35);
+  }
+  .copla em { display: block; font-style: normal; color: var(--hueso); font-size: .62em; margin-top: .5em; }
+  .cuenta { text-align: center; }
+  .cuenta .numero { display: block; font-family: var(--display); font-weight: 900; font-size: clamp(6rem, 16vw, 10rem); line-height: .85; color: var(--hueso); }
+  .cuenta .que { color: var(--hueso-tenue); font-style: italic; }
+
+  /* Capturas */
+  .capturas-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .capturas-grid figure { margin: 0; grid-column: span 2; }
+  .capturas-grid figure.grande { grid-column: span 4; grid-row: span 2; }
+  .capturas-grid figure.media { grid-column: span 3; }
+  .capturas-grid img { display: block; width: 100%; height: auto; border-radius: 3px; box-shadow: 0 0 0 1px #2b2350, 0 12px 30px rgba(0, 0, 0, .45); }
+  .capturas-grid figcaption { margin-top: 8px; font-size: .95rem; font-style: italic; color: var(--hueso-tenue); }
+
+  /* Controles */
+  .controles { background: linear-gradient(var(--noche), var(--noche-honda)); }
+  .controles .ancho { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 56px; align-items: start; }
+  .teclas { width: 100%; border-collapse: collapse; font-size: 1.05rem; }
+  .teclas th, .teclas td { text-align: left; padding: 12px 8px; border-bottom: 1px dashed rgba(185, 174, 152, .25); vertical-align: top; }
+  .teclas th { font-weight: 500; color: var(--hueso); }
+  .teclas td { color: var(--hueso-tenue); }
+  kbd {
+    display: inline-block; min-width: 1.8em; padding: .05em .45em;
+    font-family: var(--texto); font-weight: 700; font-size: .95em; text-align: center;
+    color: var(--noche-honda); background: var(--hueso);
+    border-radius: 3px; box-shadow: 0 2px 0 var(--hueso-tenue);
+  }
+
+  /* Cierre */
+  .cierre { text-align: center; padding-bottom: 56px; background: var(--noche-honda); }
+  .cierre h2 { font-size: clamp(2.8rem, 8vw, 5.6rem); }
+  .cierre .fila { display: flex; justify-content: center; gap: 4px; margin: 0 auto 2rem; flex-wrap: wrap; }
+  .cierre .fila img { height: 88px; width: auto; opacity: .9; }
+  footer { margin-top: 72px; font-size: .95rem; color: var(--hueso-tenue); }
+  footer p { max-width: 46em; margin-inline: auto; }
+
+  @media (max-width: 820px) {
+    .historia .ancho, .triqui .ancho, .controles .ancho { grid-template-columns: 1fr; }
+    .fogon { min-height: 260px; }
+    .fogon img { height: 230px; }
+    .capturas-grid { grid-template-columns: 1fr 1fr; }
+    .capturas-grid figure, .capturas-grid figure.media { grid-column: span 1; }
+    .capturas-grid figure.grande { grid-column: span 2; grid-row: auto; }
+    .cierre .fila img { height: 60px; }
+  }
+  @media (max-width: 480px) {
+    .avistamiento { grid-template-columns: 84px 1fr; gap: 14px; }
+    .avistamiento .retrato { width: 84px; height: 104px; }
+    .avistamiento .retrato img { max-width: 84px; max-height: 104px; }
+    .capturas-grid { grid-template-columns: 1fr; }
+    .capturas-grid figure.grande { grid-column: span 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .niebla, .fogon::before { animation: none; }
+    .oscuridad { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="monte" id="monte" aria-label="Portada">
+  <div class="luna" aria-hidden="true"></div>
+
+  <svg class="arboles" viewBox="0 0 1440 520" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+    <path fill="#13241c" d="M0 300 C120 250 220 270 330 240 C470 205 560 260 700 230 C860 195 980 250 1120 220 C1260 190 1360 230 1440 215 V520 H0Z"/>
+    <g fill="#0e1b15">
+      <path d="M60 520 V330 L20 360 L70 250 L35 270 L90 150 L145 270 L110 250 L160 360 L120 330 V520Z"/>
+      <path d="M300 520 V380 C260 370 230 330 250 290 C230 250 270 210 310 220 C330 180 390 180 405 225 C450 220 470 270 445 300 C470 340 430 380 390 380 V520Z"/>
+      <path d="M1250 520 V340 L1205 370 L1260 240 L1220 262 L1285 130 L1350 262 L1310 240 L1365 370 L1320 340 V520Z"/>
+      <path d="M1040 520 V400 C1000 395 975 360 995 325 C980 290 1015 260 1050 270 C1070 235 1125 240 1135 280 C1170 285 1180 330 1155 355 C1170 390 1130 405 1095 400 V520Z"/>
+      <path d="M690 520 V430 C665 425 650 400 662 378 C652 355 678 336 700 344 C714 322 748 326 754 352 C778 356 784 386 768 402 C776 425 750 434 728 430 V520Z"/>
+    </g>
+    <path fill="#0a130f" d="M0 470 C200 440 380 470 560 455 C760 438 920 470 1100 452 C1260 437 1360 458 1440 450 V520 H0Z"/>
+  </svg>
+
+  <div class="espantos" id="espantos" aria-hidden="true"></div>
+  <div class="niebla" aria-hidden="true"></div>
+  <div class="oscuridad" id="oscuridad" aria-hidden="true"></div>
+  <div class="halo" id="halo" aria-hidden="true"></div>
+
+  <div class="cartel">
+    <h1 class="titulo">Mitos de Colombia<span>Sangre de leyenda</span></h1>
+    <p class="bajada">Esta noche andan sueltos nueve espantos por la vereda San Agustín. Juan Machete, campesino paisa de carne y hueso, sale con su linterna a buscarlos.</p>
+    <div class="acciones">
+      <a class="boton" href="https://mitos-de-colombia.vercel.app/">Jugar en el navegador</a>
+      <button class="boton secundario" id="prender" type="button">Prender todas las velas</button>
+    </div>
+    <p class="pista" id="pista" aria-live="polite">Mueva la linterna por el monte. Algo se está escondiendo entre los árboles.</p>
+  </div>
+</header>
+
+<main>
+  <section class="historia" aria-labelledby="h-historia">
+    <div class="ancho">
+      <div class="fogon">
+        <img class="pixel" src="arte/juanmachete.png" alt="Juan Machete con su sombrero, camisa blanca y el machete listo" width="104" height="128" />
+      </div>
+      <div>
+        <h2 id="h-historia">Lo que le contó la abuela Rosa</h2>
+        <p>Juan baja de Medellín a visitar a su abuela y la encuentra con las puertas trancadas. Los mitos andan sueltos: el Sombrerón y la Muelona en el pueblo, el Silbón en el llano, la Llorona y el Mohán en el río, el Hombre Caimán en la ciénaga, la Patasola y la Madremonte en el monte, y Bachué allá en la laguna del sur.</p>
+        <blockquote>No los vaya a matar, mijo. Son parte de esta tierra, hay que respetarlos. Calmelos y verá que la gente vuelve a dormir tranquila.<cite>La abuela Rosa</cite></blockquote>
+        <p>Los mitos no se ven en el mapa. Dejan señales, se oyen de lejos y saltan encima cuando uno menos piensa. Ahí el juego cambia a una pelea uno contra uno, al mejor de tres rondas. Si gana, el espanto se calma. Si pierde, se acaba la partida y toca empezar de nuevo.</p>
+        <p>En el camino Juan se gana un machete, un perro callejero que ladra cuando hay peligro y un caballo para viajar a Santa Fe de Antioquia.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="cuaderno" aria-labelledby="h-cuaderno">
+    <div class="ancho">
+      <h2 id="h-cuaderno">Cuaderno de avistamientos</h2>
+      <p class="entrada">Lo que el cabo Ramírez ha ido apuntando de cada espanto: quién es, por dónde ronda y qué deja tirado para que uno sepa que anduvo por ahí.</p>
+      <ol class="avistamientos" id="avistamientos"></ol>
+    </div>
+  </section>
+
+  <section class="triqui" aria-labelledby="h-triqui">
+    <div class="ancho">
+      <div>
+        <h2 id="h-triqui" class="copla">¡Triqui triqui Halloween, quiero dulces para mí!<em>Y si no me los da, le mando la Llorona a la ventana.</em></h2>
+        <p style="margin-top:1.4rem;color:var(--hueso-tenue);max-width:30em">El 31 de octubre los niños salen disfrazados a pedir dulces. En la vereda nadie se disfraza de vampiro: los que asustan de verdad son estos nueve.</p>
+      </div>
+      <p class="cuenta" id="cuenta"><span class="numero" id="cuenta-numero">31</span><span class="que" id="cuenta-que">de octubre, noche de brujas</span></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-capturas">
+    <div class="ancho">
+      <h2 id="h-capturas">Así se ve de noche</h2>
+      <p class="entrada">Pixel art de 16 bits, combate al estilo de las maquinitas de los noventa y un modo aventura para recorrer a pie, con perro y a caballo.</p>
+      <div class="capturas-grid">
+        <figure class="grande"><img class="pixel" src="capturas/05-combate.png" alt="Juan Machete pelea contra la Madremonte en el monte, de noche" loading="lazy" width="1152" height="672" /><figcaption>Juan contra la Madremonte, entre la niebla del monte.</figcaption></figure>
+        <figure><img class="pixel" src="capturas/09-aventura-intro.png" alt="La abuela Rosa habla con Juan frente a su casa" loading="lazy" width="1152" height="672" /><figcaption>La abuela Rosa le cuenta lo que pasa.</figcaption></figure>
+        <figure><img class="pixel" src="capturas/12-sombreron-a-caballo.png" alt="El Sombrerón aparece en su caballo negro en el pueblo" loading="lazy" width="1152" height="672" /><figcaption>El Sombrerón sale de la nada en su caballo negro.</figcaption></figure>
+        <figure class="media"><img class="pixel" src="capturas/06-poderes.png" alt="Poderes con efectos de luz durante el combate" loading="lazy" width="1152" height="672" /><figcaption>Cada mito tiene dos poderes y un definitivo.</figcaption></figure>
+        <figure class="media"><img class="pixel" src="capturas/08-fondo-patasola.png" alt="La Patasola acostada al fondo del escenario del monte" loading="lazy" width="1152" height="672" /><figcaption>La Patasola se acuesta en el fondo del monte, como una mujer herida.</figcaption></figure>
+        <figure><img class="pixel" src="capturas/11-firulais-avisa.png" alt="Firulais ladra para avisar que hay un espanto cerca" loading="lazy" width="1152" height="672" /><figcaption>Firulais avisa cuando hay un espanto cerca.</figcaption></figure>
+        <figure><img class="pixel" src="capturas/14-viaje-a-caballo.png" alt="Juan viaja a caballo con su perro por un camino de herradura" loading="lazy" width="1152" height="672" /><figcaption>Camino de herradura a Santa Fe.</figcaption></figure>
+        <figure><img class="pixel" src="capturas/16-medellin.png" alt="Plaza Botero en Medellín" loading="lazy" width="1152" height="672" /><figcaption>Medellín, en la Plaza Botero.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="controles" aria-labelledby="h-controles">
+    <div class="ancho">
+      <div>
+        <h2 id="h-controles">Dos botones y ya</h2>
+        <p class="entrada" style="margin-bottom:1rem">Pensado para que los niños también puedan jugar: golpe y patada. Los golpes fuertes, los poderes y el definitivo salen combinando esos dos.</p>
+        <p style="color:var(--hueso-tenue)">Funciona con teclado o con mando. Los sustos se pueden apagar en el menú si en la casa hay alguien muy miedoso.</p>
+      </div>
+      <table class="teclas">
+        <caption class="sr-only" style="position:absolute;left:-9999px">Controles del combate</caption>
+        <tbody>
+          <tr><th scope="row">Moverse, saltar y agacharse</th><td>Flechas</td></tr>
+          <tr><th scope="row">Golpe</th><td><kbd>Z</kbd> o <kbd>Espacio</kbd></td></tr>
+          <tr><th scope="row">Patada</th><td><kbd>X</kbd></td></tr>
+          <tr><th scope="row">Golpe fuerte</th><td>Tres veces seguidas el mismo botón</td></tr>
+          <tr><th scope="row">Poderes</th><td>Mantener <kbd>Z</kbd> o <kbd>X</kbd> y soltar</td></tr>
+          <tr><th scope="row">Definitivo</th><td><kbd>Z</kbd> + <kbd>X</kbd> con la barra llena</td></tr>
+          <tr><th scope="row">Bloquear</th><td>Echarse para atrás cuando el rival ataca</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cierre" aria-labelledby="h-cierre">
+    <div class="ancho">
+      <div class="fila" id="fila" aria-hidden="true"></div>
+      <h2 id="h-cierre">¿Se le mide a salir esta noche?</h2>
+      <p class="entrada" style="margin-inline:auto">Es gratis y corre en el navegador. No hay que instalar nada.</p>
+      <a class="boton" href="https://mitos-de-colombia.vercel.app/">Jugar en el navegador</a>
+
+      <footer>
+        <p>Diseño, dirección y arte de referencia de Raúl Alzate. Arte de los luchadores hecho con Gemini, personajes del mapa con PixelLab. Sonidos CC0 de OpenGameArt. Las leyendas son de la tradición oral colombiana.</p>
+        <p><a href="https://github.com/raalzate/mitos-de-colombia">Código en GitHub</a>, licencia MIT.</p>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<script>
+  const MITOS = [
+    { id: 'sombreron', nombre: 'El Sombrerón', apodo: 'Jinete de la noche', x: 10, y: 92,
+      cuento: 'Un hombre de negro con un sombrero enorme que sale en caballo azabache detrás de los borrachos, los tahúres y los que maltratan a la mujer. Les tira el sombrero encima y los deja enredados hasta el amanecer.',
+      ronda: 'La calle de abajo del pueblo', senal: 'Un sombrero negro tirado en el suelo' },
+    { id: 'muelona', nombre: 'La Muelona', apodo: 'Sonrisa devoradora', x: 26, y: 98,
+      cuento: 'Espera a la salida de las cantinas con cara de mujer bonita. Cuando el parrandero se le arrima, abre una boca llena de dientes enormes. Sus mordiscos le devuelven la vida.',
+      ronda: 'Junto a la cantina', senal: 'Un diente más grande que un dedo' },
+    { id: 'silbon', nombre: 'El Silbón', apodo: 'El que silba en la llanura', x: 44, y: 90, voltear: true,
+      cuento: 'Alma en pena del llano que carga en un costal los huesos de su papá. Si el silbido suena cerquita, está lejos. Si suena lejos, ya lo tiene encima.',
+      ronda: 'El llano', senal: 'Huesos regados' },
+    { id: 'hombrecaiman', nombre: 'El Hombre Caimán', apodo: 'Bestia del Magdalena', x: 62, y: 99,
+      cuento: 'Saúl Montenegro, pescador de Plato, Magdalena, se untaba una pócima para volverse caimán y espiar a las muchachas que se bañaban en el río. Un día se le regó el frasco y se quedó mitad bestia.',
+      ronda: 'La ciénaga', senal: 'Huellas de caimán… y de pie' },
+    { id: 'llorona', nombre: 'La Llorona', apodo: 'Alma en pena del río', x: 78, y: 93, voltear: true,
+      cuento: 'Una madre que perdió a sus hijos en el río y desde entonces los busca de noche por la orilla. Su lamento le hiela la sangre a quien lo oye: «¡Ay, mis hijos!»',
+      ronda: 'La orilla del río', senal: 'Charquitos de lágrimas' },
+    { id: 'patasola', nombre: 'La Patasola', apodo: 'Terror de la espesura', x: 93, y: 86, voltear: true,
+      cuento: 'Mujer de una sola pierna que caza a los leñadores y cazadores que se meten al monte. A veces se deja ver acostada, como una mujer herida, esperando a que alguien se acerque.',
+      ronda: 'El norte del monte', senal: 'Huellas de un solo pie' },
+    { id: 'madremonte', nombre: 'La Madremonte', apodo: 'Guardiana del monte', x: 17, y: 80,
+      cuento: 'Cubierta de musgo y hojas, castiga a quien tumba árboles, ensucia las quebradas o corre los linderos. Cuando se enoja, manda crecientes y deja a la gente perdida en el monte.',
+      ronda: 'El sur del monte', senal: 'Ramas partidas y musgo' },
+    { id: 'mohan', nombre: 'El Mohán', apodo: 'Señor de las aguas', x: 70, y: 82, voltear: true,
+      cuento: 'Brujo peludo y barbado que vive en las cuevas del río Magdalena. Fuma tabaco, toca tiple, guarda oro y voltea las canoas de los pescadores que no le dejan su parte.',
+      ronda: 'Río abajo', senal: 'Pepitas de oro en la orilla' },
+    { id: 'bachue', nombre: 'Bachué', apodo: 'Madre de la laguna', x: 34, y: 82,
+      cuento: 'La madre de los muiscas, que salió de la laguna de Iguaque con un niño en brazos para poblar la tierra. Ya viejos, volvieron juntos al agua convertidos en serpientes.',
+      ronda: 'La laguna del sur', senal: 'Escamas doradas' },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const monte = $('monte'), capa = $('espantos'), osc = $('oscuridad'), halo = $('halo'), pista = $('pista');
+
+  for (const m of MITOS) {
+    const img = new Image();
+    img.src = `arte/${m.id}.png`;
+    img.alt = '';
+    img.className = 'pixel espanto' + (m.voltear ? ' voltear' : '');
+    img.style.left = m.x + '%';
+    img.style.top = m.y + '%';
+    capa.appendChild(img);
+    m.el = img;
+  }
+
+  const lista = $('avistamientos');
+  for (const m of MITOS) {
+    const li = document.createElement('li');
+    li.className = 'avistamiento';
+    li.innerHTML = `
+      <div class="retrato"><img class="pixel" src="arte/${m.id}.png" alt="${m.nombre}" loading="lazy" /></div>
+      <div>
+        <h3>${m.nombre}</h3>
+        <p class="apodo">${m.apodo}</p>
+        <p>${m.cuento}</p>
+        <dl><dt>Ronda</dt><dd>${m.ronda}</dd><dt>Señal</dt><dd>${m.senal}</dd></dl>
+      </div>`;
+    lista.appendChild(li);
+  }
+
+  const fila = $('fila');
+  for (const id of ['juanmachete', ...MITOS.map((m) => m.id)]) {
+    const img = new Image();
+    img.src = `arte/${id}.png`;
+    img.alt = '';
+    img.className = 'pixel';
+    fila.appendChild(img);
+  }
+
+  // Linterna: el puntero abre un hueco en la oscuridad y cuenta los mitos que alumbra.
+  const vistos = new Set();
+  const quieto = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let ultimoMovimiento = 0, todasPrendidas = false;
+
+  function alumbrar(px, py, contar = true) {
+    const caja = monte.getBoundingClientRect();
+    osc.style.setProperty('--x', px + 'px');
+    osc.style.setProperty('--y', py + 'px');
+    halo.style.transform = `translate(${px}px, ${py}px)`;
+    if (!contar) return;
+    const radio = parseFloat(getComputedStyle(osc).getPropertyValue('--r')) || 120;
+    for (const m of MITOS) {
+      if (vistos.has(m.id)) continue;
+      const r = m.el.getBoundingClientRect();
+      const cx = r.left + r.width / 2 - caja.left, cy = r.top + r.height / 2 - caja.top;
+      if (Math.hypot(cx - px, cy - py) < radio) {
+        vistos.add(m.id);
+        avisar(m);
+      }
+    }
+  }
+
+  function avisar(m) {
+    if (todasPrendidas) return;
+    if (vistos.size === MITOS.length) {
+      monte.classList.add('todo-visto');
+      pista.innerHTML = '<strong>Los nueve.</strong> Ya sabe dónde están. Ahora toca ir a calmarlos.';
+      return;
+    }
+    pista.innerHTML = `<strong>${m.nombre}</strong>. Lleva ${vistos.size} de ${MITOS.length}, siga buscando.`;
+  }
+
+  const mover = (e) => {
+    const caja = monte.getBoundingClientRect();
+    ultimoMovimiento = performance.now();
+    alumbrar(e.clientX - caja.left, e.clientY - caja.top);
+  };
+  monte.addEventListener('pointermove', mover);
+  monte.addEventListener('pointerdown', mover);
+
+  // Si nadie mueve la linterna, ella sola ronda despacio por el monte.
+  if (!quieto) {
+    const ronda = (t) => {
+      if (!todasPrendidas && performance.now() - ultimoMovimiento > 3500) {
+        const caja = monte.getBoundingClientRect();
+        const s = t / 1000;
+        alumbrar(caja.width * (0.5 + 0.4 * Math.sin(s * 0.37)), caja.height * (0.72 + 0.14 * Math.sin(s * 0.83 + 1)), false);
+      }
+      requestAnimationFrame(ronda);
+    };
+    requestAnimationFrame(ronda);
+  } else {
+    const caja = monte.getBoundingClientRect();
+    alumbrar(caja.width * 0.5, caja.height * 0.75, false);
+  }
+
+  $('prender').addEventListener('click', (e) => {
+    todasPrendidas = !todasPrendidas;
+    monte.classList.toggle('todo-visto', todasPrendidas || vistos.size === MITOS.length);
+    monte.classList.toggle('sin-linterna', todasPrendidas);
+    e.currentTarget.textContent = todasPrendidas ? 'Apagar las velas' : 'Prender todas las velas';
+    pista.innerHTML = todasPrendidas
+      ? '<strong>Ahí están los nueve.</strong> Mejor no se quede mirándolos mucho rato.'
+      : 'Mueva la linterna por el monte. Algo se está escondiendo entre los árboles.';
+  });
+
+  // Cuenta de noches hasta el 31 de octubre.
+  (function () {
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    let brujas = new Date(hoy.getFullYear(), 9, 31);
+    if (hoy > brujas) brujas = new Date(hoy.getFullYear() + 1, 9, 31);
+    const noches = Math.round((brujas - hoy) / 86400000);
+    if (noches === 0) {
+      $('cuenta-numero').textContent = '¡Hoy!';
+      $('cuenta-que').textContent = 'Es noche de brujas. Cierre bien la ventana.';
+    } else {
+      $('cuenta-numero').textContent = noches;
+      $('cuenta-que').textContent = noches === 1 ? 'noche falta para la noche de brujas' : 'noches faltan para la noche de brujas';
+    }
+  })();
+</script>
+</body>
+</html>
