@@ -4,6 +4,7 @@ import { sfx, type SfxName } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, inputManager, toggleFullscreen } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
 import { addPixmap, addSheet } from '../utils/textures';
+import type { Pixmap } from '../art/PixelPainter';
 import { drawnAnimKey } from '../art/DrawnAnim';
 import { FIGHTERS } from '../data/fighters';
 import type { FighterId } from '../combat/CombatTypes';
@@ -29,20 +30,21 @@ import {
   buildBridge, buildBubble, buildFlowers, buildShadow, buildSign, buildTallGrass, buildTree, buildWater,
 } from '../adventure/OverworldArt';
 import {
-  BUILDING_FOOTPRINT, PROP_FOOTPRINT, SPIRIT_FRAMES, buildBuilding, buildClue, buildProp, buildSpirit, buildVillager,
+  SPIRIT_FRAMES, buildBuilding, buildClue, buildProp, buildSpirit, buildVillager,
   buildingLights, propLights, type BuildingKind, type PropKind, type SpiritKind, type VillagerKind,
 } from '../adventure/TownArt';
 import {
-  CITY_BUILDING_FOOTPRINT, CITY_PROP_FOOTPRINT, buildCityBuilding, buildCityGround, buildCityProp, cityBuildingLights, cityPropLights,
+  buildCityBuilding, buildCityGround, buildCityProp, cityBuildingLights, cityPropLights,
   type CityBuildingKind, type CityGround, type CityPropKind,
 } from '../adventure/CityArt';
 import {
-  FURNITURE_FOOTPRINT, WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
+  WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
 import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse, buildItemIcon, buildMacheteCinto } from '../adventure/OverworldArt';
 import { ITEM_NAME, currentMission, items, missions, waypoint, type ItemId, type Spot } from '../adventure/Missions';
 import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
+import { startWithLoading } from '../ui/Loading';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
 const CELL = 32;
@@ -58,6 +60,21 @@ const NPC_FRAME: Record<Dir, { f: number; flip: boolean }> = {
 };
 const DIR_KEYS: [Dir, string[]][] = [['up', MENU_KEYS.up], ['down', MENU_KEYS.down], ['left', MENU_KEYS.left], ['right', MENU_KEYS.right]];
 const OPPOSITE: Record<Dir, Dir> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+/** Rectángulo de color sobre el suelo: [color, x, y, ancho, alto]. */
+type GroundFill = [number, number, number, number, number];
+/** Suelos guardados como textura; los mapas grandes pesan ~9 MB de memoria de video, así que solo se guardan los últimos. */
+const GROUND_CACHE = 4;
+const groundKeys: string[] = [];
+
+/** Si el celular pierde el contexto de WebGL, los suelos guardados quedan en blanco y hay que pintarlos otra vez. */
+let groundLost = false;
+let restoreHooked = false;
+
+function rememberGround(scene: Phaser.Scene, key: string): void {
+  groundKeys.push(key);
+  while (groundKeys.length > GROUND_CACHE) scene.textures.remove(groundKeys.shift()!);
+}
 
 /** Noche cerrada: azul muy oscuro encima de todo, con la luz del farol de Juan, faroles y ventanas recortados. */
 const NIGHT_COLOR = 0x040818;
@@ -153,6 +170,9 @@ export class AdventureScene extends Phaser.Scene {
   private announcing: Promise<void> = Promise.resolve();
   private owned: ItemId[] = [];
   private belt: Phaser.GameObjects.Image | null = null;
+  /** Lo que no se mueve del mapa, con su caja ya calculada, para no dibujar lo que está fuera de la cámara. */
+  private statics: { img: Phaser.GameObjects.Image; x0: number; y0: number; x1: number; y1: number }[] = [];
+  private culledAt = { x: NaN, y: NaN };
 
   constructor() {
     super('AdventureScene');
@@ -200,6 +220,7 @@ export class AdventureScene extends Phaser.Scene {
     this.ensureTextures();
     this.buildGround();
     this.buildObjects();
+    this.collectStatics();
     this.buildActors();
     this.buildNight();
 
@@ -226,33 +247,34 @@ export class AdventureScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- recursos
 
+  private tex(k: string, build: () => Pixmap): string {
+    if (!this.textures.exists(k)) addPixmap(this, k, build());
+    return k;
+  }
+
+  /** Casas, objetos y muebles no van aquí: se dibujan la primera vez que un mapa los usa. */
   private ensureTextures(): void {
-    const add = (k: string, pm: Parameters<typeof addPixmap>[2]) => { if (!this.textures.exists(k)) addPixmap(this, k, pm); };
+    const add = (k: string, pm: () => Pixmap) => { this.tex(k, pm); };
     for (const f of [0, 1]) {
-      add(`av_tall_${f}`, buildTallGrass(f));
-      for (const t of [false, true]) for (const b of [false, true]) add(`av_water_${f}_${+t}${+b}`, buildWater(f, t, b));
+      add(`av_tall_${f}`, () => buildTallGrass(f));
+      for (const t of [false, true]) for (const b of [false, true]) add(`av_water_${f}_${+t}${+b}`, () => buildWater(f, t, b));
     }
-    add('av_bridge', buildBridge());
-    add('av_flowers', buildFlowers());
-    add('av_sign', buildSign());
-    add('av_bubble_1', buildBubble('!'));
-    add('av_bubble_2', buildBubble('!!'));
-    add('av_bubble_3', buildBubble('...'));
-    add('av_shadow', buildShadow(26));
-    add('av_shadow_big', buildShadow(44));
-    if (!this.textures.exists('av_tree')) add('av_tree', buildTree());
-    for (const k of Object.keys(BUILDING_FOOTPRINT) as BuildingKind[]) add(`av_b_${k}`, buildBuilding(k));
-    for (const k of Object.keys(PROP_FOOTPRINT) as PropKind[]) add(`av_p_${k}`, buildProp(k));
-    for (const k of Object.keys(CITY_BUILDING_FOOTPRINT) as CityBuildingKind[]) add(`av_cb_${k}`, buildCityBuilding(k));
-    for (const k of Object.keys(CITY_PROP_FOOTPRINT) as CityPropKind[]) for (const f of [0, 1]) add(`av_cp_${k}_${f}`, buildCityProp(k, f));
-    for (const k of Object.keys(FURNITURE_FOOTPRINT) as FurnitureKind[]) for (const f of [0, 1]) add(`av_fu_${k}_${f}`, buildFurniture(k, f));
-    for (const g of GUARDIANS) for (const f of [0, 1]) add(`av_clue_${g.clue}_${f}`, buildClue(g.clue, f));
+    add('av_bridge', () => buildBridge());
+    add('av_flowers', () => buildFlowers());
+    add('av_sign', () => buildSign());
+    add('av_bubble_1', () => buildBubble('!'));
+    add('av_bubble_2', () => buildBubble('!!'));
+    add('av_bubble_3', () => buildBubble('...'));
+    add('av_shadow', () => buildShadow(26));
+    add('av_shadow_big', () => buildShadow(44));
+    add('av_tree', () => buildTree());
+    for (const g of GUARDIANS) for (const f of [0, 1]) add(`av_clue_${g.clue}_${f}`, () => buildClue(g.clue, f));
     for (const v of VILLAGER_KINDS) if (!this.textures.exists(`av_${v}`)) addSheet(this, `av_${v}`, buildVillager(v), 48, 48);
     for (const s of SPIRIT_KINDS) if (!this.textures.exists(`av_spirit_${s}`)) addSheet(this, `av_spirit_${s}`, buildSpirit(s), 48, 48);
     if (!this.textures.exists('av_perro')) addSheet(this, 'av_perro', buildDog(), 48, 48);
     if (!this.textures.exists('av_caballo')) addSheet(this, 'av_caballo', buildHorse('lucero'), 48, 48);
     if (!this.textures.exists('av_caballo_negro')) addSheet(this, 'av_caballo_negro', buildHorse('negro'), 48, 48);
-    if (!this.textures.exists('av_mat')) add('av_mat', buildDoorMat());
+    add('av_mat', () => buildDoorMat());
     if (!this.textures.exists('av_light')) {
       const c = document.createElement('canvas');
       c.width = c.height = 128;
@@ -272,12 +294,35 @@ export class AdventureScene extends Phaser.Scene {
     return c === '=' || c === 'B';
   }
 
+  /**
+   * El suelo de cada mapa se pinta una sola vez, en un único lote, y queda guardado como textura:
+   * volver a un mapa ya visitado no lo redibuja.
+   */
   private buildGround(): void {
     const W = this.map[0].length, H = this.map.length;
-    const rt = this.add.renderTexture(0, 0, W * 16, H * 16).setOrigin(0).setScale(2).setDepth(-10000);
-    if (this.gm.kind === 'interior') this.drawRoom(rt);
-    else if (this.gm.kind === 'ciudad') this.drawCity(rt);
-    else this.drawCampo(rt);
+    if (!restoreHooked) {
+      restoreHooked = true;
+      this.game.renderer.on(Phaser.Renderer.Events.RESTORE_WEBGL, () => {
+        groundLost = true;
+        const adv = this.game.scene.getScene('AdventureScene');
+        if (adv.scene.isActive()) adv.scene.restart({});
+      });
+    }
+    if (groundLost) {
+      groundLost = false;
+      for (const k of groundKeys.splice(0)) this.textures.remove(k);
+    }
+    const groundKey = `av_ground_${this.gm.id}`;
+    if (!this.textures.exists(groundKey)) {
+      const dt = this.textures.addDynamicTexture(groundKey, W * 16, H * 16)!;
+      dt.beginDraw();
+      const fills = this.gm.kind === 'interior' ? this.drawRoom(dt) : this.gm.kind === 'ciudad' ? this.drawCity(dt) : this.drawCampo(dt);
+      dt.endDraw();
+      // fill() pinta directo sobre la textura: va fuera del lote
+      for (const [color, x, y, w, h] of fills) dt.fill(color, 1, x, y, w, h);
+      rememberGround(this, groundKey);
+    }
+    this.add.image(0, 0, groundKey).setOrigin(0).setScale(2).setDepth(-10000);
     const isWater = (x: number, y: number) => { const c = this.map[y]?.[x]; return c === '~' || c === 'B'; };
     for (let y = 0; y < H; y++) {
       for (let x = 0; x < W; x++) {
@@ -297,7 +342,8 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   /** Suelo de hierba y camino con el tileset Wang de PixelLab (esquinas: camino si lo tocan dos casillas de camino). */
-  private drawCampo(rt: Phaser.GameObjects.RenderTexture): void {
+  private drawCampo(rt: Phaser.Textures.DynamicTexture): GroundFill[] {
+    const fills: GroundFill[] = [];
     const vertex = (vx: number, vy: number) => {
       let n = 0;
       for (const [dx, dy] of [[-1, -1], [0, -1], [-1, 0], [0, 0]]) if (this.isPath(vx + dx, vy + dy)) n++;
@@ -307,21 +353,22 @@ export class AdventureScene extends Phaser.Scene {
     for (let y = 0; y < this.map.length; y++) {
       for (let x = 0; x < this.map[0].length; x++) {
         const mask = vertex(x, y) * 8 + vertex(x + 1, y) * 4 + vertex(x, y + 1) * 2 + vertex(x + 1, y + 1);
-        if (hasTiles) rt.drawFrame('av_tiles', mask, x * 16, y * 16);
-        else rt.fill(mask ? 0xc89060 : 0x58b848, 1, x * 16, y * 16, 16, 16);
+        if (hasTiles) rt.batchDrawFrame('av_tiles', mask, x * 16, y * 16);
+        else fills.push([mask ? 0xc89060 : 0x58b848, x * 16, y * 16, 16, 16]);
         const c = this.map[y][x];
         if (c === 'c') {
-          rt.fill(0x4a3c30, 1, x * 16, y * 16, 16, 16);
-          rt.fill(0x5c4a3a, 1, x * 16 + ((x * 5 + y * 3) % 12), y * 16 + ((x * 7 + y) % 12), 3, 2);
+          fills.push([0x4a3c30, x * 16, y * 16, 16, 16]);
+          fills.push([0x5c4a3a, x * 16 + ((x * 5 + y * 3) % 12), y * 16 + ((x * 7 + y) % 12), 3, 2]);
         }
-        if (c === 'f') rt.drawFrame('av_flowers', undefined, x * 16, y * 16);
-        if (c === 'B') rt.drawFrame('av_bridge', undefined, x * 16, y * 16);
+        if (c === 'f') rt.batchDrawFrame('av_flowers', undefined, x * 16, y * 16);
+        if (c === 'B') rt.batchDrawFrame('av_bridge', undefined, x * 16, y * 16);
       }
     }
+    return fills;
   }
 
   /** Medellín: asfalto, andenes, cebras, plazas de ladrillo y adoquín, grama de los parques. */
-  private drawCity(rt: Phaser.GameObjects.RenderTexture): void {
+  private drawCity(rt: Phaser.Textures.DynamicTexture): GroundFill[] {
     for (let y = 0; y < this.map.length; y++) {
       for (let x = 0; x < this.map[0].length; x++) {
         const c = this.map[y][x];
@@ -334,36 +381,38 @@ export class AdventureScene extends Phaser.Scene {
         const v = (x * 7 + y * 13) % 4;
         const k = `av_cg_${kind}_${v}`;
         if (!this.textures.exists(k)) addPixmap(this, k, buildCityGround(kind, v));
-        rt.draw(k, x * 16, y * 16);
-        if (c === 'B') rt.drawFrame('av_bridge', undefined, x * 16, y * 16);
+        rt.batchDrawFrame(k, undefined, x * 16, y * 16);
+        if (c === 'B') rt.batchDrawFrame('av_bridge', undefined, x * 16, y * 16);
       }
     }
+    return [];
   }
 
   /** Cuarto: pared del fondo (dos baldosas), bordes, piso y el tapete de la salida. */
-  private drawRoom(rt: Phaser.GameObjects.RenderTexture): void {
+  private drawRoom(rt: Phaser.Textures.DynamicTexture): GroundFill[] {
     const W = this.map[0].length, H = this.map.length;
     const floor = this.gm.floor ?? 'madera', wall = this.gm.wall ?? 'bahareque';
     const tex = (k: string, pm: () => Parameters<typeof addPixmap>[2]) => { if (!this.textures.exists(k)) addPixmap(this, k, pm()); return k; };
     for (let y = 1; y < H; y++) for (let x = 0; x < W; x++) {
       const v = (x * 5 + y * 3) % 4;
-      rt.draw(tex(`av_fl_${floor}_${v}`, () => buildFloor(floor, v)), x * 16, y * 16);
+      rt.batchDrawFrame(tex(`av_fl_${floor}_${v}`, () => buildFloor(floor, v)), undefined, x * 16, y * 16);
     }
     for (let x = 1; x < W - 1; x++) {
       const v = x % 4;
-      rt.draw(tex(`av_bw_${wall}_${v}`, () => buildBackWall(wall, v)), x * 16, 0);
+      rt.batchDrawFrame(tex(`av_bw_${wall}_${v}`, () => buildBackWall(wall, v)), undefined, x * 16, 0);
     }
     for (let y = 0; y < H; y++) {
-      rt.draw(tex(`av_we_${wall}_left`, () => buildWallEdge(wall, 'left')), 0, y * 16);
-      rt.draw(tex(`av_we_${wall}_right`, () => buildWallEdge(wall, 'right')), (W - 1) * 16, y * 16);
+      rt.batchDrawFrame(tex(`av_we_${wall}_left`, () => buildWallEdge(wall, 'left')), undefined, 0, y * 16);
+      rt.batchDrawFrame(tex(`av_we_${wall}_right`, () => buildWallEdge(wall, 'right')), undefined, (W - 1) * 16, y * 16);
     }
-    for (let x = 1; x < W - 1; x++) if (this.map[H - 1][x] !== 'M') rt.draw(tex(`av_we_${wall}_bottom`, () => buildWallEdge(wall, 'bottom')), x * 16, (H - 1) * 16);
-    rt.draw(tex(`av_we_${wall}_corner_l`, () => buildWallEdge(wall, 'corner_l')), 0, (H - 1) * 16);
-    rt.draw(tex(`av_we_${wall}_corner_r`, () => buildWallEdge(wall, 'corner_r')), (W - 1) * 16, (H - 1) * 16);
+    for (let x = 1; x < W - 1; x++) if (this.map[H - 1][x] !== 'M') rt.batchDrawFrame(tex(`av_we_${wall}_bottom`, () => buildWallEdge(wall, 'bottom')), undefined, x * 16, (H - 1) * 16);
+    rt.batchDrawFrame(tex(`av_we_${wall}_corner_l`, () => buildWallEdge(wall, 'corner_l')), undefined, 0, (H - 1) * 16);
+    rt.batchDrawFrame(tex(`av_we_${wall}_corner_r`, () => buildWallEdge(wall, 'corner_r')), undefined, (W - 1) * 16, (H - 1) * 16);
     if (this.gm.exit) {
-      rt.draw(tex(`av_fl_${floor}_0`, () => buildFloor(floor, 0)), this.gm.exit.x * 16, this.gm.exit.y * 16);
-      rt.draw('av_mat', this.gm.exit.x * 16, this.gm.exit.y * 16);
+      rt.batchDrawFrame(tex(`av_fl_${floor}_0`, () => buildFloor(floor, 0)), undefined, this.gm.exit.x * 16, this.gm.exit.y * 16);
+      rt.batchDrawFrame('av_mat', undefined, this.gm.exit.x * 16, this.gm.exit.y * 16);
     }
+    return [];
   }
 
   /** Luces de un dibujo de 16 px/baldosa puesto a escala 2 con su esquina de abajo-centro en (cx, bottom). */
@@ -374,12 +423,21 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private buildingTex(b: MapBuilding): string {
-    return b.set === 'town' ? `av_b_${b.kind}` : `av_cb_${b.kind}`;
+    if (b.set === 'town') return this.tex(`av_b_${b.kind}`, () => buildBuilding(b.kind as BuildingKind));
+    return this.tex(`av_cb_${b.kind}`, () => buildCityBuilding(b.kind as CityBuildingKind));
   }
 
   private propTex(p: MapProp, f = 0): string {
-    if (p.set === 'town') return `av_p_${p.kind}`;
-    return p.set === 'city' ? `av_cp_${p.kind}_${f}` : `av_fu_${p.kind}_${f}`;
+    if (p.set === 'town') return this.tex(`av_p_${p.kind}`, () => buildProp(p.kind as PropKind));
+    if (p.set === 'city') return this.cityProp(p.kind as CityPropKind, f);
+    // los muebles parpadean entre sus dos dibujos: se preparan ambos
+    for (const g of [0, 1]) this.tex(`av_fu_${p.kind}_${g}`, () => buildFurniture(p.kind as FurnitureKind, g));
+    return `av_fu_${p.kind}_${f}`;
+  }
+
+  private cityProp(k: CityPropKind, f = 0): string {
+    for (const g of [0, 1]) this.tex(`av_cp_${k}_${g}`, () => buildCityProp(k, g));
+    return `av_cp_${k}_${f}`;
   }
 
   private buildObjects(): void {
@@ -417,10 +475,32 @@ export class AdventureScene extends Phaser.Scene {
     if (this.gm.props.some((p) => p.kind === 'metro_via')) {
       const via = this.gm.props.find((p) => p.kind === 'metro_via')!;
       // las ruedas del tren van sobre el riel, 58 px (a escala 1) encima del pie del viaducto
-      const t = this.add.image(-400, (via.y + 1) * CELL - 58 * 2, 'av_cp_metro_tren_0').setOrigin(0.5, 1).setScale(2).setDepth(2501);
+      const t = this.add.image(-400, (via.y + 1) * CELL - 58 * 2, this.cityProp('metro_tren')).setOrigin(0.5, 1).setScale(2).setDepth(2501);
       this.trains.push(t);
     }
     for (const s of this.gm.signs) this.add.image(feetX(s.x), feetY(s.y) + 3, 'av_sign').setOrigin(0.5, 1).setScale(2).setDepth(feetY(s.y));
+  }
+
+  private collectStatics(): void {
+    const ground = `av_ground_${this.gm.id}`;
+    this.statics = [];
+    for (const o of this.children.list) {
+      if (!(o instanceof Phaser.GameObjects.Image) || o instanceof Phaser.GameObjects.Sprite) continue;
+      if (o.texture.key === ground || this.trains.includes(o)) continue;
+      const b = o.getBounds();
+      this.statics.push({ img: o, x0: b.x, y0: b.y, x1: b.right, y1: b.bottom });
+    }
+    this.culledAt = { x: NaN, y: NaN };
+  }
+
+  /** Phaser procesa cada imagen aunque quede fuera de la pantalla; en el campo son miles. */
+  private cullStatics(): void {
+    const cam = this.cameras.main;
+    const sx = cam.scrollX, sy = cam.scrollY;
+    if (Math.abs(sx - this.culledAt.x) < 16 && Math.abs(sy - this.culledAt.y) < 16) return;
+    this.culledAt = { x: sx, y: sy };
+    const m = 64, l = sx - m, t = sy - m, r = sx + GAME_WIDTH + m, b = sy + GAME_HEIGHT + m;
+    for (const s of this.statics) s.img.visible = s.x1 > l && s.x0 < r && s.y1 > t && s.y0 < b;
   }
 
   private npcTexture(key: string): string {
@@ -522,15 +602,18 @@ export class AdventureScene extends Phaser.Scene {
     const cam = this.cameras.main;
     const sx = cam.scrollX, sy = cam.scrollY;
     this.night.clear().fill(NIGHT_COLOR, this.darkness);
+    // todas las luces van en un solo lote que se borra de una vez: una pasada por fotograma, no una por luz
+    this.night.beginDraw();
     const eraseScaled = (x: number, y: number, rr: number) => {
       if (x + rr < sx || y + rr < sy || x - rr > sx + GAME_WIDTH || y - rr > sy + GAME_HEIGHT) return;
       this.lightImg.setScale(rr / 64);
-      this.night.erase(this.lightImg, Math.round(x - sx), Math.round(y - sy));
+      this.night.batchDraw(this.lightImg, Math.round(x - sx), Math.round(y - sy));
     };
     // el farol de Juan tiembla un poquito
     const r = LANTERN_R + Math.sin(this.frame / 7) * 2 + (this.frame % 23 === 0 ? -3 : 0);
     eraseScaled(this.hero.x, this.hero.y - 16, r);
     for (const l of this.lamps) eraseScaled(l.x, l.y, l.r + Math.sin(this.frame / 9 + l.flicker) * 2);
+    this.night.endDraw(true);
   }
 
   /** Lugares alegres: menos oscuridad, música de fiesta; el monte y el río: oscuro y tenso. */
@@ -602,6 +685,7 @@ export class AdventureScene extends Phaser.Scene {
     this.frame++;
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
     this.animateWorld();
+    this.cullStatics();
     this.drawNight();
     this.updateHud();
     this.dialog.update(this.menu);
@@ -742,7 +826,7 @@ export class AdventureScene extends Phaser.Scene {
     await this.wait(280);
     Object.assign(this.st, { map, x, y, facing });
     saveAdventure(this.st);
-    this.scene.restart({ arrive });
+    startWithLoading(this, 'AdventureScene', { arrive }, getMap(map).name);
   }
 
   private async enter(b: MapBuilding): Promise<void> {
@@ -888,7 +972,7 @@ export class AdventureScene extends Phaser.Scene {
     let rider: Phaser.GameObjects.Container;
     let gallop: Phaser.Time.TimerEvent | null = null;
     if (by === 'jeep') {
-      rider = this.add.container(-60, 182, [this.add.image(0, 0, 'av_cp_jeep_0').setScale(2).setOrigin(0.5, 1)]);
+      rider = this.add.container(-60, 182, [this.add.image(0, 0, this.cityProp('jeep')).setScale(2).setOrigin(0.5, 1)]);
     } else {
       const parts: Phaser.GameObjects.GameObject[] = [];
       if (this.hasDog) parts.push(this.add.sprite(-46, 2, 'av_perro', 1).setOrigin(0.5, 1).setScale(0.75));
@@ -918,7 +1002,7 @@ export class AdventureScene extends Phaser.Scene {
     const [ax, ay] = (by === 'jeep' ? dest.arrival : dest.horseArrival)!;
     Object.assign(this.st, { map: dest.id, x: ax, y: ay, facing: 'down' as Dir });
     saveAdventure(this.st);
-    this.scene.restart({ arrive: by === 'jeep' ? 'car' : 'horse' });
+    startWithLoading(this, 'AdventureScene', { arrive: by === 'jeep' ? 'car' : 'horse' }, dest.name);
   }
 
   private async arriveBy(by: 'car' | 'horse'): Promise<void> {
@@ -2029,6 +2113,6 @@ export class AdventureScene extends Phaser.Scene {
       bars.push(this.add.rectangle(i % 2 ? GAME_WIDTH : 0, y, 0, GAME_HEIGHT / 8, 0x000000).setOrigin(i % 2 ? 1 : 0, 0).setScrollFactor(0).setDepth(7000));
     }
     await this.tween({ targets: bars, width: GAME_WIDTH, duration: 450, ease: 'Cubic.in' });
-    this.scene.start('FightScene');
+    startWithLoading(this, 'FightScene');
   }
 }

@@ -39,6 +39,7 @@ import { fleeFightChance } from '../adventure/Hunt';
 import { aimLurk, buildLurk, lurkAt, lurkFeetY, lurkScale, lurkSounds, wantsLurk, type LurkScript } from '../combat/Lurk';
 import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildHorse } from '../adventure/OverworldArt';
 import { addSheet } from '../utils/textures';
+import { startWithLoading } from '../ui/Loading';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
 const VS_FRAMES = 90;
@@ -968,7 +969,7 @@ export class FightScene extends Phaser.Scene {
       this.p2.x += this.p2.facing * -2;
     }
     if (t === 70) this.showMessage('¡SE ESCAPÓ!', this.p2.stats.name);
-    if (t >= 140) this.scene.start('AdventureScene', { outcome: 'fled' });
+    if (t >= 140) startWithLoading(this, 'AdventureScene', { outcome: 'fled' });
   }
 
   private stepRoundEnd(): void {
@@ -1021,7 +1022,7 @@ export class FightScene extends Phaser.Scene {
     const slot = this.matchWinnerSlot ?? 1;
     // modo aventura: se vuelve al mapa; ganar sigue la historia y perder la reinicia
     if (this.registry.get('adventureFight')) {
-      this.scene.start('AdventureScene', { outcome: slot === 1 ? 'win' : 'lose' });
+      startWithLoading(this, 'AdventureScene', { outcome: slot === 1 ? 'win' : 'lose' });
       return;
     }
     const data: ResultData = {

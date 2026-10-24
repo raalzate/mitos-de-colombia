@@ -11,6 +11,7 @@ import { AdventureScene } from './scenes/AdventureScene';
 import { fitIntegerZoom, inputManager } from './utils/game';
 import { sfx } from './audio/Sfx';
 import { isTouchDevice, TouchControls } from './ui/TouchControls';
+import { hideLoadingOnSceneReady } from './ui/Loading';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -44,6 +45,8 @@ window.addEventListener('resize', relayout);
 window.addEventListener('orientationchange', () => setTimeout(relayout, 200));
 document.addEventListener('fullscreenchange', () => setTimeout(relayout, 50));
 game.events.once(Phaser.Core.Events.READY, () => {
+  // el arranque quita su aviso él mismo, cuando termina de dibujar el arte
+  hideLoadingOnSceneReady(game, ['BootScene']);
   touch.mount();
   relayout();
 });

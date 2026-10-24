@@ -9,6 +9,7 @@ import { playScreamer } from '../ui/Screamer';
 import { MENU_IDLE_SCARE_SECONDS } from '../combat/Fear';
 import { loadAdventure } from '../adventure/State';
 import type { FighterId } from '../combat/CombatTypes';
+import { startWithLoading } from '../ui/Loading';
 
 type Page = 'main' | 'difficulty' | 'controls' | 'adventure';
 
@@ -194,7 +195,7 @@ export class MenuScene extends Phaser.Scene {
       const label = this.items[this.index].text;
       if (label === 'VOLVER') { this.showPage('main'); return; }
       this.registry.remove('adventure');
-      this.scene.start('AdventureScene', { fresh: label === 'NUEVA PARTIDA' });
+      startWithLoading(this, 'AdventureScene', { fresh: label === 'NUEVA PARTIDA' }, label === 'NUEVA PARTIDA' ? 'SAN AGUSTÍN' : 'CONTINUANDO LA AVENTURA');
     } else if (this.page === 'difficulty') {
       if (this.index === DIFF_ITEMS.length) {
         this.showPage('main');

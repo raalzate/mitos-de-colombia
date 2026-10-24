@@ -73,6 +73,12 @@ docs/                          Esta documentación y las capturas
   cada escape.
 - Los sucesos de la historia son banderas en la partida (`intro`, `perro`, `arepa`, `caballo`, `tono`...). Los
   personajes pueden declarar `needs` (aparecen tras un suceso) o `gone` (se van tras un suceso).
+- **Rendimiento en celular**: el suelo de cada mapa se pinta en un solo lote y queda guardado como textura (los
+  últimos 4 mapas); la noche borra todas sus luces en una sola pasada por fotograma; lo estático que queda fuera de
+  la cámara no se dibuja; casas, objetos y muebles se generan la primera vez que un mapa los usa.
+- **Aviso de carga** (`ui/Loading.ts` + `#loading` en `index.html`): es HTML con animación CSS, así sigue moviéndose
+  mientras la escena siguiente se arma. `startWithLoading` lo muestra antes de cambiar de escena y cada escena lo
+  quita al pintar su primer cuadro; en el arranque muestra el avance de la descarga.
 - El combate se abre con la configuración en el registro de Phaser (`adventureFight`) y vuelve con el resultado
   (`win`, `lose`, `fled`).
 

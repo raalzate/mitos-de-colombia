@@ -6,6 +6,7 @@ import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
 import { ensureStage, portraitKey, text, type StageKeys } from '../utils/textures';
+import { startWithLoading } from '../ui/Loading';
 
 const CHOICES: StageChoice[] = [...STAGE_IDS, 'random'];
 
@@ -128,7 +129,7 @@ export class StageSelectScene extends Phaser.Scene {
       this.startTimer--;
       this.banner.setVisible(Math.floor(this.frame / 6) % 2 === 0);
       if (this.startTimer === 0) {
-        this.scene.start('FightScene');
+        startWithLoading(this, 'FightScene');
         return;
       }
     }

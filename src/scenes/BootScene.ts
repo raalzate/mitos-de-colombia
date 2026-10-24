@@ -10,6 +10,7 @@ import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { drawnAnimFile, drawnAnimKey } from '../art/DrawnAnim';
 import { preloadDrawnFx } from '../art/DrawnFx';
 import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage } from '../utils/textures';
+import { setLoadingProgress } from '../ui/Loading';
 
 /**
  * Genera todos los recursos gráficos de forma procedimental (pixel art en memoria).
@@ -46,6 +47,8 @@ export class BootScene extends Phaser.Scene {
     for (const k of ['duende', 'pollo', 'mano']) this.load.spritesheet(`av_spirit_${k}`, `aventura/spirit_${k}.png`, { frameWidth: 48, frameHeight: 48 });
     this.load.spritesheet('av_tiles', 'aventura/tiles_path.png', { frameWidth: 16, frameHeight: 16 });
     this.load.image('av_tree', 'aventura/tree.png');
+    setLoadingProgress(0);
+    this.load.on(Phaser.Loader.Events.PROGRESS, (p: number) => setLoadingProgress(p));
     this.load.on(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
       console.warn(`Recurso no disponible, se usa arte procedimental: ${file.key}`);
     });

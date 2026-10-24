@@ -8,6 +8,7 @@ import { ANIM_TABLES, addStageBackdrop, portraitKey, splashKey, text } from '../
 import type { StageId } from '../art/StageArtist';
 import { splashPose } from '../art/SplashPose';
 import { drawnAnimKey, drawnFrame } from '../art/DrawnAnim';
+import { isSwitching, startWithLoading } from '../ui/Loading';
 
 export interface ResultData {
   winner: PlayerSlot;
@@ -87,6 +88,7 @@ export class ResultScene extends Phaser.Scene {
       const frames = table.victory;
       this.sprite.setFrame(frames[Math.floor(this.frame / 14) % frames.length]);
     }
+    if (isSwitching()) return;
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
     if (this.menu.pressed(MENU_KEYS.up)) {
       this.index = (this.index + ITEMS.length - 1) % ITEMS.length;
@@ -104,7 +106,7 @@ export class ResultScene extends Phaser.Scene {
     }
     if (!this.menu.pressed(MENU_KEYS.confirm)) return;
     sfx.play('confirm');
-    if (this.index === 0) this.scene.start('FightScene');
+    if (this.index === 0) startWithLoading(this, 'FightScene');
     else if (this.index === 1) this.scene.start('CharacterSelectScene');
     else this.scene.start('MenuScene');
   }
