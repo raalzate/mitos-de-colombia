@@ -96,3 +96,20 @@ describe('todos los mapas', () => {
     for (const s of STORY_IDS) expect(told.has(s), `${STORIES[s].title} sin narrador`).toBe(true);
   });
 });
+
+describe('el monte puro', () => {
+  it('la trocha del monte sube al monte puro y baja otra vez', () => {
+    const campo = getMap('campo'), monte = getMap('monte');
+    const upLink = campo.links!.find((l) => l.to === 'monte')!;
+    const downLink = monte.links!.find((l) => l.to === 'campo')!;
+    expect(walkable(campo.grid, upLink.x, upLink.y)).toBe(true);
+    expect(walkable(monte.grid, upLink.tx, upLink.ty)).toBe(true);
+    expect(walkable(campo.grid, downLink.tx, downLink.ty)).toBe(true);
+    const seen = reach(monte, [upLink.tx, upLink.ty]);
+    expect(seen.has(`${downLink.x},${downLink.y}`)).toBe(true);
+    // la leña caída del claro se alcanza desde la entrada
+    const logs = monte.props.filter((p) => p.kind === 'tronco');
+    expect(logs.length).toBeGreaterThan(0);
+    for (const p of logs) expect(cellsOf(p).some(([x, y]) => nextTo(seen, x, y)), `tronco ${p.x},${p.y}`).toBe(true);
+  });
+});

@@ -200,6 +200,7 @@ export const SIGNS: Sign[] = [
   { x: 41, y: 52, lines: ['RÍO GRANDE. PROHIBIDO BAÑARSE DE NOCHE.', 'EL MOHÁN SE LLEVA A LOS QUE SE METEN.'] },
   { x: 77, y: 52, lines: ['LAGUNA SAGRADA.', 'DE AQUÍ SALIÓ BACHUÉ CON UN NIÑO EN BRAZOS, MADRE DE LOS MUISCAS.'] },
   { x: 11, y: 52, lines: ['CIÉNAGA. CUIDADO CON LOS CAIMANES...', '...Y CON LOS QUE NO SON CAIMANES DEL TODO.'] },
+  { x: 87, y: 3, lines: ['SUBIDA AL MONTE PURO.', 'MONTAÑA ARRIBA NO HAY CAMINO NI CASAS: SOLO ROBLES, NEBLINA Y LA MADREMONTE.'] },
   { x: 5, y: 7, lines: ['CAMINO DE HERRADURA A SANTA FE DE ANTIOQUIA.', 'TRES DÍAS A PIE... UNO A CABALLO. ¡SIN BESTIA NI LO INTENTE!'] },
 ];
 
@@ -260,6 +261,7 @@ export function buildMap(): Cell[][] {
   rect(g, 2, 24, 21, 24, '='); rect(g, 10, 17, 10, 50, '='); // vereda
   rect(g, 60, 33, 99, 33, '='); rect(g, 75, 4, 75, 33, '='); rect(g, 75, 4, 88, 4, '='); // trochas del monte
   rect(g, 75, 33, 75, 43, '=');
+  rect(g, 88, 1, 88, 4, '='); // la trocha sube al monte puro
   rect(g, 40, 42, 40, 58, '='); rect(g, 31, 57, 58, 57, '='); rect(g, 58, 53, 58, 57, '='); rect(g, 58, 53, 66, 53, '=');
   rect(g, 10, 50, 10, 53, '='); rect(g, 75, 48, 75, 54, '=');
   // puentes sobre el río

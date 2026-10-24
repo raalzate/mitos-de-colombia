@@ -36,7 +36,7 @@ import { canUseUltimate } from '../combat/CombatRules';
 import type { AdventureFight } from '../adventure/State';
 import { fleeFightChance } from '../adventure/Hunt';
 import { aimLurk, buildLurk, lurkAt, lurkFeetY, lurkScale, lurkSounds, wantsLurk, type LurkScript } from '../combat/Lurk';
-import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, buildHorse } from '../adventure/OverworldArt';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildHorse } from '../adventure/OverworldArt';
 import { addSheet } from '../utils/textures';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
@@ -887,7 +887,7 @@ export class FightScene extends Phaser.Scene {
     const lying = st.pose === 'lying' && action !== 'fall';
     // temblor parejo, como un escalofrío, no un brinco al azar en cada cuadro
     const jx = st.jitter ? Math.round(Math.sin(l.frame * 1.3) * st.jitter) : 0;
-    const x = Math.round(rawX) + jx;
+    let x = Math.round(rawX) + jx;
     // al voltearse se estrecha y se abre ya volteado, igual que en la pelea
     if (st.face !== l.face) { l.face = st.face; l.turn = l.frame; }
     let turnSx = 1, flip = st.face === -1;
@@ -913,17 +913,22 @@ export class FightScene extends Phaser.Scene {
       l.horseX = rawX;
       if (moving) l.horseDist += 1;
       l.horse.setFrame(moving ? HORSE_GALLOP_FIRST + Math.floor(l.horseDist / 5) % HORSE_GALLOP_FRAMES : 1);
-      l.horse.setVisible(mounted).setPosition(x, Math.round(feet - st.lift * k) - bob)
-        .setScale(1.6 * k * turnSx, 1.6 * k).setFlipX(flip).setAngle(rock * st.face).setDepth(deep ? 4.4 : 7).setAlpha(st.alpha);
+      const hy = 1.6 * k, horseY = Math.round(feet - st.lift * k) - bob;
+      l.horse.setVisible(mounted).setPosition(x, horseY)
+        .setScale(hy * turnSx, hy).setFlipX(flip).setAngle(rock * st.face).setDepth(deep ? 4.6 : 7.6).setAlpha(st.alpha);
       l.horse.setTint(this.depthTint(st.d));
-      // sentado en la montura: las piernas le cuelgan a los lados del caballo
-      if (mounted) y -= Math.round(17 * 1.6 * k) + bob;
+      // sentado en la silla: cortado a la cadera, la pierna va pintada en el caballo, que queda delante
+      if (mounted) {
+        x += Math.round((RIDER_SEAT.saddleX - 24) * hy * turnSx * (flip ? -1 : 1));
+        y = horseY - Math.round((48 - RIDER_SEAT.seatY) * hy) + Math.round((fh - RIDER_SEAT.cut) * k * 0.85 * st.sy);
+      }
     }
     const ks = k * (mounted ? 0.85 : 1);
     v.sprite.setOrigin(0.5, 1).setPosition(x, y).setFlipX(flip)
       .setScale(ks * turnSx, ks * st.sy).setAngle((st.rot + rock + (lying ? 90 : 0)) * st.face)
       .setAlpha(st.alpha).setDepth(deep ? 4.5 : 7.5);
-    if (sunk > 0) v.sprite.setCrop(0, 0, v.sprite.frame.width, Math.max(0, fh - sunk));
+    if (mounted && l.horse) v.sprite.setCrop(0, 0, v.sprite.frame.width, RIDER_SEAT.cut);
+    else if (sunk > 0) v.sprite.setCrop(0, 0, v.sprite.frame.width, Math.max(0, fh - sunk));
     else v.sprite.setCrop();
     v.sprite.setTint(this.depthTint(st.d));
     v.shadow.setPosition(x, Math.round(feet) + 1).setScale(Math.max(3, 14 * k), 2 * k).setAlpha(deep || st.sink > 0 ? 0 : 0.35 * st.alpha);

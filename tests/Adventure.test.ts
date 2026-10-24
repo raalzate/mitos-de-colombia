@@ -7,7 +7,7 @@ import {
 import { BUILDING_FOOTPRINT } from '../src/adventure/TownArt';
 import { TRAIL_LEN, ambushChance, fleeFightChance, popSpot, spawnHidden, vanishChance, wander, zoneCells } from '../src/adventure/Hunt';
 import { paginate, wrap } from '../src/adventure/text';
-import { allCalmed, applyOutcome, fightDifficulty, newAdventure } from '../src/adventure/State';
+import { MAX_SIGHTINGS, addSighting, allCalmed, applyOutcome, fightDifficulty, hasMachete, newAdventure, reportSightings } from '../src/adventure/State';
 
 describe('combates del modo aventura', () => {
   it('ganar calma al mito', () => {
@@ -158,5 +158,22 @@ describe('diálogos y partida', () => {
     expect(allCalmed(s)).toBe(false);
     s.calmed = GUARDIANS.map((x) => x.id);
     expect(allCalmed(s)).toBe(true);
+  });
+});
+
+describe('machete y mapa de avistamientos', () => {
+  it('Juan empieza sin machete: hay que ganárselo', () => {
+    expect(hasMachete(newAdventure())).toBe(false);
+  });
+
+  it('el cabo marca un avistamiento por cada mito suelto y Juan va sumando los suyos', () => {
+    const s = newAdventure();
+    s.calmed.push('silbon');
+    reportSightings(s);
+    expect(s.sightings.silbon).toBeUndefined();
+    expect(Object.keys(s.sightings)).toHaveLength(GUARDIANS.length - 1);
+    for (let i = 0; i < MAX_SIGHTINGS + 2; i++) addSighting(s, 'llorona', 30 + i, 50);
+    expect(s.sightings.llorona).toHaveLength(MAX_SIGHTINGS);
+    expect(s.sightings.llorona!.at(-1)).toEqual([30 + MAX_SIGHTINGS + 1, 50]);
   });
 });

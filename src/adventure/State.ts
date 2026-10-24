@@ -16,6 +16,8 @@ export interface AdventureState {
   escapes: Partial<Record<FighterId, number>>;
   /** historias que ya le contaron a Juan */
   stories: StoryId[];
+  /** dónde han visto a cada mito (lo que reporta el cabo y lo que ve Juan): se marca en el mapa */
+  sightings: Partial<Record<FighterId, [number, number][]>>;
 }
 
 /** Combate en curso del modo aventura: lo lee el FightScene para volver al mapa al terminar. */
@@ -30,7 +32,7 @@ export type FightOutcome = 'win' | 'lose' | 'fled';
 const KEY = 'mitos-aventura-v5';
 
 export function newAdventure(): AdventureState {
-  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [] };
+  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {} };
 }
 
 export function loadAdventure(): AdventureState | null {
@@ -41,6 +43,9 @@ export function loadAdventure(): AdventureState | null {
     s.escapes ??= {};
     s.stories ??= [];
     s.map ??= 'campo';
+    s.sightings ??= {};
+    // partidas de antes del machete ganado: el que ya calmó mitos ya tenía machete
+    if (s.calmed.length && !s.flags.includes('machete')) s.flags.push('machete');
     return s;
   } catch {
     return null;
@@ -81,3 +86,24 @@ export function fightDifficulty(s: AdventureState): Difficulty {
 }
 
 export const allCalmed = (s: AdventureState) => GUARDIANS.every((g) => s.calmed.includes(g.id));
+
+/** Sin el machete del abuelo, Juan no se le mide a ningún espanto. */
+export const hasMachete = (s: AdventureState) => s.flags.includes('machete');
+
+export const MAX_SIGHTINGS = 3;
+
+/** Anota dónde se vio un mito; se guardan los últimos avistamientos de cada uno. */
+export function addSighting(s: AdventureState, id: FighterId, x: number, y: number): void {
+  const list = (s.sightings[id] ??= []);
+  if (list.some(([a, b]) => a === x && b === y)) return;
+  list.push([x, y]);
+  if (list.length > MAX_SIGHTINGS) list.shift();
+}
+
+/** Las denuncias que el cabo Ramírez ya tenía marcadas: una por cada mito suelto, en el sitio de su leyenda. */
+export function reportSightings(s: AdventureState): void {
+  for (const g of GUARDIANS) {
+    if (s.calmed.includes(g.id)) continue;
+    addSighting(s, g.id, Math.round((g.zone.x0 + g.zone.x1) / 2), Math.round((g.zone.y0 + g.zone.y1) / 2));
+  }
+}

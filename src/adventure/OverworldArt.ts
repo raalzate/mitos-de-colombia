@@ -167,6 +167,12 @@ const GALLOP: [[number, number], [number, number]][] = [
   [[-8, 18], [-38, -22]],
 ];
 export const HORSE_GALLOP_FIRST = 3;
+
+/**
+ * Cómo va sentado el Sombrerón en el caballo negro: su dibujo de reposo se corta a la cadera (fila `cut` del fotograma de 72 px)
+ * y esa línea se pone en la silla (`seatY`, `saddleX` en px del caballo, que mira al este). La pierna de este lado va pintada en el caballo.
+ */
+export const RIDER_SEAT = { cut: 46, seatY: 25, saddleX: 21 };
 export const HORSE_GALLOP_FRAMES = GALLOP.length;
 
 /**
@@ -209,6 +215,17 @@ export function buildHorse(kind: HorseKind): Pixmap {
     east.line(34, 12, 31, 27, 2, mane);
     if (negro) east.line(33, 14, 29, 30, 2, mane);
     east.set(40, 12, eye);
+    if (negro) {
+      // silla negra y la pierna del jinete colgando por este lado: ruana, bota y estribo
+      const ruana = C(0x2a2230), ruanaL = C(0x3c3346), boot = C(0x0e0a0e);
+      east.rect(15, 21, 12, 3, C(0x3a1a12));
+      east.polygon([[15, 22], [26, 22], [29, 29], [24, 31], [17, 28]], ruana);
+      east.line(18, 23, 25, 23, 1, ruanaL);
+      east.line(24, 27, 27, 33, 3, ruana);
+      east.rect(25, 33, 5, 3, boot);
+      east.set(29, 33, ruanaL);
+      east.hline(24, 30, 36, C(0xb8b8c0));
+    }
     if (!negro) {
       east.line(41, 10, 45, 15, 1, blaze);
       east.rect(16, 22, 13, 4, blanket); east.hline(16, 28, 22, blanketL);

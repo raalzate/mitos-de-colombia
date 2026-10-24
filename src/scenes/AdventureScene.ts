@@ -17,7 +17,7 @@ import {
 } from '../adventure/Maps';
 import { STORIES, STORY_IDS } from '../adventure/Stories';
 import {
-  allCalmed, applyOutcome, clearAdventure, fightDifficulty, loadAdventure, newAdventure, saveAdventure,
+  addSighting, allCalmed, applyOutcome, clearAdventure, fightDifficulty, hasMachete, loadAdventure, newAdventure, reportSightings, saveAdventure,
   type AdventureFight, type AdventureState, type FightOutcome,
 } from '../adventure/State';
 import {
@@ -38,7 +38,7 @@ import {
 import {
   FURNITURE_FOOTPRINT, WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
-import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, buildDog, buildHorse } from '../adventure/OverworldArt';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse } from '../adventure/OverworldArt';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
@@ -74,6 +74,12 @@ const MYTH_MAP_SCALE = 0.72;
 /** Gente de la ciudad que no tiene hoja propia todavía: se dibuja como el aldeano más parecido. */
 const NPC_FALLBACK: Record<string, VillagerKind> = { conductor: 'arriero', silletero: 'cafetero', acordeonero: 'arriero', bailarina: 'vendedora', rapero: 'nino' };
 const CITY_GROUND: Partial<Record<Cell, CityGround>> = { a: 'asfalto', d: 'anden', z: 'cebra', l: 'ladrillo', o: 'adoquin', '.': 'grama', '=': 'tierra_roja' };
+
+/** Colores del mapa de avistamientos, como pintado a mano sobre papel. */
+const MAP_INK: Partial<Record<Cell, string>> = {
+  T: '#4f6e34', '"': '#a8b066', '~': '#4a7aa8', B: '#7a5030', '=': '#9a6a3a', H: '#8a3a2a', P: '#b89a64', c: '#8a8070', S: '#9a6a3a', f: '#d8b880',
+};
+const SIGHT_COLORS = [0xd82020, 0xf08020, 0xf0d020, 0x40c040, 0x20c0e0, 0x3058f0, 0xa048e0, 0xf050b0, 0x8a5020];
 
 const SPIRIT_SCALE: Record<SpiritKind, number> = { duende: 0.72, pollo: 0.8, mano: 1 };
 const SPIRIT_SOUND: Record<SpiritKind, SfxName> = { duende: 'duende', pollo: 'polloMaligno', mano: 'manoPeluda' };
@@ -126,6 +132,7 @@ export class AdventureScene extends Phaser.Scene {
   private area = '';
   private areaLabel!: Phaser.GameObjects.Container;
   private rnd = Math.random;
+  private mapView: Phaser.GameObjects.Container | null = null;
 
   constructor() {
     super('AdventureScene');
@@ -159,6 +166,7 @@ export class AdventureScene extends Phaser.Scene {
     this.dog = null;
     this.dogAt = { x: -99, y: -99, facing: 'down' };
     this.dogWarnCd = 0;
+    this.mapView = null;
     sfx.setTension(0);
     sfx.setBattle(false);
 
@@ -185,6 +193,7 @@ export class AdventureScene extends Phaser.Scene {
     if (fight && data.outcome) void this.afterFight(fight, data.outcome);
     else if (!this.st.flags.includes('intro')) void this.intro();
     else if (data.arrive === 'car' || data.arrive === 'horse') void this.arriveBy(data.arrive);
+    else if (this.gm.id === 'monte' && !this.st.flags.includes('llegó_monte')) void this.monteIntro();
     else this.showArea();
   }
 
@@ -394,7 +403,8 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private buildActors(): void {
-    const campo = this.gm.kind === 'campo';
+    // los mitos y los espíritus rondan San Agustín; el monte puro solo tiene su silencio
+    const campo = this.gm.id === 'campo';
     for (const npc of this.gm.npcs) {
       if (npc.needs && !this.st.flags.includes(npc.needs)) continue;
       if (npc.gone && this.st.flags.includes(npc.gone)) continue;
@@ -564,6 +574,11 @@ export class AdventureScene extends Phaser.Scene {
     this.animateWorld();
     this.drawNight();
     this.dialog.update(this.menu);
+    if (this.mapView) {
+      if (this.menu.pressed(MENU_KEYS.map) || this.menu.pressed(MENU_KEYS.confirm) || this.menu.pressed(MENU_KEYS.back)) this.closeMap();
+      else this.blinkMap();
+      return;
+    }
     if (this.dialog.busy || this.locked) return;
 
     if (this.moving) {
@@ -585,6 +600,7 @@ export class AdventureScene extends Phaser.Scene {
     if (this.frame % 90 === 0) this.wanderNpcs();
     if (this.menu.pressed(MENU_KEYS.confirm)) { void this.interact(); return; }
     if (this.menu.pressed(MENU_KEYS.back)) { void this.pauseMenu(); return; }
+    if (this.menu.pressed(MENU_KEYS.map) && this.st.flags.includes('mapa')) { this.openMap(); return; }
 
     const d = this.heldDir();
     if (!d) { this.turnDelay = 0; return; }
@@ -900,6 +916,8 @@ export class AdventureScene extends Phaser.Scene {
     this.updateMood();
     const ex = this.gm.exit;
     if (ex && this.st.x === ex.x && this.st.y === ex.y) { void this.leave(); return; }
+    const link = this.gm.links?.find((l) => l.x === this.st.x && l.y === this.st.y);
+    if (link) { void this.goTo(link.to, link.tx, link.ty, link.facing); return; }
     if (!this.ready || this.gm.kind !== 'campo') return;
     this.dogSenses();
     const hero = { x: this.st.x, y: this.st.y };
@@ -992,13 +1010,18 @@ export class AdventureScene extends Phaser.Scene {
 
   /** El Sombrerón anda en su caballo negro: el caballo sigue al jinete en todo (aparecer, crecer, esfumarse). */
   private mount(sp: Phaser.GameObjects.Sprite): void {
-    const horse = this.add.image(sp.x, sp.y, 'av_caballo_negro', 1).setOrigin(0.5, 1);
-    sp.y -= 30;
+    const gx = sp.x, ground = sp.y;
+    const horse = this.add.image(gx, ground, 'av_caballo_negro', 1).setOrigin(0.5, 1);
+    // de la cadera para abajo lo tapa el caballo: se corta ahí y se sienta en la silla
+    sp.setCrop(0, 0, sp.frame.width, RIDER_SEAT.cut);
     sfx.play('galope');
     this.time.delayedCall(500, () => sfx.play('relincho'));
     const sync = () => {
       const k = sp.scaleY / MYTH_MAP_SCALE;
-      horse.setScale(1.3 * k * (sp.scaleX / sp.scaleY), 1.3 * k).setAlpha(sp.alpha).setFlipX(sp.flipX).setDepth(sp.depth - 0.5);
+      const hy = 1.3 * k, hx = hy * (sp.scaleX / sp.scaleY);
+      horse.setScale(hx, hy).setAlpha(sp.alpha).setFlipX(sp.flipX).setDepth(sp.depth + 0.5);
+      sp.x = gx + (RIDER_SEAT.saddleX - 24) * hx * (sp.flipX ? -1 : 1);
+      sp.y = ground - (48 - RIDER_SEAT.seatY) * hy + (sp.frame.height - RIDER_SEAT.cut) * sp.scaleY;
     };
     sync();
     this.events.on(Phaser.Scenes.Events.POST_UPDATE, sync);
@@ -1021,6 +1044,7 @@ export class AdventureScene extends Phaser.Scene {
     const lying = v.g.id === 'patasola' && fall && this.textures.exists(drawnAnimKey('patasola', 'p1', 'fall')) && this.rnd() < 0.5;
     if (lying) sp.setTexture(drawnAnimKey('patasola', 'p1', 'fall'), fall.lying ?? 0).setY(sp.y + 4);
     const eyes = this.eyesAt(sp.x, sp.y - sp.displayHeight * (lying ? 0.4 : 0.78)).setAlpha(0);
+    addSighting(this.st, v.g.id, v.h.x, v.h.y);
     sfx.monster(v.g.id, 'attack');
     await this.tween({ targets: [sp, eyes], alpha: 0.85, duration: 300 });
     await this.wait(500);
@@ -1034,6 +1058,7 @@ export class AdventureScene extends Phaser.Scene {
     this.locked = true;
     await this.bubble(this.hero, 1, 400);
     sfx.play(MYTH_SOUND[v.g.id]);
+    addSighting(this.st, v.g.id, this.st.x, this.st.y);
     await this.dialog.say([v.g.clueText], { speaker: 'JUAN MACHETE' });
     this.locked = false;
   }
@@ -1055,6 +1080,20 @@ export class AdventureScene extends Phaser.Scene {
     await this.tween({ targets: sp, alpha: 1, scale: MYTH_MAP_SCALE, duration: 160, ease: 'Back.out' });
     await Promise.all([this.bubble(this.hero, 2, 600), this.shake(this.hero, 8)]);
     await this.dialog.say([v.g.fright], { speaker: 'JUAN MACHETE', shake: true });
+    addSighting(this.st, v.g.id, spot[0], spot[1]);
+
+    if (!hasMachete(this.st)) {
+      // sin machete no hay pelea: Juan sale corriendo y el espanto se ríe y se esconde
+      await this.dialog.say(['¡CON LAS MANOS VACÍAS NI ME LE MIDO! ¡PATAS, PA\' QUÉ LAS QUIERO!'], { speaker: 'JUAN MACHETE', shake: true });
+      await this.dialog.say([v.g.flee]);
+      await this.vanish(sp);
+      v.h.rest = 12;
+      relocate(this.map, v.h, v.g, this.rnd, this.st);
+      this.clearClues(v.g.id);
+      saveAdventure(this.st);
+      this.locked = false;
+      return;
+    }
 
     if (this.rnd() < vanishChance(v.h.escapes)) {
       await this.dialog.say([v.g.flee]);
@@ -1209,9 +1248,14 @@ export class AdventureScene extends Phaser.Scene {
       'BUSQUE LAS SEÑALES QUE DEJAN: HUELLAS, HUESOS, LÁGRIMAS... Y PARE BIEN LA OREJA. PREGÚNTELE A LA GENTE DEL PUEBLO.',
       'Y EN LA PLAZA ANDA UN PERRITO FLACO, SIN DUEÑO. DICEN QUE ESOS PERROS HUELEN A LOS ESPANTOS ANTES QUE NADIE... SI SE LO GANA, NO LO DEJA SOLO NUNCA.',
     ], { speaker: 'ABUELA ROSA' });
-    await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE MACHETE Y ESE FAROL, PUES!'], { speaker: 'JUAN MACHETE' });
+    await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE FAROL... Y EL MACHETE DEL ABUELO, PUES!'], { speaker: 'JUAN MACHETE' });
     sfx.play('ultimate');
-    await this.dialog.say(['¡ESO, MIJO! SI LO TUMBAN, SE ACABÓ TODO Y TOCA EMPEZAR DE NUEVO. Y SI EL ESPANTO SE LE VUELA, TOCA IR A BUSCARLO OTRA VEZ. ¡VAYA CON DIOS!'], { speaker: 'ABUELA ROSA' });
+    await this.dialog.say([
+      'EL FAROL TÓMELO. EL MACHETE DE SU ABUELO LO TIENE GUARDADO DON JULIO, EL DEL TRAPICHE, AQUÍ ABAJITO EN LA VEREDA.',
+      'PERO ESE MACHETE NO SE REGALA, MIJO: SE GANA. Y SIN MACHETE NI SE LE ARRIME A UN ESPANTO.',
+      'Y PASE DONDE EL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO: ÉL TIENE EL MAPA DE DÓNDE HAN VISTO A CADA ESPANTO.',
+      'SI LO TUMBAN, SE ACABÓ TODO Y TOCA EMPEZAR DE NUEVO. Y SI EL ESPANTO SE LE VUELA, TOCA IR A BUSCARLO OTRA VEZ. ¡VAYA CON DIOS!',
+    ], { speaker: 'ABUELA ROSA' });
     this.st.flags.push('intro');
     saveAdventure(this.st);
     this.locked = false;
@@ -1309,6 +1353,8 @@ export class AdventureScene extends Phaser.Scene {
       else if (npc.npc.key === 'perro') await this.talkPerro(npc);
       else if (npc.npc.key === 'caballo') await this.ride(npc);
       else if (npc.npc.name === 'DON RUBÉN') await this.talkRuben(npc);
+      else if (npc.npc.name === 'DON JULIO') await this.talkJulio(npc);
+      else if (npc.npc.name === 'CABO RAMÍREZ') await this.talkCabo(npc);
       else await this.talkVillager(npc);
       if (npc.sprite.active) this.faceNpc(npc, before);
       this.locked = false;
@@ -1411,6 +1457,85 @@ export class AdventureScene extends Phaser.Scene {
     await this.dialog.say(['¡JUAN SE GANÓ A LUCERO! CON ÉL PUEDE VIAJAR A SANTA FE DE ANTIOQUIA.']);
   }
 
+  /** Don Julio, el del trapiche, guarda el machete del abuelo: se lo da a Juan cuando le trae leña seca del monte puro. */
+  private async talkJulio(n: NpcView): Promise<void> {
+    const S = 'DON JULIO';
+    if (hasMachete(this.st)) {
+      await this.dialog.say(['¿CÓMO LE VA CON EL MACHETE DE SU ABUELO? CUÍDEMELO, QUE ESE MACHETE TIENE HISTORIA.'], { speaker: S });
+      await this.offerStory(n);
+      return;
+    }
+    if (this.st.flags.includes('lena')) {
+      sfx.play('confirm');
+      await this.dialog.say([
+        '¡ESO ES LEÑA SECA DE LA BUENA! Y SIN TUMBAR NI UN PALO VIVO... ASÍ HACÍA SU ABUELO.',
+        'EL QUE RESPETA EL MONTE PUEDE CARGAR ESTO. TOME, MIJO: EL MACHETE DE SU ABUELO. AFILADITO, COMO ÉL LO DEJÓ.',
+      ], { speaker: S });
+      this.st.flags.push('machete');
+      saveAdventure(this.st);
+      sfx.play('ultimate');
+      this.cameras.main.flash(200, 255, 230, 160);
+      await this.dialog.say(['¡JUAN SE GANÓ EL MACHETE DEL ABUELO! AHORA SÍ PUEDE ENFRENTAR A LOS ESPANTOS.']);
+      await this.dialog.say(['¡AHORA SÍ, PUES! ¡ESPANTOS, PREPÁRENSE, QUE AQUÍ VA JUAN MACHETE!'], { speaker: 'JUAN MACHETE' });
+      return;
+    }
+    if (!this.st.flags.includes('encargo_lena')) {
+      this.st.flags.push('encargo_lena');
+      saveAdventure(this.st);
+      await this.dialog.say([
+        '¿USTED ES EL NIETO DE DOÑA ROSA? SU ABUELO ME DEJÓ GUARDADO SU MACHETE ANTES DE MORIRSE. UN MACHETE DE LOS BUENOS.',
+        'PERO ÉL FUE CLARO: ESE MACHETE NO SE REGALA, SE GANA. EL QUE LO CARGUE TIENE QUE CONOCER EL MONTE Y RESPETARLO.',
+        'SUBA AL MONTE PURO, MONTAÑA ARRIBA: COJA LA TROCHA DEL MONTE HASTA EL NORTE. EN EL CLARO DE LOS ROBLES HAY PALOS CAÍDOS.',
+        'TRÁIGAME UN TERCIO DE LEÑA SECA PA\'L TRAPICHE. Y OJO: SOLO LEÑA CAÍDA. AL MONTE NO SE LE TUMBA NI UNA RAMA VIVA.',
+      ], { speaker: S });
+      return;
+    }
+    await this.dialog.say(['¿Y LA LEÑA, MIJO? EL MONTE PURO QUEDA SUBIENDO POR LA TROCHA DEL NORTE, PASANDO EL MONTE. EN EL CLARO DE LOS ROBLES.'], { speaker: S });
+  }
+
+  /** El cabo Ramírez lleva las denuncias de espantos en un mapa del municipio y se lo pasa a Juan. */
+  private async talkCabo(n: NpcView): Promise<void> {
+    if (this.st.flags.includes('mapa')) { await this.talkVillager(n); return; }
+    const S = 'CABO RAMÍREZ';
+    await this.dialog.say([
+      'ALTO AHÍ, CIUDADANO... AH, USTED ES EL NIETO DE DOÑA ROSA. LA ABUELA YA ME CONTÓ QUE VA A CAZAR ESPANTOS.',
+      'TODAS LAS NOCHES LA GENTE VIENE A DENUNCIAR: QUE UN SILBIDO EN EL LLANO, QUE UN LLANTO EN EL RÍO... YO LOS VOY MARCANDO EN ESTE MAPA DEL MUNICIPIO.',
+      'TÓMELO, QUE YO ME SÉ EL PUEBLO DE MEMORIA. CADA VEZ QUE USTED VEA UNA SEÑAL O UN ESPANTO, QUEDA MARCADO AHÍ TAMBIÉN.',
+    ], { speaker: S });
+    this.st.flags.push('mapa');
+    reportSightings(this.st);
+    saveAdventure(this.st);
+    sfx.play('ultimate');
+    await this.dialog.say(['¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON LA TECLA M O DESDE EL MENÚ.']);
+    this.openMap();
+  }
+
+  /** Primera vez en el monte puro: silencio, neblina y la sensación de que alguien mira. */
+  private async monteIntro(): Promise<void> {
+    this.locked = true;
+    this.st.flags.push('llegó_monte');
+    saveAdventure(this.st);
+    await this.wait(500);
+    sfx.play('creak');
+    await this.dialog.say(['¡QUÉ MONTE TAN CERRADO! AQUÍ NO SE OYE NI UN GRILLO... ES COMO SI LOS ÁRBOLES ESTUVIERAN AGUANTANDO LA RESPIRACIÓN.'], { speaker: 'JUAN MACHETE' });
+    this.locked = false;
+    this.showArea();
+  }
+
+  /** En el claro del monte puro: Juan recoge leña caída y la Madremonte lo deja ir porque no tumbó nada vivo. */
+  private async gatherWood(): Promise<void> {
+    sfx.play('creak');
+    this.cameras.main.shake(400, 0.006);
+    await this.dialog.say(['JUAN RECOGE LOS PALOS SECOS Y LOS AMARRA EN UN TERCIO...']);
+    sfx.play('whisper');
+    await this.dialog.say(['¿QUIÉN ANDA EN MI MONTE?...', '...LEÑA CAÍDA. ESO SÍ SE PUEDE, MUCHACHO. LLÉVATELA, Y NO VUELVAS CON MACHETE A TUMBAR LO QUE ESTÁ VIVO.'], { speaker: '¿?', shake: true });
+    await this.dialog.say(['¡GRACIAS, SEÑORA... QUIEN QUIERA QUE SEA! ¡PALABRA QUE NO!'], { speaker: 'JUAN MACHETE', shake: true });
+    this.st.flags.push('lena');
+    saveAdventure(this.st);
+    sfx.play('confirm');
+    await this.dialog.say(['JUAN CARGA UN TERCIO DE LEÑA SECA. HAY QUE LLEVÁRSELO A DON JULIO, AL TRAPICHE.']);
+  }
+
   /** Cosas del mapa que se pueden usar: el tablado, el castillo de pólvora, la rockola, la silleta… */
   private async useProp(p: MapProp): Promise<boolean> {
     switch (p.kind) {
@@ -1433,6 +1558,10 @@ export class AdventureScene extends Phaser.Scene {
       case 'fogon_lena': case 'olla': await this.dialog.say(['UN SANCOCHO HIRVIENDO EN EL FOGÓN DE LEÑA. ¡HUELE A DOMINGO EN FAMILIA!']); return true;
       case 'sagrado_corazon': case 'virgen': case 'altar': await this.dialog.say(['JUAN SE PERSIGNA. «QUE DIOS Y LA VIRGEN ME ACOMPAÑEN CONTRA LOS ESPANTOS».']); return true;
       case 'tiple': case 'guitarra': case 'acordeon': await this.dialog.say(['UN INSTRUMENTO COLGADO EN LA PARED. ALGUIEN EN ESTA CASA TOCA MUY BONITO.']); return true;
+      case 'tronco':
+        if (this.gm.id === 'monte' && this.st.flags.includes('encargo_lena') && !this.st.flags.includes('lena') && !hasMachete(this.st)) await this.gatherWood();
+        else await this.dialog.say(['UN TRONCO CAÍDO, PODRIDO Y LLENO DE MUSGO. DE AHÍ SALEN HONGOS Y CUCARRONES.']);
+        return true;
       case 'mula':
         if (this.dog) sfx.play('ladrido');
         await this.dialog.say([this.dog ? 'LA MULA LE MUEVE LAS OREJAS A JUAN. FIRULAIS LE LADRA, PERO ELLA NI SE INMUTA.' : 'LA MULA LE MUEVE LAS OREJAS A JUAN Y SIGUE COMIENDO PASTO.']);
@@ -1496,7 +1625,9 @@ export class AdventureScene extends Phaser.Scene {
     }
     sfx.play('bloom');
     await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: 'ABUELA ROSA' });
-    if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
+    if (!hasMachete(this.st)) await this.dialog.say(['¿YA FUE DONDE DON JULIO, AL TRAPICHE? SIN EL MACHETE DE SU ABUELO NO SE ARRIME A LOS ESPANTOS.'], { speaker: 'ABUELA ROSA' });
+    else if (!this.st.flags.includes('mapa')) await this.dialog.say(['¿Y EL MAPA DEL CABO RAMÍREZ? ÉL SABE DÓNDE HAN VISTO A CADA ESPANTO. ESTÁ EN LA ENTRADA DEL PUEBLO.'], { speaker: 'ABUELA ROSA' });
+    else if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
     else if (!this.st.flags.includes('caballo')) await this.dialog.say(['¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.'], { speaker: 'ABUELA ROSA' });
     const left = GUARDIANS.length - this.st.calmed.length;
     n.scared = true;
@@ -1537,11 +1668,19 @@ export class AdventureScene extends Phaser.Scene {
 
   private async pauseMenu(): Promise<void> {
     this.locked = true;
-    const i = await this.dialog.ask('¿QUÉ QUIERES HACER?', ['ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ', 'VOLVER'], { cancel: 3 });
+    const withMap = this.st.flags.includes('mapa');
+    const opts = [...(withMap ? ['MAPA'] : []), 'ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ', 'VOLVER'];
+    const i = await this.dialog.ask('¿QUÉ QUIERES HACER?', opts, { cancel: opts.length - 1 }) - (withMap ? 1 : 0);
+    if (i === -1) {
+      this.locked = false;
+      this.openMap();
+      return;
+    }
     if (i === 0) {
       const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id)).map((g) => FIGHTERS[g.id].name).join(', ');
       await this.dialog.say([`MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.`, left ? `FALTAN: ${left}. ANDAN ESCONDIDOS: BUSCA SUS SEÑALES.` : '¡YA NO FALTA NINGUNO!',
         `HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}. HABLE CON LA GENTE, ENTRE A LAS CASAS Y A LAS CANTINAS.`,
+        hasMachete(this.st) ? 'JUAN CARGA EL MACHETE DEL ABUELO.' : 'JUAN NO TIENE MACHETE: DON JULIO, EL DEL TRAPICHE, SE LO GUARDA... PERO HAY QUE GANÁRSELO.',
         this.hasDog ? `COMPAÑEROS: FIRULAIS${this.st.flags.includes('caballo') ? ' Y LUCERO, EL CABALLO' : ''}.` : 'TODAVÍA ANDA SOLO... ¿Y ESE PERRITO FLACO DE LA PLAZA?']);
     } else if (i === 1) {
       saveAdventure(this.st);
@@ -1556,6 +1695,71 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     this.locked = false;
+  }
+
+  // ---------------------------------------------------------------- el mapa de avistamientos
+
+  /** El mapa del cabo Ramírez: San Agustín visto desde arriba, con marcas de colores donde han visto a cada mito. */
+  private openMap(): void {
+    if (this.mapView) return;
+    if (!this.textures.exists('av_mapa')) {
+      const g = getMap('campo').grid;
+      const c = document.createElement('canvas');
+      c.width = g[0].length; c.height = g.length;
+      const ctx = c.getContext('2d')!;
+      for (let y = 0; y < g.length; y++) for (let x = 0; x < g[0].length; x++) {
+        ctx.fillStyle = MAP_INK[g[y][x]] ?? (((x + y) % 7) ? '#e0c890' : '#d8bf86');
+        ctx.fillRect(x, y, 1, 1);
+      }
+      this.textures.addCanvas('av_mapa', c);
+    }
+    sfx.play('confirm');
+    const S = 2, ox = 8, oy = 34;
+    const v = this.add.container(0, 0).setScrollFactor(0).setDepth(6500);
+    v.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0806, 0.94).setOrigin(0));
+    v.add(this.add.rectangle(ox - 3, oy - 3, 120 * S + 6, 72 * S + 6, 0x6a4a28).setOrigin(0));
+    v.add(this.add.image(ox, oy, 'av_mapa').setOrigin(0).setScale(S));
+    v.add(this.add.bitmapText(GAME_WIDTH / 2, 8, 'font', 'MAPA DE AVISTAMIENTOS').setOrigin(0.5, 0).setTint(0xf8d048));
+    v.add(this.add.bitmapText(ox + 88 * S, oy - 12, 'font', 'MONTE PURO').setOrigin(0.5, 0).setTint(0x9ad070));
+    const dot = (x: number, y: number, color: number, r = 2) =>
+      this.add.rectangle(ox + x * S + 1, oy + y * S + 1, r * 2 + 2, r * 2 + 2, color).setStrokeStyle(1, 0x140a10);
+    const blink: Phaser.GameObjects.GameObject[] = [];
+    GUARDIANS.forEach((g, i) => {
+      const calm = this.st.calmed.includes(g.id);
+      const color = SIGHT_COLORS[i % SIGHT_COLORS.length];
+      const list = calm ? [] : this.st.sightings[g.id] ?? [];
+      list.forEach(([x, y], k) => {
+        const d = dot(x, y, color);
+        v.add(d);
+        if (k === list.length - 1) blink.push(d);
+      });
+      const ly = oy + i * 15;
+      v.add(this.add.rectangle(ox + 120 * S + 10, ly + 4, 6, 6, calm ? 0x5a5048 : color).setOrigin(0).setStrokeStyle(1, 0x140a10));
+      v.add(this.add.bitmapText(ox + 120 * S + 20, ly + 3, 'font', FIGHTERS[g.id].name.length > 14 ? FIGHTERS[g.id].name.replace(/^(EL|LA) /, '') : FIGHTERS[g.id].name).setTint(calm ? 0x6a6058 : list.length ? 0xf8f0d8 : 0xa89878));
+    });
+    // Juan: en el campo, donde está; en el monte puro, arriba en la trocha; en otro sitio, solo se dice dónde anda
+    const here: [number, number] | null = this.gm.id === 'campo' ? [this.st.x, this.st.y] : this.gm.id === 'monte' ? [88, 1] : null;
+    if (here) {
+      const j = this.add.rectangle(ox + here[0] * S + 1, oy + here[1] * S + 1, 5, 5, 0xffffff).setStrokeStyle(1, 0x140a10);
+      v.add(j);
+      blink.push(j);
+    }
+    const where = here ? 'EL PUNTO BLANCO ES USTED.' : `USTED ANDA EN ${this.gm.name}.`;
+    v.add(this.add.bitmapText(ox, oy + 72 * S + 8, 'font', `${where}  CALMADOS EN GRIS.`).setTint(0xc8b890));
+    v.add(this.add.bitmapText(GAME_WIDTH - 8, GAME_HEIGHT - 12, 'font', 'M: CERRAR').setOrigin(1, 0).setTint(0x8a7a60));
+    v.setData('blink', blink);
+    this.mapView = v;
+  }
+
+  private blinkMap(): void {
+    const on = Math.floor(this.frame / 20) % 2 === 0;
+    for (const o of (this.mapView?.getData('blink') ?? []) as Phaser.GameObjects.Rectangle[]) o.setAlpha(on ? 1 : 0.25);
+  }
+
+  private closeMap(): void {
+    this.mapView?.destroy();
+    this.mapView = null;
+    sfx.play('confirm');
   }
 
   /** Algo se mueve en la hierba alta: Juan se asusta, pero no sale nada. */

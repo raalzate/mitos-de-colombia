@@ -40,7 +40,11 @@ export interface GameMap {
   arrival?: [number, number];
   /** casilla donde se baja Juan del caballo, al lado de donde queda amarrado Lucero */
   horseArrival?: [number, number];
+  /** trochas que llevan a otro mapa: al pisar la casilla, Juan aparece allá */
+  links?: MapLink[];
 }
+
+export interface MapLink { x: number; y: number; to: MapId; tx: number; ty: number; facing: Dir }
 
 export const w = (m: GameMap) => m.grid[0].length;
 export const h = (m: GameMap) => m.grid.length;
@@ -118,6 +122,61 @@ function campo(): GameMap {
   return {
     id: 'campo', kind: 'campo', name: 'SAN AGUSTÍN', grid: buildMap(), buildings, props, signs: SIGNS, npcs: NPCS, areas: AREAS,
     darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17], horseArrival: [7, 9],
+    links: [{ x: 88, y: 1, to: 'monte', tx: MONTE_ENTRY[0], ty: MONTE_ENTRY[1], facing: 'up' }],
+  };
+}
+
+// ------------------------------------------------------------------ el monte puro
+
+export const MONTE_W = 40;
+export const MONTE_H = 32;
+/** casilla donde aparece Juan al subir por la trocha */
+export const MONTE_ENTRY: [number, number] = [20, 29];
+
+function ellipseFill(g: Cell[][], cx: number, cy: number, rx: number, ry: number, c: Cell): void {
+  for (let y = cy - ry; y <= cy + ry; y++) for (let x = cx - rx; x <= cx + rx; x++) {
+    if (x < 1 || y < 1 || x >= g[0].length - 1 || y >= g.length - 1) continue;
+    if (((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= 1) g[y][x] = c;
+  }
+}
+
+/** Montaña arriba, monte puro: robles tupidos, una trocha que serpentea, la quebrada y el claro donde hay leña caída. */
+function monte(): GameMap {
+  const W = MONTE_W, H = MONTE_H;
+  const g: Cell[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => 'T' as Cell));
+  ellipseFill(g, 24, 27, 5, 2, '"');
+  ellipseFill(g, 13, 21, 4, 2, '"');
+  ellipseFill(g, 31, 12, 4, 2, '"');
+  ellipseFill(g, 26, 5, 8, 3, '"');
+  ellipseFill(g, 26, 5, 6, 2, '.');
+  // la quebrada de agua fría que baja de la montaña
+  fill(g, 1, 16, W - 2, 17, '~');
+  const trail: [number, number, number, number][] = [[20, 25, 20, 30], [10, 25, 20, 25], [10, 11, 10, 25], [10, 11, 26, 11], [26, 5, 26, 11]];
+  for (const [x0, y0, x1, y1] of trail) fill(g, x0, y0, x1, y1, '=');
+  fill(g, 10, 16, 10, 17, 'B');
+  // matojos a la orilla de la trocha
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    if (g[y][x] !== 'T') continue;
+    const byTrail = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => g[y + dy]?.[x + dx] === '=');
+    if (byTrail && (x * 7 + y * 13) % 3 === 0) g[y][x] = '"';
+  }
+  const tp = (kind: PropKind, x: number, y: number): MapProp => ({ set: 'town', kind, x, y });
+  const props: MapProp[] = [tp('tronco', 22, 4), tp('tronco', 29, 6), tp('tronco', 23, 6), tp('roca', 31, 4), tp('roca', 20, 6), tp('roca', 14, 22)];
+  const signs: Sign[] = [
+    { x: 21, y: 29, lines: ['MONTE PURO.', 'AQUÍ NO ENTRA NI EL SOL. LO QUE SE CAE SE PUEDE LLEVAR; LO QUE ESTÁ VIVO, NO SE TOCA.'] },
+    { x: 11, y: 15, lines: ['QUEBRADA LA FRÍA.', 'EL AGUA BAJA DEL PÁRAMO. DICEN QUE AQUÍ SE BAÑA LA MADREMONTE.'] },
+  ];
+  stamp(g, [], props, signs, '.');
+  g[H - 2][MONTE_ENTRY[0]] = '=';
+  const areas: Area[] = [
+    { name: 'EL CLARO DE LOS ROBLES', r: R(17, 1, 35, 9) },
+    { name: 'QUEBRADA LA FRÍA', r: R(1, 14, W - 2, 18) },
+    { name: 'MONTE PURO', r: R(0, 0, W - 1, H - 1) },
+  ];
+  return {
+    id: 'monte', kind: 'campo', name: 'MONTE PURO', grid: g, buildings: [], props, signs, npcs: [], areas,
+    darkness: { tension: 0.9, alegre: 0.6 }, sound: { tension: 'monte', alegre: 'monte' }, arrival: MONTE_ENTRY,
+    links: [{ x: MONTE_ENTRY[0], y: H - 2, to: 'campo', tx: 88, ty: 2, facing: 'down' }],
   };
 }
 
@@ -570,6 +629,7 @@ export function getMap(id: MapId): GameMap {
   if (id === 'campo') m = campo();
   else if (id === 'medellin') m = medellin();
   else if (id === 'santafe') m = santafe();
+  else if (id === 'monte') m = monte();
   else if (id.startsWith('int:')) {
     const key = id.slice(4);
     const def = INTERIORS[key];
@@ -583,6 +643,6 @@ export function getMap(id: MapId): GameMap {
   return m;
 }
 
-export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
+export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', 'monte', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
 
 export { HERO_START, doorOf };
