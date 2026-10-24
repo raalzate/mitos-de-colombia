@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
 import { MenuInput, inputManager } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { text } from '../utils/textures';
 
 /** Advertencia previa: sustos repentinos, gritos fuertes y destellos. */
@@ -29,7 +30,7 @@ export class WarningScene extends Phaser.Scene {
       'Y CON LA LUZ APAGADA.',
     ];
     lines.forEach((l, i) => text(this, GAME_WIDTH / 2, 86 + i * 12, l, 1, 0xe8d8d8));
-    this.hint = text(this, GAME_WIDTH / 2, 196, 'PULSA CUALQUIER TECLA', 1, 0x9088b0);
+    this.hint = text(this, GAME_WIDTH / 2, 196, touchActive() ? 'TOCA A PARA SEGUIR' : 'PULSA CUALQUIER TECLA', 1, 0x9088b0);
   }
 
   override update(): void {

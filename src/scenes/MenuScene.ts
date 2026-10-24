@@ -3,6 +3,7 @@ import { GAME_WIDTH } from '../config/game-config';
 import type { Difficulty } from '../combat/CombatTypes';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { addStageBackdrop, portraitKey, text } from '../utils/textures';
 import { playScreamer } from '../ui/Screamer';
 import { MENU_IDLE_SCARE_SECONDS } from '../combat/Fear';
@@ -62,8 +63,9 @@ export class MenuScene extends Phaser.Scene {
     this.buildControls();
     this.showPage('main');
 
-    text(this, GAME_WIDTH / 2, 206, 'FLECHAS: MOVER   ESPACIO/ENTER: ACEPTAR', 1, 0x9088b0).setAlpha(0.9);
-    text(this, GAME_WIDTH / 2, 216, 'F: PANTALLA COMPLETA', 1, 0x9088b0).setAlpha(0.7);
+    const touch = touchActive();
+    text(this, GAME_WIDTH / 2, 206, touch ? 'CRUCETA: MOVER   A: ACEPTAR' : 'FLECHAS: MOVER   ESPACIO/ENTER: ACEPTAR', 1, 0x9088b0).setAlpha(0.9);
+    if (!touch) text(this, GAME_WIDTH / 2, 216, 'F: PANTALLA COMPLETA', 1, 0x9088b0).setAlpha(0.7);
 
     inputManager.setGamepadEnabled(2, false);
   }
@@ -73,11 +75,13 @@ export class MenuScene extends Phaser.Scene {
     const bg = this.add.rectangle(GAME_WIDTH / 2, 145, 348, 108, 0x100c18, 1).setStrokeStyle(1, 0xd8b070);
     c.add(bg);
     const left = ['MOVERSE / SALTAR / AGACHARSE', 'GOLPE', 'PATADA', 'COMBO: 3 SEGUIDOS', 'PODER 1', 'PODER 2', 'GOLPE FUERTE', 'DEFINITIVO (BARRA LLENA)', 'BLOQUEAR'];
-    const right = ['FLECHAS', 'Z  O  ESPACIO', 'X', 'Z Z Z  O  X X X', 'MANTÉN Z Y SUELTA  O  Z X Z', 'MANTÉN X Y SUELTA  O  X Z X', 'Z + X', 'Z + X', 'ATRÁS CUANDO ATACAN'];
+    const right = touchActive()
+      ? ['CRUCETA', 'A', 'B', 'A A A  O  B B B', 'MANTÉN A Y SUELTA  O  A B A', 'MANTÉN B Y SUELTA  O  B A B', 'A + B', 'A + B', 'ATRÁS CUANDO ATACAN']
+      : ['FLECHAS', 'Z  O  ESPACIO', 'X', 'Z Z Z  O  X X X', 'MANTÉN Z Y SUELTA  O  Z X Z', 'MANTÉN X Y SUELTA  O  X Z X', 'Z + X', 'Z + X', 'ATRÁS CUANDO ATACAN'];
     c.add(this.add.bitmapText(GAME_WIDTH / 2, 94, 'font_plain', 'CONTROLES').setOrigin(0.5, 0).setTint(0xf8d048));
     left.forEach((line, i) => c.add(this.add.bitmapText(28, 106 + i * 9, 'font_plain', line).setTint(0xe8e8f0)));
     right.forEach((line, i) => c.add(this.add.bitmapText(GAME_WIDTH - 28, 106 + i * 9, 'font_plain', line).setOrigin(1, 0).setTint(0x80c8ff)));
-    c.add(this.add.bitmapText(GAME_WIDTH / 2, 188, 'font_plain', 'MANDO: X/Y GOLPE   A/B PATADA   ¡SOLO DOS BOTONES!').setOrigin(0.5, 0).setTint(0x9088b0));
+    c.add(this.add.bitmapText(GAME_WIDTH / 2, 188, 'font_plain', touchActive() ? 'A GOLPE   B PATADA   ¡SOLO DOS BOTONES!' : 'MANDO: X/Y GOLPE   A/B PATADA   ¡SOLO DOS BOTONES!').setOrigin(0.5, 0).setTint(0x9088b0));
     this.controls = c;
   }
 

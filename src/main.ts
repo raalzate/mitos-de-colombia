@@ -10,6 +10,7 @@ import { WarningScene } from './scenes/WarningScene';
 import { AdventureScene } from './scenes/AdventureScene';
 import { fitIntegerZoom, inputManager } from './utils/game';
 import { sfx } from './audio/Sfx';
+import { isTouchDevice, TouchControls } from './ui/TouchControls';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -29,14 +30,23 @@ const config: Phaser.Types.Core.GameConfig = {
   scene: [BootScene, WarningScene, MenuScene, CharacterSelectScene, StageSelectScene, FightScene, ResultScene, AdventureScene],
 };
 
+// Se marca antes de crear las escenas para que sus textos de ayuda nombren los botones táctiles.
+if (isTouchDevice()) document.body.classList.add('tactil');
+
 const game = new Phaser.Game(config);
 
 inputManager.attach(window);
 
 const refit = () => fitIntegerZoom(game);
-window.addEventListener('resize', refit);
-document.addEventListener('fullscreenchange', () => setTimeout(refit, 50));
-game.events.once(Phaser.Core.Events.READY, refit);
+const touch = new TouchControls(inputManager, refit);
+const relayout = () => touch.layout();
+window.addEventListener('resize', relayout);
+window.addEventListener('orientationchange', () => setTimeout(relayout, 200));
+document.addEventListener('fullscreenchange', () => setTimeout(relayout, 50));
+game.events.once(Phaser.Core.Events.READY, () => {
+  touch.mount();
+  relayout();
+});
 
 // El audio solo puede arrancar tras un gesto del usuario.
 const unlock = () => {
@@ -45,6 +55,7 @@ const unlock = () => {
 };
 window.addEventListener('keydown', unlock, { once: true });
 window.addEventListener('pointerdown', unlock, { once: true });
+window.addEventListener('touchend', unlock, { once: true });
 
 game.events.on(Phaser.Core.Events.BLUR, () => sfx.suspend());
 game.events.on(Phaser.Core.Events.FOCUS, () => sfx.resume());

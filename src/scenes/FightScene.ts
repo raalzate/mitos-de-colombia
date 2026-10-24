@@ -26,6 +26,7 @@ import { playScreamer } from '../ui/Screamer';
 import { FINISH_FRAMES, bloodDrops, cpuWantsFatality, finishPrompt, isFatalityInput } from '../combat/Finish';
 import { LOOKS } from '../art/CharacterArtist';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { ANIM_TABLES, ensureCharacterSheet, ensureStage, portraitKey, splashKey, text, type StageKeys } from '../utils/textures';
 import { STAGES, STAGE_IDS, type StageId, type StageTheme } from '../art/StageArtist';
 import type { ResultData } from './ResultScene';
@@ -387,14 +388,15 @@ export class FightScene extends Phaser.Scene {
   private buildUi(): void {
     const mirror = this.settings.p1 === this.settings.p2;
     this.hud = new CombatHUD(this, this.p1, this.p2, portraitKey(this, this.settings.p1, 'p1', 24), portraitKey(this, this.settings.p2, mirror ? 'p2' : 'p1', 24));
-    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, 'Z', 'X');
+    const [punchKey, kickKey] = touchActive() ? ['A', 'B'] : ['Z', 'X'];
+    const hint = (slot: PlayerSlot) => specialHint(slot === 1 ? this.settings.p1 : this.settings.p2, punchKey, kickKey);
     this.hud.setHints(hint(1), this.settings.mode === 'cpu' ? 'CPU: ' + FIGHTERS[this.settings.p2].name : hint(2));
 
     this.overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05030a, 1).setOrigin(0).setScrollFactor(0).setDepth(15).setAlpha(0);
     this.flashRect = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 1).setOrigin(0).setScrollFactor(0).setDepth(90).setAlpha(0);
     this.message = text(this, GAME_WIDTH / 2, 96, '', 2, 0xf8d048).setScrollFactor(0).setDepth(110);
     this.subMessage = text(this, GAME_WIDTH / 2, 120, '', 1, 0xf8f0c8).setScrollFactor(0).setDepth(110);
-    this.pauseText = text(this, GAME_WIDTH / 2, 110, 'PAUSA\n\nENTER: CONTINUAR\nESC: MENÚ', 1, 0xf8f0c8)
+    this.pauseText = text(this, GAME_WIDTH / 2, 110, touchActive() ? 'PAUSA\n\nSTART: CONTINUAR\nMENÚ: SALIR' : 'PAUSA\n\nENTER: CONTINUAR\nESC: MENÚ', 1, 0xf8f0c8)
       .setScrollFactor(0).setDepth(120).setVisible(false).setCenterAlign();
     this.debugGfx = this.add.graphics().setDepth(80);
     this.buildVersusIntro();

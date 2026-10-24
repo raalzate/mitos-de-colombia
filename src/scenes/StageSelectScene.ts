@@ -4,6 +4,7 @@ import type { StageChoice } from '../combat/CombatTypes';
 import { STAGES, STAGE_IDS, type StageId } from '../art/StageArtist';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { ensureStage, portraitKey, text, type StageKeys } from '../utils/textures';
 
 const CHOICES: StageChoice[] = [...STAGE_IDS, 'random'];
@@ -65,7 +66,7 @@ export class StageSelectScene extends Phaser.Scene {
     const mirror = s.p1 === s.p2;
     this.add.image(8, 8, portraitKey(this, s.p1, 'p1', 24)).setOrigin(0, 0).setDepth(11);
     this.add.image(GAME_WIDTH - 8, 8, portraitKey(this, s.p2, mirror ? 'p2' : 'p1', 24)).setOrigin(1, 0).setDepth(11).setFlipX(true);
-    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 13, 'FLECHAS: CAMBIAR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setDepth(11).setAlpha(0.9);
+    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 13, touchActive() ? 'CRUCETA: CAMBIAR   A: CONFIRMAR   MENÚ: VOLVER' : 'FLECHAS: CAMBIAR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setDepth(11).setAlpha(0.9);
     this.applyChoice();
   }
 

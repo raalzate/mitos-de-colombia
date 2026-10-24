@@ -3,6 +3,7 @@ import { GAME_WIDTH } from '../config/game-config';
 import { FIGHTERS, FIGHTER_IDS } from '../data/fighters';
 import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { addStageBackdrop, portraitKey, splashKey, text } from '../utils/textures';
 
 const COLS = 5;
@@ -92,7 +93,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.labelP2 = text(this, 0, 0, s.mode === 'cpu' ? 'CPU' : 'P2', 1, 0x80c8ff).setDepth(3);
     this.banner = text(this, GAME_WIDTH / 2, 186, '', 2, 0xf05060).setDepth(3);
 
-    text(this, GAME_WIDTH / 2, 214, 'FLECHAS: ELEGIR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setAlpha(0.9);
+    text(this, GAME_WIDTH / 2, 214, touchActive() ? 'CRUCETA: ELEGIR   A: CONFIRMAR   MENÚ: VOLVER' : 'FLECHAS: ELEGIR   ESPACIO/ENTER: CONFIRMAR   ESC: VOLVER', 1, 0x9088b0).setAlpha(0.9);
   }
 
   private move(index: number, dx: number, dy: number): number {

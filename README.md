@@ -87,6 +87,12 @@ pnpm preview    # sirve dist/
 
 **Siempre**: ENTER pausa el combate, F pone pantalla completa y H muestra las cajas de golpe.
 
+**Celular y tableta**: aparecen controles en pantalla. La cruceta mueve (también en diagonal), **A** es golpe y
+aceptar, **B** es patada y **A+B** el definitivo. Arriba están MENÚ, START, MAPA y MISIÓN (estos dos solo en el modo
+aventura) y AMPLIAR para la pantalla completa donde el navegador lo permite. En vertical el juego va arriba y los
+controles abajo, como en una consola de bolsillo; en horizontal el juego llena la pantalla y los controles quedan
+encima, casi transparentes. Para probarlos en el computador: `http://localhost:5173/?tactil`.
+
 ## Despliegue
 
 Publicado en Vercel (`vercel.json`). Para volver a publicar:

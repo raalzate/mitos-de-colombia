@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { InputManager } from '../combat/InputManager';
 import type { MatchSettings } from '../combat/CombatTypes';
+import { gameArea, toggleDocumentFullscreen, touchActive } from '../ui/TouchControls';
 
 /** Entrada global compartida por todas las escenas. */
 export const inputManager = new InputManager();
@@ -43,16 +44,28 @@ export class MenuInput {
 }
 
 export function toggleFullscreen(scene: Phaser.Scene): void {
+  if (touchActive()) {
+    // El botón táctil se procesa en el bucle del juego, fuera del gesto: se espera a que se suelte el dedo.
+    window.addEventListener('pointerup', toggleDocumentFullscreen, { once: true });
+    return;
+  }
   if (scene.scale.isFullscreen) scene.scale.stopFullscreen();
   else scene.scale.startFullscreen();
 }
 
-/** Zoom entero para píxeles nítidos. */
+/**
+ * Zoom entero para píxeles nítidos en escritorio. En pantallas táctiles se usa zoom fraccional:
+ * con zoom entero un celular quedaría casi siempre en 1x y el juego se vería diminuto.
+ */
 export function fitIntegerZoom(game: Phaser.Game): void {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const { w, h } = gameArea();
   const gw = Number(game.config.width);
   const gh = Number(game.config.height);
-  const z = Math.max(1, Math.floor(Math.min(w / gw, h / gh)));
+  const fit = Math.min(w / gw, h / gh);
+  const z = touchActive() ? Math.max(0.5, Math.floor(fit * 100) / 100) : Math.max(1, Math.floor(fit));
+  const parent = document.getElementById('game');
+  // En táctil el juego se pega arriba: todo el espacio sobrante queda abajo, donde van los controles.
+  if (parent) parent.style.height = touchActive() ? `${Math.ceil(gh * z)}px` : '';
   if (game.scale.zoom !== z) game.scale.setZoom(z);
+  game.scale.refresh();
 }

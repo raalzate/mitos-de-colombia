@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
 import { sfx, type SfxName } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, inputManager, toggleFullscreen } from '../utils/game';
+import { touchActive } from '../ui/TouchControls';
 import { addPixmap, addSheet } from '../utils/textures';
 import { drawnAnimKey } from '../art/DrawnAnim';
 import { FIGHTERS } from '../data/fighters';
@@ -1542,7 +1543,7 @@ export class AdventureScene extends Phaser.Scene {
     reportSightings(this.st);
     saveAdventure(this.st);
     sfx.play('ultimate');
-    await this.dialog.say(['¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON LA TECLA M O DESDE EL MENÚ.']);
+    await this.dialog.say([touchActive() ? '¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON EL BOTÓN MAPA O DESDE EL MENÚ.' : '¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON LA TECLA M O DESDE EL MENÚ.']);
     this.openMap();
   }
 
@@ -1812,7 +1813,7 @@ export class AdventureScene extends Phaser.Scene {
     }
     const where = here ? 'EL PUNTO BLANCO ES USTED.' : `USTED ANDA EN ${this.gm.name}.`;
     v.add(this.add.bitmapText(ox, oy + 72 * S + 8, 'font', `${where}  CALMADOS EN GRIS.`).setTint(0xc8b890));
-    v.add(this.add.bitmapText(GAME_WIDTH - 8, GAME_HEIGHT - 12, 'font', 'M: CERRAR').setOrigin(1, 0).setTint(0x8a7a60));
+    v.add(this.add.bitmapText(GAME_WIDTH - 8, GAME_HEIGHT - 12, 'font', touchActive() ? 'MAPA: CERRAR' : 'M: CERRAR').setOrigin(1, 0).setTint(0x8a7a60));
     v.setData('blink', blink);
     this.mapView = v;
   }
@@ -1841,7 +1842,7 @@ export class AdventureScene extends Phaser.Scene {
     // pestañita que queda cuando el panel se esconde: la flecha y cómo volver a ver la misión
     this.hudTab = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
     this.hudTab.add(this.add.rectangle(4, GAME_HEIGHT - 17, 96, 14, 0x101828, 0.8).setOrigin(0).setStrokeStyle(1, 0x8a6a40));
-    this.hudTab.add(this.add.bitmapText(24, GAME_HEIGHT - 14, 'font', 'Q: MISIÓN').setTint(0xf8d048));
+    this.hudTab.add(this.add.bitmapText(24, GAME_HEIGHT - 14, 'font', touchActive() ? 'MISIÓN' : 'Q: MISIÓN').setTint(0xf8d048));
     this.owned = items(this.st);
     this.refreshHud();
   }
