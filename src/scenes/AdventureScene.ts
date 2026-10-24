@@ -79,7 +79,7 @@ const CITY_GROUND: Partial<Record<Cell, CityGround>> = { a: 'asfalto', d: 'anden
 const MAP_INK: Partial<Record<Cell, string>> = {
   T: '#4f6e34', '"': '#a8b066', '~': '#4a7aa8', B: '#7a5030', '=': '#9a6a3a', H: '#8a3a2a', P: '#b89a64', c: '#8a8070', S: '#9a6a3a', f: '#d8b880',
 };
-const SIGHT_COLORS = [0xd82020, 0xf08020, 0xf0d020, 0x40c040, 0x20c0e0, 0x3058f0, 0xa048e0, 0xf050b0, 0x8a5020];
+const SIGHT_COLORS = [0xd82020, 0xf08020, 0x10a080, 0x40c040, 0x20c0e0, 0x3058f0, 0xa048e0, 0xf050b0, 0x8a5020];
 
 const SPIRIT_SCALE: Record<SpiritKind, number> = { duende: 0.72, pollo: 0.8, mano: 1 };
 const SPIRIT_SOUND: Record<SpiritKind, SfxName> = { duende: 'duende', pollo: 'polloMaligno', mano: 'manoPeluda' };
@@ -1251,7 +1251,8 @@ export class AdventureScene extends Phaser.Scene {
     await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE FAROL... Y EL MACHETE DEL ABUELO, PUES!'], { speaker: 'JUAN MACHETE' });
     sfx.play('ultimate');
     await this.dialog.say([
-      'EL FAROL TÓMELO. EL MACHETE DE SU ABUELO LO TIENE GUARDADO DON JULIO, EL DEL TRAPICHE, AQUÍ ABAJITO EN LA VEREDA.',
+      'EL FAROL TÓMELO. EL MACHETE DE SU ABUELO LO TIENE GUARDADO DON JULIO, EL DEL TRAPICHE.',
+      'EL TRAPICHE QUEDA AQUÍ ABAJITO: COJA EL CAMINO DE LA VEREDA PA\'BAJO, HACIA EL RÍO. ES LA CASONA DE MADERA DE LA IZQUIERDA, JUSTO ANTES DEL PUENTE.',
       'PERO ESE MACHETE NO SE REGALA, MIJO: SE GANA. Y SIN MACHETE NI SE LE ARRIME A UN ESPANTO.',
       'Y PASE DONDE EL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO: ÉL TIENE EL MAPA DE DÓNDE HAN VISTO A CADA ESPANTO.',
       'SI LO TUMBAN, SE ACABÓ TODO Y TOCA EMPEZAR DE NUEVO. Y SI EL ESPANTO SE LE VUELA, TOCA IR A BUSCARLO OTRA VEZ. ¡VAYA CON DIOS!',
@@ -1485,12 +1486,13 @@ export class AdventureScene extends Phaser.Scene {
       await this.dialog.say([
         '¿USTED ES EL NIETO DE DOÑA ROSA? SU ABUELO ME DEJÓ GUARDADO SU MACHETE ANTES DE MORIRSE. UN MACHETE DE LOS BUENOS.',
         'PERO ÉL FUE CLARO: ESE MACHETE NO SE REGALA, SE GANA. EL QUE LO CARGUE TIENE QUE CONOCER EL MONTE Y RESPETARLO.',
-        'SUBA AL MONTE PURO, MONTAÑA ARRIBA: COJA LA TROCHA DEL MONTE HASTA EL NORTE. EN EL CLARO DE LOS ROBLES HAY PALOS CAÍDOS.',
+        'SUBA AL MONTE PURO, MONTAÑA ARRIBA. SALGA DEL PUEBLO POR LA CALLE DEL MEDIO HACIA EL ORIENTE, MÉTASE AL MONTE Y COJA LA TROCHA PA\'L NORTE HASTA LO MÁS ARRIBA.',
+        'ALLÁ HAY UN LETRERO: «SUBIDA AL MONTE PURO». EN EL CLARO DE LOS ROBLES HAY PALOS CAÍDOS.',
         'TRÁIGAME UN TERCIO DE LEÑA SECA PA\'L TRAPICHE. Y OJO: SOLO LEÑA CAÍDA. AL MONTE NO SE LE TUMBA NI UNA RAMA VIVA.',
       ], { speaker: S });
       return;
     }
-    await this.dialog.say(['¿Y LA LEÑA, MIJO? EL MONTE PURO QUEDA SUBIENDO POR LA TROCHA DEL NORTE, PASANDO EL MONTE. EN EL CLARO DE LOS ROBLES.'], { speaker: S });
+    await this.dialog.say(['¿Y LA LEÑA, MIJO? SALGA DEL PUEBLO POR LA CALLE DEL MEDIO HACIA EL ORIENTE, ENTRE AL MONTE Y SUBA POR LA TROCHA PA\'L NORTE HASTA EL LETRERO DEL MONTE PURO.'], { speaker: S });
   }
 
   /** El cabo Ramírez lleva las denuncias de espantos en un mapa del municipio y se lo pasa a Juan. */
@@ -1625,7 +1627,7 @@ export class AdventureScene extends Phaser.Scene {
     }
     sfx.play('bloom');
     await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: 'ABUELA ROSA' });
-    if (!hasMachete(this.st)) await this.dialog.say(['¿YA FUE DONDE DON JULIO, AL TRAPICHE? SIN EL MACHETE DE SU ABUELO NO SE ARRIME A LOS ESPANTOS.'], { speaker: 'ABUELA ROSA' });
+    if (!hasMachete(this.st)) await this.dialog.say(['¿YA FUE DONDE DON JULIO, AL TRAPICHE? BAJE POR EL CAMINO DE LA VEREDA HACIA EL RÍO: ES LA CASONA DE LA IZQUIERDA, ANTES DEL PUENTE. SIN EL MACHETE DE SU ABUELO NO SE ARRIME A LOS ESPANTOS.'], { speaker: 'ABUELA ROSA' });
     else if (!this.st.flags.includes('mapa')) await this.dialog.say(['¿Y EL MAPA DEL CABO RAMÍREZ? ÉL SABE DÓNDE HAN VISTO A CADA ESPANTO. ESTÁ EN LA ENTRADA DEL PUEBLO.'], { speaker: 'ABUELA ROSA' });
     else if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
     else if (!this.st.flags.includes('caballo')) await this.dialog.say(['¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.'], { speaker: 'ABUELA ROSA' });
@@ -1680,7 +1682,7 @@ export class AdventureScene extends Phaser.Scene {
       const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id)).map((g) => FIGHTERS[g.id].name).join(', ');
       await this.dialog.say([`MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.`, left ? `FALTAN: ${left}. ANDAN ESCONDIDOS: BUSCA SUS SEÑALES.` : '¡YA NO FALTA NINGUNO!',
         `HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}. HABLE CON LA GENTE, ENTRE A LAS CASAS Y A LAS CANTINAS.`,
-        hasMachete(this.st) ? 'JUAN CARGA EL MACHETE DEL ABUELO.' : 'JUAN NO TIENE MACHETE: DON JULIO, EL DEL TRAPICHE, SE LO GUARDA... PERO HAY QUE GANÁRSELO.',
+        hasMachete(this.st) ? 'JUAN CARGA EL MACHETE DEL ABUELO.' : this.machetePista(),
         this.hasDog ? `COMPAÑEROS: FIRULAIS${this.st.flags.includes('caballo') ? ' Y LUCERO, EL CABALLO' : ''}.` : 'TODAVÍA ANDA SOLO... ¿Y ESE PERRITO FLACO DE LA PLAZA?']);
     } else if (i === 1) {
       saveAdventure(this.st);
@@ -1744,11 +1746,33 @@ export class AdventureScene extends Phaser.Scene {
       v.add(j);
       blink.push(j);
     }
+    // a dónde tiene que ir Juan para ganarse el machete
+    const goal = this.macheteGoal();
+    if (goal) {
+      const t = this.add.rectangle(ox + goal.at[0] * S + 1, oy + goal.at[1] * S + 1, 9, 9).setStrokeStyle(2, 0xf8e040);
+      v.add(t);
+      blink.push(t);
+      v.add(this.add.bitmapText(ox, GAME_HEIGHT - 12, 'font', `AMARILLO: ${goal.label}`).setTint(0xf8e040));
+    }
     const where = here ? 'EL PUNTO BLANCO ES USTED.' : `USTED ANDA EN ${this.gm.name}.`;
     v.add(this.add.bitmapText(ox, oy + 72 * S + 8, 'font', `${where}  CALMADOS EN GRIS.`).setTint(0xc8b890));
     v.add(this.add.bitmapText(GAME_WIDTH - 8, GAME_HEIGHT - 12, 'font', 'M: CERRAR').setOrigin(1, 0).setTint(0x8a7a60));
     v.setData('blink', blink);
     this.mapView = v;
+  }
+
+  /** Lo que le falta a Juan para tener el machete: a dónde ir y qué decirle. */
+  private macheteGoal(): { at: [number, number]; label: string } | null {
+    if (hasMachete(this.st)) return null;
+    const trapiche: [number, number] = [6, 42];
+    if (this.st.flags.includes('encargo_lena') && !this.st.flags.includes('lena')) return { at: [88, 1], label: 'SUBIDA AL MONTE PURO' };
+    return { at: trapiche, label: this.st.flags.includes('lena') ? 'LLEVE LA LEÑA AL TRAPICHE' : 'TRAPICHE DE DON JULIO' };
+  }
+
+  private machetePista(): string {
+    if (this.st.flags.includes('lena')) return 'JUAN CARGA LA LEÑA: HAY QUE LLEVÁRSELA A DON JULIO, AL TRAPICHE (VEREDA ABAJO, ANTES DEL PUENTE).';
+    if (this.st.flags.includes('encargo_lena')) return 'DON JULIO PIDIÓ LEÑA SECA DEL MONTE PURO: DEL PUEBLO AL ORIENTE, AL MONTE, Y POR LA TROCHA SIEMPRE AL NORTE.';
+    return 'JUAN NO TIENE MACHETE: LO GUARDA DON JULIO EN EL TRAPICHE, VEREDA ABAJO HACIA EL RÍO, ANTES DEL PUENTE.';
   }
 
   private blinkMap(): void {

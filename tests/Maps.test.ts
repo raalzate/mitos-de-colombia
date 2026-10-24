@@ -113,3 +113,16 @@ describe('el monte puro', () => {
     for (const p of logs) expect(cellsOf(p).some(([x, y]) => nextTo(seen, x, y)), `tronco ${p.x},${p.y}`).toBe(true);
   });
 });
+
+describe('las puertas quedan libres', () => {
+  for (const id of ['campo', 'medellin', 'santafe']) {
+    it(`${id}: nadie se para en la puerta de un edificio con interior`, () => {
+      const m = getMap(id);
+      for (const b of m.buildings) {
+        if (!interiorOf(b)) continue;
+        const [dx, dy] = doorCell(b);
+        for (const n of m.npcs) expect(n.x === dx && n.y === dy, `${n.name} tapa la puerta de ${b.id}`).toBe(false);
+      }
+    });
+  }
+});

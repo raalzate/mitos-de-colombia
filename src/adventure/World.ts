@@ -193,7 +193,8 @@ export function propCells(p: Placed<PropKind>): [number, number][] {
 }
 
 export const SIGNS: Sign[] = [
-  { x: 12, y: 25, lines: ['VEREDA LA ESPERANZA.', 'ESTE: EL PUEBLO.  NORTE: EL LLANO.  SUR: EL RÍO Y LA CIÉNAGA.'] },
+  { x: 12, y: 25, lines: ['VEREDA LA ESPERANZA.', 'ESTE: EL PUEBLO.  NORTE: EL LLANO.  SUR: EL TRAPICHE DE DON JULIO, EL RÍO Y LA CIÉNAGA.'] },
+  { x: 11, y: 43, lines: ['TRAPICHE EL DULCE, DE DON JULIO.', 'AQUÍ A LA IZQUIERDA, JUSTO ANTES DEL PUENTE. ¡SE VENDE PANELA Y MELAO!'] },
   { x: 37, y: 25, lines: ['PLAZA PRINCIPAL DE SAN AGUSTÍN.', 'TOQUE DE QUEDA: NADIE EN LA CALLE DESPUÉS DE LAS DOCE. ¡POR SU BIEN!'] },
   { x: 59, y: 34, lines: ['¡NO ENTRE AL MONTE DE NOCHE!', 'SI OYE PASOS DE UNA SOLA PATA, NO MIRE PA\' ATRÁS.'] },
   { x: 41, y: 17, lines: ['CEMENTERIO DE SAN AGUSTÍN.', 'DICEN QUE ALGO PELUDO SALE DE LA TIERRA A AGARRAR TOBILLOS.'] },
@@ -259,6 +260,7 @@ export function buildMap(): Cell[][] {
   rect(g, 21, 17, 21, 42, '='); rect(g, 60, 17, 60, 43, '=');
   rect(g, 40, 3, 40, 24, '='); rect(g, 4, 8, 40, 8, '='); // al llano
   rect(g, 2, 24, 21, 24, '='); rect(g, 10, 17, 10, 50, '='); // vereda
+  rect(g, 6, 42, 10, 42, '='); // al trapiche
   rect(g, 60, 33, 99, 33, '='); rect(g, 75, 4, 75, 33, '='); rect(g, 75, 4, 88, 4, '='); // trochas del monte
   rect(g, 75, 33, 75, 43, '=');
   rect(g, 88, 1, 88, 4, '='); // la trocha sube al monte puro
@@ -454,7 +456,7 @@ export const NPCS: Npc[] = [
     ['ESTA MULA SE NIEGA A PASAR POR EL LLANO DE NOCHE. ALLÁ SE OYE SILBAR Y HAY HUESOS REGADOS.'],
     ['YO ATRAVESÉ EL MONTE UNA VEZ. LA MADREMONTE ME ENREDÓ LA MULA EN LOS BEJUCOS. ¡NUNCA MÁS!'],
   ] },
-  { key: 'campesina', name: 'DOÑA ELVIRA', story: 'caiman', x: 6, y: 42, facing: 'up', lines: [
+  { key: 'campesina', name: 'DOÑA ELVIRA', story: 'caiman', x: 3, y: 43, facing: 'right', lines: [
     ['EN LA CIÉNAGA VIVE UN SEÑOR QUE SE VOLVIÓ CAIMÁN POR ESPIAR A LAS MUCHACHAS EN EL RÍO. ¡DEJA HUELLAS RARÍSIMAS!'],
   ] },
   { key: 'cafetero', name: 'DON ALIRIO', story: 'cafe', x: 9, y: 31, facing: 'right', wander: 2, lines: [
