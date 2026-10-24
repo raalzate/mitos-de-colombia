@@ -267,3 +267,58 @@ export function buildHorse(kind: HorseKind): Pixmap {
   frames.forEach((f, i) => sheet.blit(f, i * 48, 0));
   return sheet;
 }
+
+export type ItemIcon = 'farol' | 'machete' | 'mapa' | 'perro' | 'caballo';
+
+/** Iconos de 12 px de lo que carga Juan, para la barra de arriba. */
+export function buildItemIcon(kind: ItemIcon): Pixmap {
+  const pm = new Pixmap(12, 12);
+  const ink = C(0x140a10);
+  switch (kind) {
+    case 'farol':
+      pm.rect(4, 1, 4, 1, C(0x302820)); pm.rect(3, 2, 6, 1, C(0x5a4a3a));
+      pm.rect(3, 3, 6, 6, C(0xf8d048)); pm.rect(4, 4, 4, 4, C(0xfff4b0));
+      pm.vline(3, 3, 8, C(0x5a4a3a)); pm.vline(8, 3, 8, C(0x5a4a3a)); pm.rect(3, 9, 6, 2, C(0x5a4a3a));
+      break;
+    case 'machete':
+      pm.line(3, 9, 9, 2, 2, C(0xd8dce4)); pm.line(4, 9, 10, 3, 1, C(0x8a909c));
+      pm.line(1, 11, 3, 9, 2, C(0x6a3c1c)); pm.set(3, 8, C(0x3a2010));
+      break;
+    case 'mapa':
+      pm.rect(1, 2, 10, 8, C(0xe0c890)); pm.vline(4, 2, 9, C(0xb89a64)); pm.vline(7, 2, 9, C(0xb89a64));
+      pm.line(2, 7, 9, 4, 1, C(0x9a6a3a)); pm.rect(8, 3, 2, 2, C(0xd82020));
+      break;
+    case 'perro':
+      pm.ellipse(6, 7, 4, 3, C(0xc89058)); pm.rect(7, 2, 4, 4, C(0xc89058));
+      pm.set(9, 3, ink); pm.rect(7, 1, 1, 2, C(0x8a5a30)); pm.rect(1, 4, 1, 3, C(0xc89058));
+      pm.vline(3, 9, 11, C(0x8a5a30)); pm.vline(8, 9, 11, C(0x8a5a30));
+      break;
+    case 'caballo':
+      pm.ellipse(5, 7, 4, 2, C(0x8a4a22)); pm.polygon([[7, 6], [8, 1], [11, 2], [11, 4], [9, 7]], C(0x8a4a22));
+      pm.line(7, 2, 6, 6, 1, C(0x2a160a)); pm.set(10, 2, C(0xf0ece0));
+      for (const x of [2, 4, 7, 8]) pm.vline(x, 9, 11, C(0x5e3016));
+      break;
+  }
+  pm.outline(ink);
+  return pm;
+}
+
+/** El machete del abuelo colgado al cinto de Juan, en su funda de cuero (de lado y de frente). */
+export function buildMacheteCinto(): Pixmap {
+  const sheet = new Pixmap(16, 16);
+  const blade = C(0xc8ccd4), shade = C(0x8a909c), grip = C(0x6a3c1c), sheath = C(0x4a2a14), ink = C(0x140a10);
+  // fotograma 0: de lado, el mango arriba y la hoja enfundada hacia atrás
+  const side = new Pixmap(8, 16);
+  side.rect(3, 0, 2, 4, grip); side.set(3, 4, ink); side.set(4, 4, ink);
+  side.line(4, 5, 2, 14, 2, sheath); side.line(5, 5, 3, 14, 1, C(0x6a3e1e));
+  side.set(2, 15, shade);
+  side.outline(ink);
+  // fotograma 1: de frente, al costado de la cadera, la punta de la hoja asoma de la funda
+  const front = new Pixmap(8, 16);
+  front.rect(3, 0, 2, 4, grip); front.rect(2, 4, 4, 1, ink);
+  front.rect(3, 5, 2, 8, sheath); front.rect(3, 13, 2, 2, blade); front.set(4, 14, shade);
+  front.outline(ink);
+  sheet.blit(side, 0, 0);
+  sheet.blit(front, 8, 0);
+  return sheet;
+}

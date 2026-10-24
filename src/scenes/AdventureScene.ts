@@ -38,7 +38,9 @@ import {
 import {
   FURNITURE_FOOTPRINT, WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
-import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse } from '../adventure/OverworldArt';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse, buildItemIcon, buildMacheteCinto } from '../adventure/OverworldArt';
+import { ITEM_NAME, currentMission, items, missions, waypoint, type ItemId, type Spot } from '../adventure/Missions';
+import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
@@ -133,6 +135,13 @@ export class AdventureScene extends Phaser.Scene {
   private areaLabel!: Phaser.GameObjects.Container;
   private rnd = Math.random;
   private mapView: Phaser.GameObjects.Container | null = null;
+  private hudTop!: Phaser.GameObjects.Container;
+  private hudMission!: Phaser.GameObjects.Container;
+  private hudArrow!: Phaser.GameObjects.Triangle;
+  private hudKey = '';
+  private hudGoal: Spot | null = null;
+  private owned: ItemId[] = [];
+  private belt: Phaser.GameObjects.Image | null = null;
 
   constructor() {
     super('AdventureScene');
@@ -167,6 +176,8 @@ export class AdventureScene extends Phaser.Scene {
     this.dogAt = { x: -99, y: -99, facing: 'down' };
     this.dogWarnCd = 0;
     this.mapView = null;
+    this.belt = null;
+    this.hudKey = '';
     sfx.setTension(0);
     sfx.setBattle(false);
 
@@ -188,6 +199,7 @@ export class AdventureScene extends Phaser.Scene {
 
     this.dialog = new DialogBox(this);
     this.areaLabel = this.add.container(0, 0).setScrollFactor(0).setDepth(4000);
+    this.buildHud();
     this.updateMood();
 
     if (fight && data.outcome) void this.afterFight(fight, data.outcome);
@@ -414,6 +426,7 @@ export class AdventureScene extends Phaser.Scene {
     this.heroShadow = this.add.image(0, 0, 'av_shadow');
     this.hero = this.add.sprite(feetX(this.st.x), feetY(this.st.y), 'av_hero', HERO_FRAMES[this.st.facing].idle).setOrigin(0.5, 47 / 48);
     this.grassFront = this.add.image(0, 0, 'av_tall_0').setOrigin(0.5, 0).setScale(2).setCrop(0, 9, 16, 7).setVisible(false);
+    if (hasMachete(this.st)) this.wearMachete();
     this.setHeroFrame();
     this.placeHero(feetX(this.st.x), feetY(this.st.y));
     if (this.hasDog) this.buildDog();
@@ -548,6 +561,7 @@ export class AdventureScene extends Phaser.Scene {
     this.heroShadow.setPosition(Math.round(x), Math.round(y) - 1).setDepth(y);
     const inGrass = this.map[this.st.y]?.[this.st.x] === '"' && (!this.moving || this.progress > 0.5);
     this.grassFront.setVisible(inGrass).setPosition(feetX(this.st.x), this.st.y * CELL).setDepth(y + 2);
+    this.syncBelt();
   }
 
   private setHeroFrame(): void {
@@ -555,6 +569,7 @@ export class AdventureScene extends Phaser.Scene {
     const seq = [1, 2, 3, 0];
     const idx = this.moving ? f.walk + seq[((this.steps % 2) * 2 + (this.progress < 0.5 ? 0 : 1)) % 4] : f.idle;
     this.hero.setFrame(idx).setFlipX(f.flip);
+    this.syncBelt();
   }
 
   private blocked(x: number, y: number): boolean {
@@ -574,6 +589,7 @@ export class AdventureScene extends Phaser.Scene {
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
     this.animateWorld();
     this.drawNight();
+    this.updateHud();
     this.dialog.update(this.menu);
     if (this.mapView) {
       if (this.menu.pressed(MENU_KEYS.map) || this.menu.pressed(MENU_KEYS.confirm) || this.menu.pressed(MENU_KEYS.back)) this.closeMap();
@@ -668,6 +684,7 @@ export class AdventureScene extends Phaser.Scene {
     const near = this.hidden.some((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 5);
     const base = feetX(this.st.x);
     this.hero.x = near && this.frame % 6 < 3 ? base + 1 : base;
+    this.syncBelt();
     if (near && this.frame % 240 === 0) void this.bubble(this.hero, 3, 900);
   }
 
@@ -1690,14 +1707,19 @@ export class AdventureScene extends Phaser.Scene {
 
   private async pauseMenu(): Promise<void> {
     this.locked = true;
-    const withMap = this.st.flags.includes('mapa');
-    const opts = [...(withMap ? ['MAPA'] : []), 'ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ', 'VOLVER'];
-    const i = await this.dialog.ask('¿QUÉ QUIERES HACER?', opts, { cancel: opts.length - 1 }) - (withMap ? 1 : 0);
-    if (i === -1) {
+    const opts = [...(this.st.flags.includes('mapa') ? ['MAPA'] : []), 'MISIONES', 'ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ', 'VOLVER'];
+    const pick = opts[await this.dialog.ask('¿QUÉ QUIERES HACER?', opts, { cancel: opts.length - 1 })];
+    if (pick === 'MAPA') {
       this.locked = false;
       this.openMap();
       return;
     }
+    if (pick === 'MISIONES') {
+      await this.missionMenu();
+      this.locked = false;
+      return;
+    }
+    const i = ['ESPANTOS', 'GUARDAR', 'SALIR AL MENÚ'].indexOf(pick);
     if (i === 0) {
       const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id)).map((g) => FIGHTERS[g.id].name).join(', ');
       await this.dialog.say([`MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.`, left ? `FALTAN: ${left}. ANDAN ESCONDIDOS: BUSCA SUS SEÑALES.` : '¡YA NO FALTA NINGUNO!',
@@ -1766,13 +1788,14 @@ export class AdventureScene extends Phaser.Scene {
       v.add(j);
       blink.push(j);
     }
-    // a dónde tiene que ir Juan para ganarse el machete
-    const goal = this.macheteGoal();
-    if (goal) {
-      const t = this.add.rectangle(ox + goal.at[0] * S + 1, oy + goal.at[1] * S + 1, 9, 9).setStrokeStyle(2, 0xf8e040);
+    // a dónde tiene que ir Juan por la misión que sigue
+    const m = currentMission(this.st);
+    const goal = m?.step.goal ? waypoint('campo', m.step.goal, (id) => this.exitOf(id)) : null;
+    if (m && goal) {
+      const t = this.add.rectangle(ox + goal.x * S + 1, oy + goal.y * S + 1, 9, 9).setStrokeStyle(2, 0xf8e040);
       v.add(t);
       blink.push(t);
-      v.add(this.add.bitmapText(ox, GAME_HEIGHT - 12, 'font', `AMARILLO: ${goal.label}`).setTint(0xf8e040));
+      v.add(this.add.bitmapText(ox, GAME_HEIGHT - 12, 'font', `AMARILLO: ${m.title}`).setTint(0xf8e040));
     }
     const where = here ? 'EL PUNTO BLANCO ES USTED.' : `USTED ANDA EN ${this.gm.name}.`;
     v.add(this.add.bitmapText(ox, oy + 72 * S + 8, 'font', `${where}  CALMADOS EN GRIS.`).setTint(0xc8b890));
@@ -1781,18 +1804,115 @@ export class AdventureScene extends Phaser.Scene {
     this.mapView = v;
   }
 
-  /** Lo que le falta a Juan para tener el machete: a dónde ir y qué decirle. */
-  private macheteGoal(): { at: [number, number]; label: string } | null {
-    if (hasMachete(this.st)) return null;
-    const trapiche: [number, number] = [6, 42];
-    if (this.st.flags.includes('encargo_lena') && !this.st.flags.includes('lena')) return { at: [88, 1], label: 'SUBIDA AL MONTE PURO' };
-    return { at: trapiche, label: this.st.flags.includes('lena') ? 'LLEVE LA LEÑA AL TRAPICHE' : 'TRAPICHE DE DON JULIO' };
-  }
-
   private machetePista(): string {
     if (this.st.flags.includes('lena')) return 'JUAN CARGA LA LEÑA: HAY QUE LLEVÁRSELA A DON JULIO, AL TRAPICHE (VEREDA ABAJO, ANTES DEL PUENTE).';
     if (this.st.flags.includes('encargo_lena')) return 'DON JULIO PIDIÓ LEÑA SECA DEL MONTE PURO: DEL PUEBLO AL ORIENTE, AL MONTE, Y POR LA TROCHA SIEMPRE AL NORTE.';
     return 'JUAN NO TIENE MACHETE: LO GUARDA DON JULIO EN EL TRAPICHE, VEREDA ABAJO HACIA EL RÍO, ANTES DEL PUENTE.';
+  }
+
+  // ---------------------------------------------------------------- misiones, cosas que carga Juan y la flecha
+
+  private exitOf(id: string) {
+    if (!id.startsWith('int:')) return undefined;
+    try { return getMap(id).exit; } catch { return undefined; }
+  }
+
+  private buildHud(): void {
+    for (const id of ['farol', 'machete', 'mapa', 'perro', 'caballo'] as const) {
+      if (!this.textures.exists(`av_item_${id}`)) addPixmap(this, `av_item_${id}`, buildItemIcon(id));
+    }
+    this.hudTop = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
+    this.hudMission = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
+    this.hudArrow = this.add.triangle(0, 0, 0, 0, 9, 4.5, 0, 9, 0xf8e040).setStrokeStyle(1, 0x140a10).setScrollFactor(0).setDepth(3951);
+    this.owned = items(this.st);
+    this.refreshHud();
+  }
+
+  /** Arriba a la derecha lo que carga Juan; abajo, la misión que sigue con su flecha. */
+  private refreshHud(): void {
+    const m = currentMission(this.st);
+    const own = items(this.st);
+    const k = `${m?.id}|${m?.step.text}|${own.join()}`;
+    if (k === this.hudKey) return;
+    this.hudKey = k;
+    const fresh = own.filter((x) => !this.owned.includes(x));
+    this.owned = own;
+    this.hudTop.removeAll(true);
+    own.forEach((id, i) => {
+      const x = GAME_WIDTH - 6 - (own.length - i) * 17, y = 5;
+      // el machete es el arma: marco dorado
+      this.hudTop.add(this.add.rectangle(x, y, 15, 15, 0x101828, 0.85).setOrigin(0).setStrokeStyle(1, id === 'machete' ? 0xf8d048 : 0x6a5a40));
+      this.hudTop.add(this.add.image(x + 2, y + 2, `av_item_${id}`).setOrigin(0));
+    });
+    this.hudMission.removeAll(true);
+    this.hudGoal = m?.step.goal ?? null;
+    if (m) {
+      const lines = wrap(m.step.text, 44).slice(0, 2);
+      const y0 = GAME_HEIGHT - 14 - lines.length * 10;
+      this.hudMission.add(this.add.rectangle(4, y0 - 2, GAME_WIDTH - 8, 14 + lines.length * 10, 0x101828, 0.8).setOrigin(0).setStrokeStyle(1, 0x8a6a40));
+      this.hudMission.add(this.add.bitmapText(20, y0 + 1, 'font', `MISIÓN: ${m.title}`).setTint(0xf8d048));
+      lines.forEach((l, i) => this.hudMission.add(this.add.bitmapText(10, y0 + 12 + i * 10, 'font', l).setTint(0xf0e8d0)));
+      this.hudArrow.setPosition(11, y0 + 5);
+    }
+    for (const id of fresh) void this.newItem(id);
+  }
+
+  private updateHud(): void {
+    // lo nuevo se anuncia cuando Juan queda libre, no encima de un diálogo
+    if (this.frame % 10 === 0 && !this.dialog.busy && !this.locked && !this.mapView) this.refreshHud();
+    const quiet = !this.dialog.busy && !this.mapView;
+    this.hudTop.setVisible(!this.mapView);
+    this.hudMission.setVisible(quiet && !!currentMission(this.st));
+    const wp = this.hudGoal ? waypoint(this.gm.id, this.hudGoal, (id) => this.exitOf(id)) : null;
+    const near = wp && Math.abs(wp.x - this.st.x) + Math.abs(wp.y - this.st.y) <= 1;
+    this.hudArrow.setVisible(this.hudMission.visible && !!wp && !near);
+    if (wp && !near) this.hudArrow.setRotation(Math.atan2(feetY(wp.y) - this.hero.y, feetX(wp.x) - this.hero.x));
+  }
+
+  /** Algo nuevo para Juan: se anuncia en grande; el machete, además, queda al cinto. */
+  private async newItem(id: ItemId): Promise<void> {
+    if (id === 'machete') this.wearMachete();
+    sfx.play('confirm');
+    const c = this.add.container(GAME_WIDTH / 2, 70).setScrollFactor(0).setDepth(5500);
+    const label = this.add.bitmapText(0, 22, 'font', `¡NUEVO: ${ITEM_NAME[id]}!`).setOrigin(0.5).setTint(0xf8d048);
+    c.add(this.add.rectangle(0, 10, Math.max(label.width + 24, 80), 46, 0x101828, 0.92).setStrokeStyle(1, 0xf8d048));
+    c.add(this.add.image(0, -2, `av_item_${id}`).setScale(2));
+    c.add(label);
+    if (id === 'machete') c.add(this.add.bitmapText(0, 32, 'font', 'ARMA: LO LLEVA AL CINTO').setOrigin(0.5).setTint(0xf0e8d0));
+    c.setScale(0.6).setAlpha(0);
+    await this.tween({ targets: c, scale: 1, alpha: 1, duration: 220, ease: 'Back.out' });
+    await this.wait(1800);
+    await this.tween({ targets: c, alpha: 0, y: 50, duration: 400 });
+    c.destroy();
+  }
+
+  /** La lista de misiones, y cuál seguir en pantalla. */
+  private async missionMenu(): Promise<void> {
+    const all = missions(this.st);
+    await this.dialog.say(all.map((m) => `${m.done ? '[HECHA]' : '[  ]'} ${m.title}${m.done ? '' : ': ' + m.step.text}`));
+    const open = all.filter((m) => !m.done);
+    if (!open.length) return;
+    const i = await this.dialog.ask('¿CUÁL MISIÓN SIGUE EN PANTALLA?', [...open.map((m) => m.title), 'LA QUE TOQUE'], { cancel: open.length });
+    this.st.pinned = i < open.length ? open[i].id : undefined;
+    saveAdventure(this.st);
+    this.refreshHud();
+  }
+
+  /** El machete del abuelo al cinto: de frente a un lado de la cadera, de lado en la funda. */
+  private wearMachete(): void {
+    if (this.belt) return;
+    if (!this.textures.exists('av_machete_cinto')) addSheet(this, 'av_machete_cinto', buildMacheteCinto(), 8, 16);
+    this.belt = this.add.image(0, 0, 'av_machete_cinto', 1).setOrigin(0.5, 0);
+    this.syncBelt();
+  }
+
+  private syncBelt(): void {
+    const b = this.belt, h = this.hero;
+    if (!b || !h) return;
+    const f = this.st.facing;
+    const dx = f === 'down' ? 8 : f === 'up' ? -8 : f === 'right' ? -4 : 4;
+    b.setFrame(f === 'up' || f === 'down' ? 1 : 0).setFlipX(f === 'left')
+      .setPosition(Math.round(h.x + dx), Math.round(h.y - 22)).setDepth(f === 'left' ? h.depth - 0.5 : h.depth + 0.5);
   }
 
   private blinkMap(): void {

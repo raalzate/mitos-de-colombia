@@ -1,6 +1,7 @@
 import type { Difficulty, FighterId } from '../combat/CombatTypes';
 import { GUARDIANS, HERO_START, type Dir } from './World';
 import type { StoryId } from './Stories';
+import type { MissionId } from './Missions';
 
 /** Partida del modo aventura. Se guarda en el navegador si se puede; si no, dura la sesión. */
 export interface AdventureState {
@@ -18,6 +19,8 @@ export interface AdventureState {
   stories: StoryId[];
   /** dónde han visto a cada mito (lo que reporta el cabo y lo que ve Juan): se marca en el mapa */
   sightings: Partial<Record<FighterId, [number, number][]>>;
+  /** misión que Juan escogió seguir en pantalla */
+  pinned?: MissionId;
 }
 
 /** Combate en curso del modo aventura: lo lee el FightScene para volver al mapa al terminar. */
