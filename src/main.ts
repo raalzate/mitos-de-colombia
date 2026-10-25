@@ -8,6 +8,7 @@ import { ResultScene } from './scenes/ResultScene';
 import { StageSelectScene } from './scenes/StageSelectScene';
 import { WarningScene } from './scenes/WarningScene';
 import { AdventureScene } from './scenes/AdventureScene';
+import { EndingScene } from './scenes/EndingScene';
 import { fitIntegerZoom, inputManager } from './utils/game';
 import { sfx } from './audio/Sfx';
 import { isTouchDevice, TouchControls } from './ui/TouchControls';
@@ -28,7 +29,7 @@ const config: Phaser.Types.Core.GameConfig = {
   },
   fps: { target: 60, forceSetTimeOut: false },
   audio: { noAudio: true },
-  scene: [BootScene, WarningScene, MenuScene, CharacterSelectScene, StageSelectScene, FightScene, ResultScene, AdventureScene],
+  scene: [BootScene, WarningScene, MenuScene, CharacterSelectScene, StageSelectScene, FightScene, ResultScene, AdventureScene, EndingScene],
 };
 
 // Se marca antes de crear las escenas para que sus textos de ayuda nombren los botones táctiles.

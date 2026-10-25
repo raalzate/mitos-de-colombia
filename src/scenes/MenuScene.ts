@@ -10,6 +10,8 @@ import { MENU_IDLE_SCARE_SECONDS } from '../combat/Fear';
 import { loadAdventure } from '../adventure/State';
 import type { FighterId } from '../combat/CombatTypes';
 import { startWithLoading } from '../ui/Loading';
+import { DEMO, demoRun } from '../demo/Demo';
+import { Pilot } from '../demo/Pilot';
 
 type Page = 'main' | 'difficulty' | 'controls' | 'adventure';
 
@@ -40,6 +42,8 @@ export class MenuScene extends Phaser.Scene {
   private frame = 0;
   private idleFrames = 0;
   private scaring = false;
+  /** modo demostración: entra solo a una aventura nueva */
+  private pilot = DEMO ? new Pilot() : null;
 
   constructor() {
     super('MenuScene');
@@ -69,6 +73,18 @@ export class MenuScene extends Phaser.Scene {
     if (!touch) text(this, GAME_WIDTH / 2, 216, 'F: PANTALLA COMPLETA', 1, 0x9088b0).setAlpha(0.7);
 
     inputManager.setGamepadEnabled(2, false);
+  }
+
+  /** Demo: escoge MODO AVENTURA y luego NUEVA PARTIDA, despacio para que se vea. */
+  private demoStep(p: Pilot): void {
+    p.frame();
+    if (demoRun.started || this.frame < 150 || this.frame % 50) return;
+    if (this.page === 'main') p.tap(this.index === ADVENTURE_INDEX ? 'Space' : 'ArrowUp');
+    else if (this.page === 'adventure') {
+      const go = this.items[this.index].text === 'NUEVA PARTIDA';
+      p.tap(go ? 'Space' : 'ArrowDown');
+      if (go) demoRun.started = true;
+    }
   }
 
   private buildControls(): void {
@@ -118,6 +134,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   override update(): void {
+    if (this.pilot) this.demoStep(this.pilot);
     inputManager.update();
     this.frame++;
     // susto si el menú se queda quieto un rato

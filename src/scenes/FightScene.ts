@@ -40,6 +40,7 @@ import { aimLurk, buildLurk, lurkAt, lurkFeetY, lurkScale, lurkSounds, wantsLurk
 import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildHorse } from '../adventure/OverworldArt';
 import { addSheet } from '../utils/textures';
 import { startWithLoading } from '../ui/Loading';
+import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../demo/Demo';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
 const VS_FRAMES = 90;
@@ -113,6 +114,8 @@ export class FightScene extends Phaser.Scene {
   private views!: Record<PlayerSlot, FighterView>;
   private combat!: CombatSystem;
   private ai: FighterAI | null = null;
+  /** modo demostración: Juan también pelea solo */
+  private heroAi: FighterAI | null = null;
   private readers: Record<PlayerSlot, TwoButtonReader> = { 1: new TwoButtonReader(), 2: new TwoButtonReader() };
   private hud!: CombatHUD;
   private menu = new MenuInput();
@@ -365,7 +368,13 @@ export class FightScene extends Phaser.Scene {
       onProjectileSpawn: (p) => this.onProjectileSpawn(p),
       onProjectileEnd: (p, reason) => this.onProjectileEnd(p, reason),
     });
-    this.ai = this.settings.mode === 'cpu' ? new FighterAI(this.p2, this.p1, this.settings.difficulty) : null;
+    const demo = DEMO && !!this.registry.get('adventureFight');
+    this.ai = this.settings.mode === 'cpu' ? new FighterAI(this.p2, this.p1, demo ? 'easy' : this.settings.difficulty) : null;
+    this.heroAi = demo ? new FighterAI(this.p1, this.p2, 'hard') : null;
+    if (demo) {
+      this.p1.damageScale = DEMO_HERO_DAMAGE;
+      this.p2.damageScale = DEMO_MYTH_DAMAGE;
+    }
     inputManager.setGamepadEnabled(2, this.settings.mode === 'versus');
 
     const mk = (slot: PlayerSlot): FighterView => {
@@ -511,6 +520,8 @@ export class FightScene extends Phaser.Scene {
     if (!this.matchWinnerSlot && this.score.roundsPlayed >= MAX_ROUNDS) {
       this.matchWinnerSlot = forcedWinner(this.score, this.p1.hp, this.p2.hp);
     }
+    // demo: una ronda ganada basta, y si Juan pierde una, se pelea otra
+    if (this.heroAi) this.matchWinnerSlot = winner === 1 ? 1 : null;
     // KO que decide el combate: ventana de remate al estilo Mortal Kombat
     if (ko && this.matchWinnerSlot && (this.matchWinnerSlot === 1 ? this.p2 : this.p1).hp <= 0) {
       this.phase = 'finish';
@@ -539,6 +550,8 @@ export class FightScene extends Phaser.Scene {
     if (isCpu) {
       if (this.cpuFatality === null) this.cpuFatality = cpuWantsFatality(this.settings.difficulty, Math.random());
       go = this.cpuFatality && t === 70;
+    } else if (this.heroAi) {
+      go = t === 40;
     } else {
       const p = inputManager.snapshot(slot).pressed;
       go = isFatalityInput({ ultimate: p.ultimate, heavy: p.heavy, heavykick: p.heavykick });
@@ -779,7 +792,7 @@ export class FightScene extends Phaser.Scene {
     if (this.cinematic) {
       this.updateCinematic();
     } else {
-      const in1: InputState = this.twoButton(1, this.p1, this.p2);
+      const in1: InputState = this.heroAi ? this.heroAi.update() : this.twoButton(1, this.p1, this.p2);
       const in2: InputState = this.ai ? this.ai.update() : this.twoButton(2, this.p2, this.p1);
       const before = [this.p1.attack, this.p2.attack];
       this.p1.update(in1);
@@ -817,7 +830,9 @@ export class FightScene extends Phaser.Scene {
       id: f.stats.id, framesSince: this.framesSinceLurk, usedRound: this.lurksRound,
       calm: calm(this.p1) && calm(f) && !this.combat.projectiles.length, dist: Math.abs(this.p1.x - f.x), hp: f.hp,
     };
-    if (!this.ai || this.views[2].drawn === false || !wantsLurk(wish, Math.random())) return false;
+    // demo: cada mito se mete al fondo una vez por pelea, para que se vea
+    const shown = !!this.heroAi && this.lurksRound === 0 && this.roundNumber === 1 && this.framesSinceLurk > DEMO_LURK_AFTER && wish.calm && f.hp > 0;
+    if (!this.ai || this.views[2].drawn === false || !(shown || wantsLurk(wish, Math.random()))) return false;
     const cam = this.cameras.main;
     const script = buildLurk(this.stageId, f.stats.id, (f.x - cam.scrollX) / GAME_WIDTH, Math.random, (this.p1.x - cam.scrollX) / GAME_WIDTH);
     let horse: Phaser.GameObjects.Image | null = null;
@@ -947,7 +962,7 @@ export class FightScene extends Phaser.Scene {
   private tryFlee(): boolean {
     const fight = this.registry.get('adventureFight') as AdventureFight | undefined;
     const f = this.p2;
-    if (!fight || this.fleeTried || f.hp <= 0 || f.hp > MAX_HP * 0.3 || !f.grounded || f.state !== 'idle' && f.state !== 'walk') return false;
+    if (!fight || DEMO || this.fleeTried || f.hp <= 0 || f.hp > MAX_HP * 0.3 || !f.grounded || f.state !== 'idle' && f.state !== 'walk') return false;
     this.fleeTried = true;
     if (Math.random() >= fleeFightChance(fight.escapes ?? 0)) return false;
     this.hideBubble();

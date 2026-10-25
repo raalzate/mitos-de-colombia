@@ -93,6 +93,13 @@ aventura) y AMPLIAR para la pantalla completa donde el navegador lo permite. En 
 controles abajo, como en una consola de bolsillo; en horizontal el juego llena la pantalla y los controles quedan
 encima, casi transparentes. Para probarlos en el computador: `http://localhost:5173/?tactil`.
 
+## Modo demostración
+
+`http://localhost:5173/?demo` juega solo el modo aventura de principio a fin, para grabarlo en video: se pulsa una
+tecla en la advertencia (para que suene el audio) y el resto lo hace el juego. Cumple las misiones en orden, pasa
+por el cementerio, sigue las pistas de la gente, cruza el barrizal en Lucero, pelea con IA y termina con el final.
+Juan anda más rápido, los mitos no se vuelan y la partida se guarda aparte de la del jugador. Toma unos 10 minutos.
+
 ## Despliegue
 
 Publicado en Vercel (`vercel.json`). Para volver a publicar:

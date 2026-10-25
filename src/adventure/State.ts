@@ -3,6 +3,7 @@ import { GUARDIANS, HERO_START, SWAPS, walkable, type Dir, type Guardian, type H
 import { campoSpot, getMap } from './Maps';
 import type { StoryId } from './Stories';
 import type { MissionId } from './Missions';
+import { DEMO } from '../demo/Demo';
 
 /** Partida del modo aventura. Se guarda en el navegador si se puede; si no, dura la sesión. */
 export interface AdventureState {
@@ -32,6 +33,10 @@ export interface AdventureState {
   escapularioAt?: number;
   /** minuto de la noche de la última pelea (o del comienzo): tras un rato sin pelear, la gente da pistas */
   lastFight?: number;
+  /** Juan va montado en Lucero (solo en el campo de San Agustín) */
+  riding?: boolean;
+  /** dónde dejó Juan amarrado a Lucero en el campo; sin esto, Lucero está en la vereda, junto a la mula */
+  horseAt?: [number, number];
 }
 
 /** La noche entera: de las 6:00 PM a las 12:00 AM. */
@@ -78,7 +83,8 @@ export interface AdventureFight {
 
 export type FightOutcome = 'win' | 'lose' | 'fled';
 
-const KEY = 'mitos-aventura-v5';
+// la demo juega aparte: no pisa la partida del jugador
+const KEY = DEMO ? 'mitos-aventura-demo' : 'mitos-aventura-v5';
 
 export function newAdventure(rnd: () => number = Math.random): AdventureState {
   return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0, taken: [] };

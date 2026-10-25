@@ -12,9 +12,10 @@ export const MAP_H = 72;
 
 /**
  * . hierba  = camino  " hierba alta  ~ agua  B puente  T árbol  H edificio  P objeto que estorba  f flores  S letrero  c tierra de cementerio
+ * L barrizal (a pie no se pasa: solo a caballo)
  * ciudad: a asfalto  d andén  z cebra  l ladrillo  o adoquín   interiores: W pared  F piso  M tapete de salida
  */
-export type Cell = '.' | '=' | '"' | '~' | 'B' | 'T' | 'H' | 'P' | 'f' | 'S' | 'c' | 'a' | 'd' | 'z' | 'l' | 'o' | 'W' | 'F' | 'M';
+export type Cell = '.' | '=' | '"' | '~' | 'B' | 'T' | 'H' | 'P' | 'f' | 'S' | 'c' | 'L' | 'a' | 'd' | 'z' | 'l' | 'o' | 'W' | 'F' | 'M';
 
 export type Dir = 'up' | 'down' | 'left' | 'right';
 export const STEP: Record<Dir, [number, number]> = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
@@ -202,8 +203,13 @@ export const SIGNS: Sign[] = [
   { x: 77, y: 52, lines: ['LAGUNA SAGRADA.', 'DE AQUÍ SALIÓ BACHUÉ CON UN NIÑO EN BRAZOS, MADRE DE LOS MUISCAS.'] },
   { x: 11, y: 52, lines: ['CIÉNAGA. CUIDADO CON LOS CAIMANES...', '...Y CON LOS QUE NO SON CAIMANES DEL TODO. POR LA TROCHA DEL SUR SE BAJA A RÍO ABAJO.'] },
   { x: 87, y: 3, lines: ['SUBIDA AL MONTE PURO.', 'MONTAÑA ARRIBA NO HAY CAMINO NI CASAS: SOLO ROBLES, NEBLINA... Y ALGÚN ESPANTO DEL MONTE.'] },
+  { x: 56, y: 55, lines: ['BARRIZAL. CON ESTE INVIERNO EL CAMINO A LA LAGUNA SE VOLVIÓ PURO BARRO.', 'A PIE SE HUNDE UNO HASTA LA CINTURA. ¡SOLO SE PASA A CABALLO!'] },
+  { x: 74, y: 43, lines: ['PUENTE A LA LAGUNA DE BACHUÉ.', 'OJO: AL OTRO LADO EL CAMINO ES PURO BARRIZAL. SIN BESTIA NO SE PASA.'] },
   { x: 5, y: 7, lines: ['CAMINO DE HERRADURA A SANTA FE DE ANTIOQUIA.', 'TRES DÍAS A PIE... UNO A CABALLO. ¡SIN BESTIA NI LO INTENTE!'] },
 ];
+
+/** Barrizal que rodea la laguna de Bachué: la orilla sur del río y una franja al oriente de los potreros. */
+export const LODO: [number, number, number, number][] = [[57, 49, 118, 51], [57, 52, 59, 70]];
 
 export function buildMap(): Cell[][] {
   const g: Cell[][] = Array.from({ length: MAP_H }, () => Array.from({ length: MAP_W }, () => '.' as Cell));
@@ -275,6 +281,8 @@ export function buildMap(): Cell[][] {
   rect(g, 16, 55, 16, 68, g[55][16] === 'B' ? 'B' : '=');
   for (let y = 55; y <= 68; y++) g[y][16] = g[y][16] === '~' || g[y][16] === 'B' ? 'B' : '=';
   rect(g, 16, 69, 16, 70, '='); // baja a Río Abajo
+  // el barrizal: con el invierno, la orilla sur del río y la entrada a la laguna son puro barro
+  for (const [x0, y0, x1, y1] of LODO) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (g[y][x] !== '~') g[y][x] = 'L';
 
   for (const b of [...BUILDINGS, ...CAMPO_CITY_BUILDINGS]) {
     const [w, h] = b.kind in BUILDING_FOOTPRINT ? BUILDING_FOOTPRINT[b.kind as BuildingKind] : CITY_BUILDING_FOOTPRINT[b.kind as CityBuildingKind];
@@ -357,9 +365,10 @@ export interface Disguise {
 /** Todos los mitos de la tierra: andan escondidos, cada uno rondando el lugar de su leyenda. */
 export const GUARDIANS: Guardian[] = [
   {
-    id: 'sombreron', haunts: [{ map: 'campo', zone: R(22, 33, 59, 43), place: 'LA CALLE DE ABAJO' }], stage: 'pueblo', clue: 'sombrero',
-    clueText: 'UN SOMBRERO NEGRO ENORME TIRADO EN LA CALLE... ¿DE QUIÉN SERÁ? MEJOR NO LO TOCO.',
-    fright: 'ESE SOMBRERO TAN GRANDE EN PLENO PUEBLO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!',
+    // se bajó a Medellín: ronda la Plaza Botero, entre las esculturas, esperando a los que salen tarde
+    id: 'sombreron', haunts: [{ map: 'medellin', zone: R(14, 12, 40, 29), place: 'LA PLAZA BOTERO, EN MEDELLÍN' }], stage: 'pueblo', clue: 'sombrero',
+    clueText: 'UN SOMBRERO NEGRO ENORME TIRADO ENTRE LAS ESCULTURAS... ¿DE QUIÉN SERÁ? MEJOR NO LO TOCO.',
+    fright: 'ESE SOMBRERO TAN GRANDE EN PLENA PLAZA BOTERO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!',
     taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.',
     defeat: 'EL SOMBRERÓN SE QUITA EL SOMBRERO Y TE HACE UNA REVERENCIA.',
     flee: 'EL SOMBRERÓN SE TAPA CON EL SOMBRERO... ¡Y DEBAJO NO QUEDA NADIE!',
@@ -579,7 +588,7 @@ export interface Spirit {
 export const SPIRITS: Spirit[] = [
   { kind: 'duende', name: 'EL DUENDE', zone: R(2, 18, 60, 42), hints: [
     'JI, JI, JI... ¿BUSCAS A LA MUELONA? SE ESCONDE DONDE SIRVEN GUARO: EN UNA DE LAS DOS CANTINAS.',
-    'JI, JI... YO VI AL SOMBRERÓN EN LA CALLE DE ABAJO, ESPERANDO A LOS QUE SALEN TARDE.',
+    'JI, JI... EL SOMBRERÓN SE BAJÓ A MEDELLÍN EN SU CABALLO: RONDA LA PLAZA BOTERO. DON EVELIO LO LLEVA EN EL YIPAO.',
     '¡TE ESCONDÍ EL SOMBRERO!... MENTIRAS, JI, JI. EL SILBÓN ANDA EN EL LLANO; SIGUE LOS HUESOS.',
   ] },
   { kind: 'pollo', name: 'EL POLLO MALIGNO', zone: R(63, 1, 94, 43), hints: [

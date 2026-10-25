@@ -63,6 +63,8 @@ export class Fighter {
   grounded = true;
 
   hp = MAX_HP;
+  /** multiplica el daño que recibe (la demo ayuda a Juan) */
+  damageScale = 1;
   meter = 0;
   state: FighterState = 'idle';
   stateFrame = 0;
@@ -419,7 +421,7 @@ export class Fighter {
    * Aplica un impacto ya resuelto. `pushDir` es la dirección en la que sale despedido.
    */
   takeHit(result: HitResult, pushDir: Facing, hitstop: number): void {
-    this.hp = applyDamage(this.hp, result.damage);
+    this.hp = applyDamage(this.hp, Math.round(result.damage * this.damageScale));
     this.damageTaken += result.damage;
     this.meter = addMeter(this.meter, result.blocked ? 1 : 3);
     this.hitstop = hitstop;

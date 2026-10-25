@@ -712,6 +712,8 @@ export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', 'monte', 'c
  */
 export function campoSpot(id: MapId, x: number, y: number): [number, number] | null {
   if (id === 'campo') return [x, y];
+  // Medellín se marca en la terminal de jeeps, de donde sale el yipao
+  if (id === 'medellin') return getMap('campo').arrival!;
   const m = getMap(id);
   if (m.exit?.to === 'campo') return [m.exit.tx, m.exit.ty];
   const back = m.links?.find((l) => l.to === 'campo');

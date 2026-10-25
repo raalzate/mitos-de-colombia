@@ -57,6 +57,17 @@ export class DialogBox {
     return this.resolve !== null || this.resolveChoice !== null;
   }
 
+  /** Lo que muestra la caja, para el modo demostración. */
+  get demoInfo(): { busy: boolean; typing: boolean; page: string; choice: { question: string; options: string[]; index: number } | null } {
+    const text = this.pages[this.page]?.join('\n') ?? '';
+    return {
+      busy: this.busy,
+      typing: !!this.resolve && this.shown < text.length,
+      page: `${this.page}:${text}`,
+      choice: this.resolveChoice ? { question: text, options: this.options, index: this.optionIndex } : null,
+    };
+  }
+
   say(texts: string | string[], opts: SayOpts = {}): Promise<void> {
     this.pages = paginate(Array.isArray(texts) ? texts : [texts]);
     this.page = 0;

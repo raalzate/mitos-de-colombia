@@ -9,12 +9,14 @@ cada encuentro con un mito abre el combate de lucha (ver [Combate](COMBATE.md)).
 
 **Juan Machete** es un campesino paisa de Medellín, vivo y berraco. No es un monstruo ni hizo pacto con nadie:
 es de carne y hueso y siempre es él quien pelea. Baja a la vereda San Agustín y la **abuela Rosa** le cuenta que
-todos los mitos andan sueltos asustando a la gente: el Sombrerón y la Muelona en el pueblo, el Silbón en el llano,
+todos los mitos andan sueltos asustando a la gente: el Sombrerón en la Plaza Botero de Medellín, la Muelona en el pueblo, el Silbón en el llano,
 la Llorona y el Mohán en el río, el Hombre Caimán en la ciénaga, la Patasola y la Madremonte en el monte y Bachué
 en la laguna del sur.
 
 Juan tiene que encontrarlos y calmarlos a los nueve. Los mitos no se destruyen: "son parte de esta tierra, hay que
-respetarlos". Con los nueve calmados vuelve donde la abuela para el final.
+respetarlos". Con los nueve calmados vuelve donde la abuela para el final: amanece sobre San Agustín, los nueve
+mitos pasan por la loma de vuelta a su sitio mientras Juan, la abuela, Firulais y Lucero los ven irse, y luego
+vienen los créditos con lo que logró Juan y el FIN con pólvora (`src/scenes/EndingScene.ts`).
 
 - **Ganar** un combate calma al mito y la aventura sigue donde Juan estaba.
 - **Perder** es FIN DEL JUEGO: la partida se borra y todo vuelve a empezar.
@@ -33,7 +35,7 @@ el Hombre Caimán se reparten las dos aguas, y la Muelona se mete dentro de una 
 
 | Mito | Dónde ronda | Señal que deja | Escenario de la pelea |
 |---|---|---|---|
-| El Sombrerón | Calle de abajo del pueblo | Un sombrero negro enorme | Callejón del Sombrerón |
+| El Sombrerón | La Plaza Botero, en Medellín (se llega en el yipao de don Evelio) | Un sombrero negro enorme | Callejón del Sombrerón |
 | La Muelona | Dentro de la cantina La Última Lágrima o de El Remolino | Un diente más grande que un dedo | Cantina La Última Copa |
 | El Silbón | El llano | Huesos regados | Llanos del Silbón |
 | El Hombre Caimán | La ciénaga o Río Abajo | Huellas de caimán... y de pie | El de su sitio: ciénaga o ribera |
@@ -123,8 +125,17 @@ alcanza a prepararse. También le ladra a los espíritus y gruñe cuando huele a
 
 Don Rubén, el arriero de la vereda, tiene una mula que no pasa por el llano porque el Silbón la tiene espantada.
 Le propone un trato a Juan: **si calma al Silbón, le regala a Lucero**, su caballo. Al cumplirlo, Lucero queda
-amarrado al principio del camino de herradura, en el llano, y con él Juan puede viajar a Santa Fe de Antioquia
-(y volver).
+amarrado en la vereda, junto a la mula. Hablándole, Juan puede **montarse** o viajar a Santa Fe de Antioquia (y volver).
+
+### El barrizal
+
+Con el invierno, la orilla sur del río y la entrada a la **laguna de Bachué** son puro barro (`L` en el mapa,
+`LODO` en `World.ts`). A pie Juan se hunde hasta las rodillas y no pasa; **montado en Lucero sí**. Así, Bachué solo
+se puede alcanzar después de ganarse el caballo. Dos letreros avisan: en los potreros y en el puente a la laguna.
+
+Montado, Juan anda más ligero y Lucero galopa de lado. Para bajarse, se le da al botón donde no haya nada. Lucero no
+entra a las casas ni a los otros mapas: al cruzar una puerta o una trocha Juan lo deja
+amarrado al lado (en una casilla despejada que no sea puerta ni entrada) y lo encuentra ahí al volver. A las peleas Juan sale y vuelve montado.
 
 ![Viaje a caballo](screenshots/14-viaje-a-caballo.png)
 
@@ -173,6 +184,8 @@ Si el navegador no deja guardar, la partida dura mientras la pestaña esté abie
 | Archivo | Qué hace |
 |---|---|
 | `src/scenes/AdventureScene.ts` | La escena: mapa, noche y faroles, diálogos, sucesos, perro, caballo, viajes |
+| `src/scenes/EndingScene.ts` | El final: amanecer, desfile de los mitos, créditos y FIN |
+| `src/demo/` | Modo demostración (`?demo`): el juego se juega solo de principio a fin para grabarlo |
 | `src/adventure/World.ts` | San Agustín: mapa, zonas, gente, mitos (zona, señal, frases) y espíritus |
 | `src/adventure/Maps.ts` | Registro de mapas: campo, Medellín, Santa Fe e interiores |
 | `src/adventure/Hunt.ts` | Reglas puras de los mitos escondidos: ronda, señales, emboscada, huida |
