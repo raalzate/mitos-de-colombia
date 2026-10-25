@@ -32,7 +32,7 @@ export const MISSION_IDS: MissionId[] = ['machete', 'mapa', 'escapulario', 'perr
 const TRAPICHE: Spot = { map: 'int:trapiche0', x: 7, y: 5 };
 const CLARO: Spot = { map: 'monte', x: 25, y: 5 };
 const CABO: Spot = { map: 'campo', x: 23, y: 24 };
-const PADRE: Spot = { map: 'campo', x: 41, y: 25 };
+const PADRE: Spot = { map: 'int:iglesia0', x: 6, y: 4 };
 const PERRO: Spot = { map: 'campo', x: 36, y: 30 };
 const GLORIA: Spot = { map: 'campo', x: 46, y: 26 };
 const RUBEN: Spot = { map: 'campo', x: 14, y: 26 };
@@ -50,7 +50,8 @@ function step(s: AdventureState, id: MissionId): MissionStep {
     case 'mapa':
       return { text: 'PÍDALE EL MAPA AL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO.', goal: CABO };
     case 'escapulario':
-      return { text: 'PÍDALE UN ESCAPULARIO BENDITO AL PADRE ANSELMO, EN LA PUERTA DE LA IGLESIA.', goal: PADRE };
+      if (has(s, 'escapulario_perdido')) return { text: 'SE LE PERDIÓ EL ESCAPULARIO: PÍDALE OTRO AL PADRE, EN LA IGLESIA.', goal: PADRE };
+      return { text: 'PÍDALE UN ESCAPULARIO AL PADRE ANSELMO, ADENTRO DE LA IGLESIA.', goal: PADRE };
     case 'perro':
       if (has(s, 'arepa')) return { text: 'DELE LA AREPA AL PERRITO FLACO DE LA PLAZA.', goal: PERRO };
       if (has(s, 'perro_visto')) return { text: 'CONSIGA UNA AREPA: DOÑA GLORIA, EN LA PLAZA, O DOÑA MARINA, EN LAS FIESTAS.', goal: GLORIA };

@@ -507,7 +507,15 @@ export const INTERIORS: Record<string, InteriorDef> = {
     name: 'IGLESIA DE SAN AGUSTÍN', w: 13, h: 11, floor: 'baldosa_ajedrez', wall: 'iglesia', sound: 'iglesia',
     furniture: [['virgen', 3, 1], ['altar', 6, 3], ['virgen', 9, 1], ['velas', 3, 3], ['velas', 9, 3], ['pulpito', 10, 4],
       ['banca_iglesia', 4, 6], ['banca_iglesia', 8, 6], ['banca_iglesia', 4, 8], ['banca_iglesia', 8, 8]],
-    npcs: [N('campesina', 'DOÑA BERTA', 6, 7, 'llorona', 'ESTOY REZANDO PA\' QUE SE CALMEN LOS ESPANTOS. ¿USTED TAMBIÉN VINO A PEDIR PROTECCIÓN?', 'up')],
+    npcs: [
+      N('campesina', 'DOÑA BERTA', 6, 7, 'llorona', 'ESTOY REZANDO PA\' QUE SE CALMEN LOS ESPANTOS. ¿USTED TAMBIÉN VINO A PEDIR PROTECCIÓN?', 'up'),
+      // el padre Anselmo está adentro, frente al altar: ahí bendice los escapularios
+      { key: 'cura', name: 'PADRE ANSELMO', story: 'navidad', x: 6, y: 4, facing: 'down', lines: [
+        ['QUE DIOS LO ACOMPAÑE, HIJO. ESOS ESPANTOS NO SE VEN A SIMPLE VISTA: HAY QUE BUSCAR LAS SEÑALES QUE DEJAN.'],
+        ['¿LO MOLESTAN EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA? CON UN ESCAPULARIO BENDITO NO SE LE ARRIMAN.'],
+        ['HUESOS EN EL LLANO, LÁGRIMAS EN EL RÍO, HUELLAS DE UNA SOLA PATA EN EL MONTE... DONDE HAY SEÑAL, HAY ESPANTO.'],
+      ] },
+    ],
   },
   capilla0: {
     name: 'CAPILLA DEL CEMENTERIO', w: 9, h: 8, floor: 'ladrillo', wall: 'iglesia', sound: 'iglesia',

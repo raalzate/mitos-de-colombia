@@ -20,10 +20,12 @@ import {
 import { STORIES, STORY_IDS } from '../adventure/Stories';
 import {
   LAST_HOUR, MS_PER_MINUTE, TRIP_MINUTES, addSighting, allCalmed, applyOutcome, clearAdventure, clockText, nightOver, fightDifficulty, hasEscapulario, hasMachete, homeOf, loadAdventure, newAdventure, reportSightings, saveAdventure,
+  escapularioWornOut, giveEscapulario, loseEscapulario, losesEscapularioInFight,
   type AdventureFight, type AdventureState, type FightOutcome,
 } from '../adventure/State';
 import {
   GLIMPSE_MAX, GLIMPSE_MIN, HEAR_RADIUS, ambushChance, dist, popSpot, relocate, spawnHidden, vanishChance, wander, zoneCells, type Hidden, type Zoned,
+  AMBUSH_GAP_MS, DISGUISE_STEPS, GLIMPSE_CHANCE, HINT_CHANCE, HINT_GAP_MS, HINT_RADIUS, OMEN_GAP_MS, SOUND_GAP_MS, disguiseChance, hintReady, rested,
 } from '../adventure/Hunt';
 import { getSettings, setSettings } from '../utils/game';
 import {
@@ -123,6 +125,17 @@ const ALL_ICONS: ItemIcon[] = ['farol', 'machete', 'mapa', 'escapulario', 'perro
 interface HiddenView { h: Hidden; g: Guardian; z: Zoned }
 interface SpiritView { s: Spirit; x: number; y: number; sprite: Phaser.GameObjects.Sprite; shown: boolean; steps: number; cooldown: number; procedural: boolean }
 interface Light { x: number; y: number; r: number; flicker: number }
+/** Un mito disfrazado de persona normal, esperando a que Juan se le arrime. */
+interface Stranger { v: HiddenView; n: NpcView; steps: number }
+
+/**
+ * Último avistamiento, último ruido y última pista de la gente, en tiempo de juego real.
+ * Viven fuera de la escena porque la escena se reinicia al entrar a una casa o al volver de una pelea.
+ */
+const pace = { omen: -Infinity, sound: -Infinity, hint: -Infinity };
+const now = () => performance.now();
+/** Quienes no hablan con Juan: no dan pistas. */
+const MUTE_NPCS = new Set<string>(['perro', 'caballo']);
 
 export class AdventureScene extends Phaser.Scene {
   private st!: AdventureState;
@@ -148,6 +161,7 @@ export class AdventureScene extends Phaser.Scene {
   private spirits: SpiritView[] = [];
   private clues = new Map<string, Phaser.GameObjects.Image>();
   private seenClues = new Set<FighterId>();
+  private stranger: Stranger | null = null;
   private waters: { img: Phaser.GameObjects.Image; top: boolean; bottom: boolean }[] = [];
   private tallGrass = new Map<string, Phaser.GameObjects.Image>();
   private lamps: Light[] = [];
@@ -215,6 +229,7 @@ export class AdventureScene extends Phaser.Scene {
     this.npcs = [];
     this.hidden = [];
     this.spirits = [];
+    this.stranger = null;
     this.waters = [];
     this.lamps = [];
     this.trains = [];
@@ -1090,23 +1105,32 @@ export class AdventureScene extends Phaser.Scene {
 
     for (const v of this.hidden) {
       if (v.h.rest > 0) v.h.rest--;
+      if (v === this.stranger?.v) continue;
       if (this.rnd() < 0.6) {
         wander(this.map, v.h, v.z, this.rnd, (x, y) => this.occupied(x, y));
         this.syncClues(v);
       }
     }
+    if (this.stranger && this.strangerStep()) return;
     // Firulais avisa antes de que un espanto salte encima
     if (this.dogWarnCd > 0) this.dogWarnCd--;
     if (this.dog && this.dogWarnCd <= 0) {
       const threat = this.hidden.find((v) => v.h.rest === 0 && dist(v.h.x, v.h.y, hero.x, hero.y) <= 4);
       if (threat) { void this.dogWarn(threat); return; }
     }
-    // ¿alguno salta de la nada?
-    for (const v of this.hidden) {
-      if (this.rnd() < ambushChance(dist(v.h.x, v.h.y, hero.x, hero.y), v.h.rest)) { void this.ambush(v); return; }
+    // ¿alguno salta de la nada? Nunca justo después de otro susto o de una pelea
+    const t = now();
+    if (rested(t, pace.omen, AMBUSH_GAP_MS)) for (const v of this.hidden) {
+      if (v === this.stranger?.v || this.rnd() >= ambushChance(dist(v.h.x, v.h.y, hero.x, hero.y), v.h.rest)) continue;
+      // a veces no salta: se le arrima como una persona cualquiera
+      if (!this.stranger && this.rnd() < disguiseChance(!!v.g.disguise, this.st.flags.includes(`disfraz_${v.g.id}`)) && this.disguise(v)) return;
+      void this.ambush(v);
+      return;
     }
+    const omen = rested(t, pace.omen, OMEN_GAP_MS);
     // Juan pisa una señal
     for (const v of this.hidden) {
+      if (!omen) break;
       if (!v.h.trail.some(([x, y]) => x === hero.x && y === hero.y) || this.seenClues.has(v.g.id)) continue;
       this.seenClues.add(v.g.id);
       void this.clueEvent(v);
@@ -1117,12 +1141,14 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     for (const v of this.hidden) {
+      if (v === this.stranger?.v) continue;
       const d = dist(v.h.x, v.h.y, hero.x, hero.y);
-      if (d >= GLIMPSE_MIN && d <= GLIMPSE_MAX && this.rnd() < 0.07) { void this.glimpse(v); break; }
-      if (d <= HEAR_RADIUS && this.rnd() < 0.12) { sfx.play(MYTH_SOUND[v.g.id]); break; }
+      if (omen && d >= GLIMPSE_MIN && d <= GLIMPSE_MAX && this.rnd() < GLIMPSE_CHANCE) { void this.glimpse(v); break; }
+      if (d <= HEAR_RADIUS && rested(t, pace.sound, SOUND_GAP_MS) && this.rnd() < 0.12) { pace.sound = t; sfx.play(MYTH_SOUND[v.g.id]); break; }
     }
     if (this.spiritStep()) return;
-    if (this.map[this.st.y][this.st.x] === '"' && this.rnd() < RUSTLE_RATE) void this.rustleEvent();
+    if (this.map[this.st.y][this.st.x] === '"' && this.rnd() < RUSTLE_RATE) { void this.rustleEvent(); return; }
+    this.maybeHint();
   }
 
   private showArea(): void {
@@ -1204,6 +1230,7 @@ export class AdventureScene extends Phaser.Scene {
 
   /** Se deja ver un instante a lo lejos y se esfuma. */
   private async glimpse(v: HiddenView): Promise<void> {
+    pace.omen = now();
     const sp = this.mythSprite(v.g.id, v.h.x, v.h.y).setAlpha(0).setFlipX(v.h.x > this.st.x);
     // a veces la Patasola está acostada en el monte, como una mujer herida que espera a que alguien se acerque
     const fall = DRAWN_ANIM.patasola.fall;
@@ -1227,6 +1254,7 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private async clueEvent(v: HiddenView): Promise<void> {
+    pace.omen = now();
     this.locked = true;
     await this.bubble(this.hero, 1, 400);
     sfx.play(MYTH_SOUND[v.g.id]);
@@ -1237,6 +1265,7 @@ export class AdventureScene extends Phaser.Scene {
 
   /** El mito sale de la nada al lado de Juan: susto, y pelea... o se esfuma. */
   private async ambush(v: HiddenView): Promise<void> {
+    pace.omen = now();
     this.locked = true;
     const spot = popSpot(this.map, this.st, STEP[this.st.facing], (x, y) => this.occupied(x, y) && !(x === v.h.x && y === v.h.y));
     if (!spot) { this.locked = false; return; }
@@ -1253,7 +1282,11 @@ export class AdventureScene extends Phaser.Scene {
     await Promise.all([this.bubble(this.hero, 2, 600), this.shake(this.hero, 8)]);
     await this.dialog.say([v.g.fright], { speaker: 'JUAN MACHETE', shake: true });
     this.sight(v.g.id, spot[0], spot[1]);
+    await this.confront(v, sp);
+  }
 
+  /** Ya se mostró: sin machete Juan sale corriendo; con machete, pelea... o el mito se esfuma. */
+  private async confront(v: HiddenView, sp: Phaser.GameObjects.Sprite): Promise<void> {
     if (!hasMachete(this.st)) {
       // sin machete no hay pelea: Juan sale corriendo y el espanto se ríe y se esconde
       await this.dialog.say(['¡CON LAS MANOS VACÍAS NI ME LE MIDO! ¡PATAS, PA\' QUÉ LAS QUIERO!'], { speaker: 'JUAN MACHETE', shake: true });
@@ -1276,6 +1309,80 @@ export class AdventureScene extends Phaser.Scene {
     }
     await this.dialog.say([v.g.taunt], { speaker: FIGHTERS[v.g.id].name });
     await this.startFight(v.g);
+  }
+
+  /** El mito se presenta como una persona normal a unos pasos de Juan. Devuelve false si no hay dónde ponerlo. */
+  private disguise(v: HiddenView): boolean {
+    const d = v.g.disguise;
+    if (!d) return false;
+    const { x: hx, y: hy } = this.st;
+    const cells = zoneCells(this.map, { x0: hx - 3, y0: hy - 3, x1: hx + 3, y1: hy + 3 })
+      .filter(([x, y]) => { const k = dist(x, y, hx, hy); return k >= 2 && k <= 3 && !this.occupied(x, y); });
+    if (!cells.length) return false;
+    const [x, y] = cells[Math.floor(this.rnd() * cells.length)];
+    pace.omen = now();
+    this.st.flags.push(`disfraz_${v.g.id}`);
+    [v.h.x, v.h.y] = [x, y];
+    v.h.rest = 99;
+    const facing: Dir = Math.abs(hx - x) > Math.abs(hy - y) ? (hx > x ? 'right' : 'left') : hy > y ? 'down' : 'up';
+    const n = this.addNpc({ key: d.kind, name: d.name, x, y, facing, lines: [[d.line]] });
+    n.sprite.setAlpha(0);
+    this.tweens.add({ targets: n.sprite, alpha: 1, duration: 500 });
+    this.stranger = { v, n, steps: 0 };
+    return true;
+  }
+
+  /** El desconocido espera: si Juan se le arrima se le cae la máscara; si Juan se aleja o tarda, se pierde en la noche. */
+  private strangerStep(): boolean {
+    const st = this.stranger!;
+    st.steps++;
+    const d = dist(st.n.x, st.n.y, this.st.x, this.st.y);
+    if (d <= 1) { void this.unmask(); return true; }
+    if (st.steps > DISGUISE_STEPS || d > 9) void this.strangerLeave();
+    return false;
+  }
+
+  private async strangerLeave(): Promise<void> {
+    const { v, n } = this.stranger!;
+    this.stranger = null;
+    this.npcs = this.npcs.filter((x) => x !== n);
+    v.h.rest = 12;
+    relocate(this.map, v.h, v.z, this.rnd, this.st);
+    void this.bubble(this.hero, 3, 700);
+    await this.tween({ targets: n.sprite, alpha: 0, duration: 600 });
+    n.sprite.destroy();
+  }
+
+  /** Juan se le arrima al desconocido: habla como si nada... y se le cae la máscara. */
+  private async unmask(): Promise<void> {
+    const { v, n } = this.stranger!;
+    const d = v.g.disguise!;
+    this.stranger = null;
+    this.locked = true;
+    pace.omen = now();
+    this.st.facing = n.x > this.st.x ? 'right' : n.x < this.st.x ? 'left' : n.y > this.st.y ? 'down' : 'up';
+    this.setHeroFrame();
+    this.faceNpc(n, OPPOSITE[this.st.facing]);
+    await this.dialog.say([d.line], { speaker: d.name });
+    await this.bubble(this.hero, 3, 600);
+    this.npcs = this.npcs.filter((x) => x !== n);
+    [v.h.x, v.h.y] = [n.x, n.y];
+    const sp = this.mythSprite(v.g.id, n.x, n.y).setAlpha(0).setFlipX(n.x > this.st.x);
+    sfx.play('screamer');
+    this.cameras.main.flash(120, 120, 0, 0);
+    this.cameras.main.shake(300, 0.01);
+    sfx.monster(v.g.id, 'attack');
+    sp.setScale(MYTH_MAP_SCALE * 1.3);
+    await Promise.all([
+      this.tween({ targets: n.sprite, alpha: 0, duration: 200 }),
+      this.tween({ targets: sp, alpha: 1, scale: MYTH_MAP_SCALE, duration: 260, ease: 'Back.out' }),
+    ]);
+    n.sprite.destroy();
+    await Promise.all([this.bubble(this.hero, 2, 600), this.shake(this.hero, 8)]);
+    await this.dialog.say([d.reveal], { shake: true });
+    this.sight(v.g.id, v.h.x, v.h.y);
+    v.h.rest = 0;
+    await this.confront(v, sp);
   }
 
   private async vanish(sp: Phaser.GameObjects.Sprite): Promise<void> {
@@ -1474,6 +1581,8 @@ export class AdventureScene extends Phaser.Scene {
 
   /** De vuelta del combate: ganar calma al espanto; perder reinicia el juego; si se voló, toca buscarlo otra vez. */
   private async afterFight(fight: AdventureFight, outcome: FightOutcome): Promise<void> {
+    // tras la pelea, un respiro: nada salta encima de Juan apenas vuelve al mapa
+    pace.omen = now();
     this.locked = true;
     await this.wait(400);
     const name = FIGHTERS[fight.id].name;
@@ -1495,6 +1604,7 @@ export class AdventureScene extends Phaser.Scene {
       if (v) v.h.rest = 12;
       await this.dialog.say([g.flee, `¡${name} SE VOLÓ DE LA PELEA! ANDA ESCONDIDO OTRA VEZ.`]);
       await this.dialog.say(['¡ESPERE Y VERÁ, QUE YO LO ENCUENTRO!'], { speaker: 'JUAN MACHETE' });
+      if (losesEscapularioInFight(this.st, this.rnd)) await this.escapularioLost('pelea');
       await this.offerSave();
       this.locked = false;
       this.showArea();
@@ -1503,6 +1613,7 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('ultimate');
     await this.dialog.say([g.defeat, `MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.${allCalmed(this.st) ? ' ¡VUELVE CON LA ABUELA ROSA!' : ''}`]);
     await this.dialog.say(['¡QUÉ PELEA TAN BERRACA, PUES! ¡SIGAMOS!'], { speaker: 'JUAN MACHETE' });
+    if (losesEscapularioInFight(this.st, this.rnd)) await this.escapularioLost('pelea');
     await this.offerSave();
     this.locked = false;
     this.showArea();
@@ -1529,6 +1640,7 @@ export class AdventureScene extends Phaser.Scene {
     const tx = this.st.x + dx, ty = this.st.y + dy;
     const npc = this.npcs.find((n) => n.x === tx && n.y === ty);
     this.locked = true;
+    if (npc && npc === this.stranger?.n) { void this.unmask(); return; }
     if (npc) {
       const before = npc.facing;
       this.faceNpc(npc, OPPOSITE[this.st.facing]);
@@ -1717,13 +1829,25 @@ export class AdventureScene extends Phaser.Scene {
   private async talkPadre(n: NpcView): Promise<void> {
     if (hasEscapulario(this.st)) { await this.talkVillager(n); return; }
     const S = 'PADRE ANSELMO';
+    if (this.st.flags.includes('escapulario_perdido')) {
+      await this.dialog.say([
+        '¿OTRA VEZ USTED, HIJO? ¿Y EL ESCAPULARIO?... YA SÉ, YA SÉ: ESOS ESPANTOS JALAN DURO Y LOS CORDONES NO AGUANTAN.',
+        'TOME OTRO, RECIÉN BENDITO. PERO NO SE CONFÍE: NINGÚN CORDÓN DURA PARA SIEMPRE EN ESTA NOCHE TAN BRAVA.',
+      ], { speaker: S });
+      await this.giveFrom(n, 'escapulario');
+      giveEscapulario(this.st);
+      saveAdventure(this.st);
+      sfx.play('ultimate');
+      await this.dialog.say(['¡JUAN RECIBIÓ OTRO ESCAPULARIO! LOS ESPÍRITUS VUELVEN A DEJARLO EN PAZ... POR UN RATO.']);
+      return;
+    }
     await this.dialog.say([
       'AH, EL NIETO DE DOÑA ROSA. ¿Y ESA CARA DE SUSTO, HIJO? ¿LO TIENEN LOCO EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA DEL CEMENTERIO?',
       'TOME ESTE ESCAPULARIO DE LA VIRGEN DEL CARMEN. ESTÁ BENDITO: LLÉVELO SIEMPRE PEGADITO AL PECHO.',
       'CON ÉL ESOS ESPÍRITUS NO SE LE VUELVEN A ARRIMAR. ESO SÍ: A LOS ESPANTOS GRANDES TOCA ENFRENTARLOS CON VALOR... Y CON EL MACHETE.',
     ], { speaker: S });
     await this.giveFrom(n, 'escapulario');
-    this.st.flags.push('escapulario');
+    giveEscapulario(this.st);
     saveAdventure(this.st);
     sfx.play('ultimate');
     await this.dialog.say(['¡JUAN RECIBIÓ EL ESCAPULARIO! YA NO LE SALDRÁN EL DUENDE, EL POLLO MALIGNO NI LA MANO PELUDA.']);
@@ -1961,7 +2085,70 @@ export class AdventureScene extends Phaser.Scene {
     while (this.tick >= MS_PER_MINUTE) { this.tick -= MS_PER_MINUTE; this.st.minutes++; }
     if (nightOver(this.st)) { void this.midnight(); return true; }
     if (this.st.minutes >= LAST_HOUR && !this.st.flags.includes('aviso_once') && !this.moving) { void this.lastHour(); return true; }
+    if (escapularioWornOut(this.st) && !this.moving) { void this.escapularioLost('camino'); return true; }
     return false;
+  }
+
+  /** Se le pierde el escapulario (en una pelea o andando): Juan lo busca, no lo encuentra y tiene que volver por otro. */
+  private async escapularioLost(how: 'pelea' | 'camino'): Promise<void> {
+    this.locked = true;
+    loseEscapulario(this.st);
+    this.st.pinned = 'escapulario';
+    saveAdventure(this.st);
+    sfx.play('sting');
+    const img = this.add.image(this.hero.x, this.hero.y - 20, 'av_item_escapulario').setDepth(5000);
+    await this.tween({ targets: img, y: img.y + 18, x: img.x + 10, alpha: 0, angle: 90, duration: 700, ease: 'Quad.in' });
+    img.destroy();
+    await this.dialog.say([how === 'pelea'
+      ? 'EN EL FORCEJEO DE LA PELEA SE LE REVENTÓ EL CORDÓN AL ESCAPULARIO Y SALIÓ VOLANDO...'
+      : 'JUAN SE TOCA EL PECHO... EL CORDÓN DEL ESCAPULARIO SE REVENTÓ Y NI CUENTA SE DIO.'], { shake: true });
+    await this.bubble(this.hero, 3, 900);
+    await this.dialog.say([
+      how === 'pelea'
+        ? '¿Y MI ESCAPULARIO? LO BUSCO Y LO BUSCO Y NO APARECE: SE LO DEBIÓ LLEVAR ESE ESPANTO, O SE LO TRAGÓ LA OSCURIDAD.'
+        : '¿Y MI ESCAPULARIO?... ¡NO ESTÁ! LO BUSCO POR TODO LADO Y NADA: ESTÁ MUY OSCURO Y PUDO HABERSE CAÍDO EN CUALQUIER PARTE.',
+      'SIN ÉL, EL DUENDE, EL POLLO MALIGNO Y LA MANO PELUDA VUELVEN A ARRIMARSE. ¡TOCA VOLVER DONDE EL PADRE ANSELMO, EN LA IGLESIA, A QUE ME DÉ OTRO!',
+    ], { speaker: 'JUAN MACHETE' });
+    this.locked = false;
+  }
+
+  /** Tras un buen rato sin pelear, alguien cerca le suelta a Juan, sin que pregunte, por dónde anda un mito. */
+  private maybeHint(): void {
+    const t = now();
+    if (!hintReady(this.st.minutes - (this.st.lastFight ?? 0)) || !rested(t, pace.hint, HINT_GAP_MS) || this.rnd() >= HINT_CHANCE) return;
+    const people = this.npcs.filter((n) => n !== this.stranger?.n && !MUTE_NPCS.has(n.npc.key) && dist(n.x, n.y, this.st.x, this.st.y) <= HINT_RADIUS);
+    const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id));
+    if (!people.length || !left.length) return;
+    // mejor un mito que ande por este mismo mapa
+    const here = left.filter((g) => homeOf(this.st, g).map === this.gm.id);
+    const pool = here.length ? here : left;
+    const g = pool[Math.floor(this.rnd() * pool.length)];
+    const n = people[Math.floor(this.rnd() * people.length)];
+    const name = FIGHTERS[g.id].name, place = homeOf(this.st, g).place;
+    const to = name.startsWith('EL ') ? `AL ${name.slice(3)}` : `A ${name}`;
+    const says = [`¡PSST! DICEN QUE ${name} ANDA POR ${place}.`, `ANOCHE VIERON ${to} POR ${place}...`, `¡OJO, MIJO! ${name} RONDA POR ${place}.`];
+    pace.hint = t;
+    void this.speech(n, says[Math.floor(this.rnd() * says.length)]);
+  }
+
+  /** Una nubecita con lo que dice alguien, sin parar a Juan. */
+  private async speech(n: NpcView, text: string): Promise<void> {
+    const lines = wrap(text, 24);
+    const t = this.add.bitmapText(0, 0, 'font', lines.join('\n')).setTint(0x202020).setOrigin(0.5, 1);
+    const w = t.width + 10, h = t.height + 8;
+    const g = this.add.graphics();
+    g.fillStyle(0xf8f8f8, 1).fillRoundedRect(-w / 2, -h - 4, w, h, 3);
+    g.lineStyle(1, 0x202020, 1).strokeRoundedRect(-w / 2, -h - 4, w, h, 3);
+    g.fillStyle(0xf8f8f8, 1).fillTriangle(-3, -5, 3, -5, 0, 0);
+    g.lineStyle(1, 0x202020, 1).lineBetween(-3, -4, 0, 0).lineBetween(3, -4, 0, 0);
+    t.setY(-8);
+    const top = n.sprite.y - n.sprite.displayHeight * n.sprite.originY;
+    const c = this.add.container(n.sprite.x, top + 2, [g, t]).setDepth(4500).setAlpha(0);
+    sfx.play('select');
+    await this.tween({ targets: c, alpha: 1, y: top - 2, duration: 160, ease: 'Back.out' });
+    await this.wait(3800);
+    await this.tween({ targets: c, alpha: 0, duration: 300 });
+    c.destroy();
   }
 
   private async lastHour(): Promise<void> {

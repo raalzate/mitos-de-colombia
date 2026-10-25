@@ -50,8 +50,33 @@ espera a que alguien se acerque.
 
 También hay espíritus que no pelean pero asustan y dan pistas: el **duende** en el pueblo, el **pollo maligno** en
 el monte y la **mano peluda** que sale de la tierra en el cementerio. En la hierba alta a veces algo se mueve y Juan
-se lleva el susto, sin pelea. El **padre Anselmo**, en la puerta de la iglesia, le da a Juan un **escapulario**
-bendito: con él el duende, el pollo y la mano peluda ya no aparecen.
+se lleva el susto, sin pelea. El **padre Anselmo**, adentro de la iglesia frente al altar, le da a Juan un
+**escapulario** bendito: con él el duende, el pollo y la mano peluda ya no aparecen.
+
+El escapulario **no dura**: a lo sumo una hora de la noche (10 minutos de juego andando,
+`ESCAPULARIO_MINUTES` en `State.ts`). En cada pelea el cordón se puede reventar (`ESCAPULARIO_FIGHT_LOSS`) y,
+si ya se le cumplió el tiempo, se pierde sí o sí. Juan lo busca, no lo encuentra y dice que tiene que volver: la
+misión del escapulario vuelve a quedar pendiente y el padre le da otro.
+
+### Disfraces
+
+Algunos mitos (el Sombrerón, la Muelona, el Hombre Caimán, la Llorona, la Patasola y el Mohán) a veces se le
+arriman a Juan como **una persona cualquiera**: un señor de negro que busca su caballo, una señora bonita que pide
+un aguardiente, una mujer herida en el monte... Si Juan se le acerca o le habla, se le cae la máscara y sale el
+mito. Si Juan se aleja o tarda, el desconocido se pierde en la noche. Pasa poco: cada mito se disfraza a lo sumo
+una vez por noche y solo en una de cada cinco veces que iba a saltar (`DISGUISE_CHANCE` en `Hunt.ts`).
+
+### Ritmo de los avistamientos
+
+Para que haya intriga y no salgan varios mitos seguidos, entre un avistamiento y otro (vistazo de lejos, señal
+en el suelo, disfraz) pasan al menos 45 s de juego, ningún mito salta encima de Juan en los 20 s siguientes a
+un susto o a una pelea, y los ruidos de lejos se espacian 10 s (`OMEN_GAP_MS`, `AMBUSH_GAP_MS`, `SOUND_GAP_MS`).
+
+### La gente avisa
+
+Cuando Juan lleva un buen rato sin pelear (20 minutos de la noche), de vez en cuando alguien cerca le suelta una
+**nubecita** sin que Juan pregunte: «¡PSST! DICEN QUE LA LLORONA ANDA POR RÍO ABAJO». Prefiere un mito del mapa
+donde está Juan y no detiene el juego (`HINT_*` en `Hunt.ts`).
 
 La pelea se hace en el escenario del sitio donde estaba el mito esa noche: los dos montes son dos escenarios
 distintos (el guadual del **Monte de la Patasola** y el robledal de niebla del **Monte Puro**).
@@ -59,7 +84,7 @@ distintos (el guadual del **Monte de la Patasola** y el robledal de niebla del *
 ## Las cosas pasan de mano en mano
 
 Lo que Juan consigue lo tiene alguien primero, y se le ve: la **abuela** tiene el farol encendido (Juan empieza a
-oscuras), **don Julio** el machete, el **cabo** el mapa y el **padre Anselmo** el escapulario. Al entregarlo, el
+oscuras), **don Julio** el machete, el **cabo** el mapa y el **padre Anselmo** (adentro de la iglesia) el escapulario. Al entregarlo, el
 objeto vuela de la mano de quien lo tenía a la de Juan y ya no vuelve a estar allá. El tronco del Monte Puro
 desaparece cuando Juan recoge la leña (para siempre: queda en `taken` de la partida) y Juan carga el tercio a la
 espalda hasta dárselo a don Julio. La arepa pasa de la vendedora a Juan y de Juan al perro. **Lucero** lo trae don

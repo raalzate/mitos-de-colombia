@@ -5,9 +5,10 @@ import {
   areaName, buildMap, doorOf, inRect, propCells, walkable,
 } from '../src/adventure/World';
 import { BUILDING_FOOTPRINT } from '../src/adventure/TownArt';
-import { TRAIL_LEN, ambushChance, fleeFightChance, popSpot, spawnHidden, vanishChance, wander, zoneCells } from '../src/adventure/Hunt';
+import { HINT_IDLE_MINUTES, OMEN_GAP_MS, TRAIL_LEN, ambushChance, disguiseChance, fleeFightChance, hintReady, popSpot, rested, spawnHidden, vanishChance, wander, zoneCells } from '../src/adventure/Hunt';
 import { paginate, wrap } from '../src/adventure/text';
 import {
+  ESCAPULARIO_MINUTES, escapularioWornOut, giveEscapulario, hasEscapulario, loseEscapulario, losesEscapularioInFight,
   FIGHT_MINUTES, MAX_SIGHTINGS, NIGHT_MINUTES, addSighting, allCalmed, applyOutcome, clockText, fightDifficulty, hasMachete, homeOf, newAdventure, nightOver, reportSightings, rollHomes,
 } from '../src/adventure/State';
 import { campoSpot, getMap } from '../src/adventure/Maps';
@@ -268,5 +269,66 @@ describe('los dos montes son dos escenarios de pelea', () => {
     const ruben = NPCS.find((n) => n.name === 'DON RUBÉN')!, lucero = NPCS.find((n) => n.key === 'caballo')!;
     expect(Math.abs(ruben.x - lucero.x) + Math.abs(ruben.y - lucero.y)).toBeLessThanOrEqual(2);
     expect(walkable(buildMap(), lucero.x, lucero.y)).toBe(true);
+  });
+});
+
+describe('el escapulario se pierde', () => {
+  it('le dura a Juan a lo sumo una hora de la noche y luego hay que volver por otro', () => {
+    const s = newAdventure();
+    s.minutes = 30;
+    giveEscapulario(s);
+    expect(hasEscapulario(s)).toBe(true);
+    s.minutes = 30 + ESCAPULARIO_MINUTES - 1;
+    expect(escapularioWornOut(s)).toBe(false);
+    s.minutes = 30 + ESCAPULARIO_MINUTES;
+    expect(escapularioWornOut(s)).toBe(true);
+    loseEscapulario(s);
+    expect(hasEscapulario(s)).toBe(false);
+    expect(s.flags).toContain('escapulario_perdido');
+    giveEscapulario(s);
+    expect(hasEscapulario(s)).toBe(true);
+    expect(escapularioWornOut(s)).toBe(false);
+  });
+
+  it('en una pelea se puede reventar el cordón; si ya se cumplió el tiempo, siempre', () => {
+    const s = newAdventure();
+    expect(losesEscapularioInFight(s, () => 0)).toBe(false);
+    giveEscapulario(s);
+    expect(losesEscapularioInFight(s, () => 0)).toBe(true);
+    expect(losesEscapularioInFight(s, () => 0.99)).toBe(false);
+    s.minutes += ESCAPULARIO_MINUTES;
+    expect(losesEscapularioInFight(s, () => 0.99)).toBe(true);
+  });
+
+  it('cada pelea anota la hora: tras un rato sin pelear la gente da pistas', () => {
+    const s = newAdventure();
+    s.minutes = 50;
+    applyOutcome(s, { id: 'silbon' }, 'fled');
+    expect(s.lastFight).toBe(50 + FIGHT_MINUTES);
+    expect(hintReady(0)).toBe(false);
+    expect(hintReady(HINT_IDLE_MINUTES)).toBe(true);
+  });
+});
+
+describe('ritmo de los avistamientos', () => {
+  it('entre un avistamiento y otro pasa un buen rato', () => {
+    expect(rested(10_000, 0, OMEN_GAP_MS)).toBe(false);
+    expect(rested(OMEN_GAP_MS, 0, OMEN_GAP_MS)).toBe(true);
+    expect(OMEN_GAP_MS).toBeGreaterThanOrEqual(30_000);
+  });
+
+  it('solo algunos mitos se disfrazan, y cada uno una vez por noche', () => {
+    const disguised = GUARDIANS.filter((g) => g.disguise);
+    expect(disguised.length).toBeGreaterThan(0);
+    expect(disguised.length).toBeLessThan(GUARDIANS.length);
+    expect(disguiseChance(true, false)).toBeGreaterThan(0);
+    expect(disguiseChance(true, false)).toBeLessThanOrEqual(0.25);
+    expect(disguiseChance(true, true)).toBe(0);
+    expect(disguiseChance(false, false)).toBe(0);
+  });
+
+  it('el padre Anselmo está adentro de la iglesia', () => {
+    expect(NPCS.some((n) => n.name === 'PADRE ANSELMO')).toBe(false);
+    expect(getMap('int:iglesia0').npcs.some((n) => n.name === 'PADRE ANSELMO')).toBe(true);
   });
 });

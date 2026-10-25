@@ -106,3 +106,38 @@ export function popSpot(map: Cell[][], hero: { x: number; y: number }, ahead: [n
   }
   return null;
 }
+
+/**
+ * Ritmo del miedo: entre un avistamiento y otro (vistazo de lejos, señal en el suelo, disfraz) pasa al menos
+ * este rato de juego. Así no salen varios mitos seguidos y queda la intriga.
+ */
+export const OMEN_GAP_MS = 45_000;
+/** Tras un avistamiento o una pelea, ningún mito salta encima de Juan durante este rato. */
+export const AMBUSH_GAP_MS = 20_000;
+/** Los ruidos de lejos también se espacian. */
+export const SOUND_GAP_MS = 10_000;
+/** Probabilidad de dejarse ver de lejos en un paso, cuando ya toca. */
+export const GLIMPSE_CHANCE = 0.04;
+
+/** ¿Ya pasó el rato desde el último suceso? */
+export const rested = (now: number, last: number, gap: number) => now - last >= gap;
+
+/** Cuando un mito va a salirle a Juan, a veces llega disfrazado de persona normal. Una sola vez por noche cada uno. */
+export const DISGUISE_CHANCE = 0.2;
+/** Pasos que el desconocido espera a que Juan se le arrime antes de irse. */
+export const DISGUISE_STEPS = 14;
+
+export function disguiseChance(canDisguise: boolean, usedTonight: boolean): number {
+  return canDisguise && !usedTonight ? DISGUISE_CHANCE : 0;
+}
+
+/**
+ * Tras un buen rato sin pelear, la gente le avisa a Juan, sin que él pregunte, por dónde anda algún mito.
+ * Minutos de la noche sin pelea antes de empezar a dar pistas, y probabilidad por paso cerca de alguien.
+ */
+export const HINT_IDLE_MINUTES = 20;
+export const HINT_GAP_MS = 40_000;
+export const HINT_CHANCE = 0.08;
+export const HINT_RADIUS = 5;
+
+export const hintReady = (idleMinutes: number) => idleMinutes >= HINT_IDLE_MINUTES;

@@ -28,6 +28,10 @@ export interface AdventureState {
   minutes: number;
   /** objetos del mapa que Juan ya recogió («monte:22,4»): no vuelven a aparecer */
   taken: string[];
+  /** minuto de la noche en que Juan recibió el escapulario que carga */
+  escapularioAt?: number;
+  /** minuto de la noche de la última pelea (o del comienzo): tras un rato sin pelear, la gente da pistas */
+  lastFight?: number;
 }
 
 /** La noche entera: de las 6:00 PM a las 12:00 AM. */
@@ -92,6 +96,7 @@ export function loadAdventure(): AdventureState | null {
     s.homes ??= rollHomes();
     s.minutes ??= 0;
     s.taken ??= [];
+    if (hasEscapulario(s)) s.escapularioAt ??= s.minutes;
     // partidas de antes del machete ganado: el que ya calmó mitos ya tenía machete
     if (s.calmed.length && !s.flags.includes('machete')) s.flags.push('machete');
     return s;
@@ -120,6 +125,7 @@ export function clearAdventure(): void {
 export function applyOutcome(s: AdventureState, fight: AdventureFight, outcome: FightOutcome): AdventureState {
   if (outcome === 'lose') return newAdventure();
   s.minutes += FIGHT_MINUTES;
+  s.lastFight = s.minutes;
   if (outcome === 'fled') {
     s.escapes[fight.id] = (s.escapes[fight.id] ?? 0) + 1;
     return s;
@@ -141,6 +147,30 @@ export const hasMachete = (s: AdventureState) => s.flags.includes('machete');
 
 /** Con el escapulario bendito el duende, el pollo maligno y la mano peluda ya no se le arriman. */
 export const hasEscapulario = (s: AdventureState) => s.flags.includes('escapulario');
+
+/** El cordón no aguanta: el escapulario le dura a Juan a lo sumo una hora de la noche (10 minutos de juego andando). */
+export const ESCAPULARIO_MINUTES = 60;
+/** En plena pelea el cordón se puede reventar. */
+export const ESCAPULARIO_FIGHT_LOSS = 0.35;
+
+export function giveEscapulario(s: AdventureState): void {
+  if (!hasEscapulario(s)) s.flags.push('escapulario');
+  s.escapularioAt = s.minutes;
+}
+
+/** Ya se le cumplió el tiempo: en cualquier momento se le pierde. */
+export const escapularioWornOut = (s: AdventureState) => hasEscapulario(s) && s.minutes - (s.escapularioAt ?? s.minutes) >= ESCAPULARIO_MINUTES;
+
+/** Se le pierde el escapulario: toca volver donde el padre Anselmo por otro. */
+export function loseEscapulario(s: AdventureState): void {
+  s.flags = s.flags.filter((f) => f !== 'escapulario');
+  if (!s.flags.includes('escapulario_perdido')) s.flags.push('escapulario_perdido');
+  s.escapularioAt = undefined;
+}
+
+/** Después de un combate, ¿se le reventó el cordón? Siempre, si ya se le había cumplido el tiempo. */
+export const losesEscapularioInFight = (s: AdventureState, rnd: () => number = Math.random) =>
+  hasEscapulario(s) && (escapularioWornOut(s) || rnd() < ESCAPULARIO_FIGHT_LOSS);
 
 export const MAX_SIGHTINGS = 3;
 

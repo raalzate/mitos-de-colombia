@@ -339,6 +339,19 @@ export interface Guardian {
   defeat: string;
   /** cuando se esfuma antes de pelear o se vuela de la pelea */
   flee: string;
+  /** a veces se le arrima a Juan como una persona normal antes de mostrarse */
+  disguise?: Disguise;
+}
+
+export interface Disguise {
+  /** con qué cara de aldeano se presenta */
+  kind: VillagerKind;
+  /** cómo se presenta */
+  name: string;
+  /** lo que dice como si nada */
+  line: string;
+  /** lo que ve Juan cuando se le cae la máscara */
+  reveal: string;
 }
 
 /** Todos los mitos de la tierra: andan escondidos, cada uno rondando el lugar de su leyenda. */
@@ -350,6 +363,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.',
     defeat: 'EL SOMBRERÓN SE QUITA EL SOMBRERO Y TE HACE UNA REVERENCIA.',
     flee: 'EL SOMBRERÓN SE TAPA CON EL SOMBRERO... ¡Y DEBAJO NO QUEDA NADIE!',
+    disguise: {
+      kind: 'arriero', name: 'SEÑOR DE NEGRO',
+      line: 'BUENAS NOCHES, JOVEN. ¿NO HA VISTO POR AHÍ UN CABALLO NEGRO? SE ME SOLTÓ... Y YO SIN ÉL NO ME QUITO EL SOMBRERO.',
+      reveal: 'EL SEÑOR SE ACOMODA EL SOMBRERO... Y EL SOMBRERO CRECE, Y CRECE, Y CRECE... ¡ES EL SOMBRERÓN!',
+    },
   },
   {
     id: 'muelona', haunts: [HAUNTS.cantina0, HAUNTS.cantina1], stage: 'cantina', clue: 'diente',
@@ -358,6 +376,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: 'JI, JI, JI... VEN, PAISITA, QUE TE QUIERO DAR UN BESITO...',
     defeat: 'LA MUELONA SE TAPA LA BOCA AVERGONZADA Y SE VA PARA LA CANTINA.',
     flee: 'LA MUELONA SUELTA UNA CARCAJADA Y SE METE ENTRE LAS SOMBRAS DE LA CANTINA.',
+    disguise: {
+      kind: 'vendedora', name: 'SEÑORA BONITA',
+      line: 'AY, QUÉ MUCHACHO TAN BUEN MOZO... ¿ME INVITA A UN AGUARDIENTICO? NO ME DIGA QUE NO, QUE ME PONGO TRISTE.',
+      reveal: 'LA SEÑORA SONRÍE... ¡Y LA SONRISA LE LLEGA HASTA LAS OREJAS, LLENA DE DIENTES! ¡ES LA MUELONA!',
+    },
   },
   {
     id: 'silbon', haunts: [{ map: 'campo', zone: R(2, 1, 60, 15), place: 'EL LLANO' }], stage: 'llanos', clue: 'huesos',
@@ -374,6 +397,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: '¡GRRRR! ¡NADIE ME MIRA CUANDO ME BAÑO EN EL RÍO!',
     defeat: 'EL HOMBRE CAIMÁN SE ZAMBULLE EN EL AGUA Y NO VUELVE A ASOMARSE.',
     flee: '¡SPLASH! EL HOMBRE CAIMÁN SE HUNDE EN EL BARRO Y SOLO QUEDAN BURBUJAS.',
+    disguise: {
+      kind: 'cafetero', name: 'PESCADOR',
+      line: '¿VA PA\'L AGUA A ESTAS HORAS? NO SE BAÑE, PAISA, QUE POR AQUÍ HAY CAIMANES... JE, JE... GRANDES.',
+      reveal: 'AL PESCADOR SE LE PONE LA PIEL VERDE Y ESCAMOSA Y LE CRECE UN HOCICO LLENO DE DIENTES. ¡ES EL HOMBRE CAIMÁN!',
+    },
   },
   {
     id: 'llorona', haunts: [HAUNTS.rioAbajo, HAUNTS.cienaga], stage: 'ribera', clue: 'charco_lagrimas',
@@ -382,6 +410,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: '¡AAAAY, MIS HIJOS! ¿TÚ HAS VISTO A MIS HIJOS?',
     defeat: 'LA LLORONA DEJA DE LLORAR. POR PRIMERA VEZ EN SIGLOS, SONRÍE.',
     flee: 'LA LLORONA SE DESHACE EN NEBLINA... ¡AAAAY! EL LLANTO SE PIERDE ENTRE EL AGUA.',
+    disguise: {
+      kind: 'campesina', name: 'SEÑORA DE BLANCO',
+      line: 'JOVEN... ¿USTED NO HA VISTO A DOS NIÑITOS? LOS DEJÉ AQUÍ EN LA ORILLA HACE UN RATO... HACE MUCHO RATO...',
+      reveal: 'LA SEÑORA LEVANTA LA CARA: NO TIENE OJOS, SOLO DOS HUECOS QUE LLORAN. ¡ES LA LLORONA!',
+    },
   },
   {
     id: 'patasola', haunts: [HAUNTS.monte, HAUNTS.montePuro], stage: 'selva', clue: 'huella_pata',
@@ -390,6 +423,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: '¡NADIE SALE DE MI MONTE CUANDO YO LO DIGO!',
     defeat: 'LA PATASOLA SE PIERDE ENTRE LOS ÁRBOLES, MÁS TRANQUILA.',
     flee: '¡TUM, TUM, TUM! LA PATASOLA SE PIERDE DE UN SALTO ENTRE LOS ÁRBOLES.',
+    disguise: {
+      kind: 'campesina', name: 'MUJER HERIDA',
+      line: 'AYÚDEME, JOVEN, POR LO QUE MÁS QUIERA... ME CAÍ EN EL MONTE Y NO PUEDO CAMINAR. ACÉRQUESE...',
+      reveal: 'LA MUJER SE PARA DE UN BRINCO... ¡EN UNA SOLA PATA! ¡ES LA PATASOLA!',
+    },
   },
   {
     id: 'madremonte', haunts: [HAUNTS.montePuro, HAUNTS.monte], stage: 'selva', clue: 'ramas',
@@ -406,6 +444,11 @@ export const GUARDIANS: Guardian[] = [
     taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?',
     defeat: 'EL MOHÁN SE HUNDE EN EL AGUA RIENDO. EL RÍO VUELVE A ESTAR EN CALMA.',
     flee: 'JE, JE, JE... EL MOHÁN SE ZAMBULLE Y EL RÍO SE QUEDA QUIETICO.',
+    disguise: {
+      kind: 'borracho', name: 'VIEJITO BARBUDO',
+      line: 'JE, JE... ¿TIENE UN TABAQUITO PA\' ESTE VIEJO? EL RÍO ME DA ORO, PERO TABACO NO.',
+      reveal: 'LA BARBA DEL VIEJITO SE ALARGA HASTA EL SUELO Y LE CHORREA AGUA DEL RÍO. ¡ES EL MOHÁN!',
+    },
   },
   {
     id: 'bachue', haunts: [{ map: 'campo', zone: R(60, 53, 118, 70), place: 'LA LAGUNA DE BACHUÉ' }], stage: 'laguna', clue: 'escamas',
@@ -452,11 +495,6 @@ export const NPCS: Npc[] = [
   { key: 'borracho', name: 'EL MONO', story: 'sombreron', x: 33, y: 34, facing: 'left', wander: 2, lines: [
     ['¡HIP! YO VI UN SOMBRERO GIGANTE CAMINANDO SOLO POR LA CALLE DE ABAJO... ¡HIP! ¡NO ES EL GUARO, LO JURO!'],
     ['¡A MÍ ME PERSIGUIÓ UN POLLO NEGRO CON LOS OJOS ROJOS! ¡ESO FUE EN EL MONTE, NO SE META POR ALLÁ!'],
-  ] },
-  { key: 'cura', name: 'PADRE ANSELMO', story: 'navidad', x: 41, y: 25, facing: 'down', lines: [
-    ['QUE DIOS LO ACOMPAÑE, HIJO. ESOS ESPANTOS NO SE VEN A SIMPLE VISTA: HAY QUE BUSCAR LAS SEÑALES QUE DEJAN.'],
-    ['¿LO MOLESTAN EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA? CON UN ESCAPULARIO BENDITO NO SE LE ARRIMAN.'],
-    ['HUESOS EN EL LLANO, LÁGRIMAS EN EL RÍO, HUELLAS DE UNA SOLA PATA EN EL MONTE... DONDE HAY SEÑAL, HAY ESPANTO.'],
   ] },
   { key: 'policia', name: 'CABO RAMÍREZ', story: 'dorado', x: 23, y: 24, facing: 'right', lines: [
     ['ALTO AHÍ, CIUDADANO. ¿USTED NO SABE QUE HAY TOQUE DE QUEDA?... AH, ¿USTED ES EL QUE VA A CAZAR ESPANTOS? SIGA, PUES.'],
