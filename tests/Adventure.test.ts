@@ -253,3 +253,20 @@ describe('el reloj de la noche', () => {
     expect(s.minutes).toBe(FIGHT_MINUTES * 2);
   });
 });
+
+describe('los dos montes son dos escenarios de pelea', () => {
+  it('la pelea es en el escenario del sitio donde rondaba el mito esa noche', () => {
+    expect(HAUNTS.monte.stage).toBe('selva');
+    expect(HAUNTS.montePuro.stage).toBe('robledal');
+    for (const id of ['patasola', 'madremonte'] as const) {
+      const g = GUARDIANS.find((x) => x.id === id)!;
+      expect(new Set(g.haunts.map((h) => h.stage))).toEqual(new Set(['selva', 'robledal']));
+    }
+  });
+
+  it('Lucero queda amarrado junto a don Rubén, en la vereda', () => {
+    const ruben = NPCS.find((n) => n.name === 'DON RUBÉN')!, lucero = NPCS.find((n) => n.key === 'caballo')!;
+    expect(Math.abs(ruben.x - lucero.x) + Math.abs(ruben.y - lucero.y)).toBeLessThanOrEqual(2);
+    expect(walkable(buildMap(), lucero.x, lucero.y)).toBe(true);
+  });
+});

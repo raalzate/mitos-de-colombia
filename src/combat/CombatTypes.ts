@@ -221,7 +221,7 @@ export type GameMode = 'cpu' | 'versus';
 
 export type StageChoice =
   | 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo'
-  | 'selva' | 'cantina' | 'cementerio' | 'random';
+  | 'selva' | 'robledal' | 'cantina' | 'cementerio' | 'random';
 
 export interface MatchSettings {
   mode: GameMode;

@@ -121,7 +121,7 @@ function campo(): GameMap {
   ];
   return {
     id: 'campo', kind: 'campo', name: 'SAN AGUSTÍN', grid: buildMap(), buildings, props, signs: SIGNS, npcs: NPCS, areas: AREAS,
-    darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17], horseArrival: [7, 9],
+    darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17], horseArrival: [16, 27],
     links: [
       { x: 88, y: 1, to: 'monte', tx: MONTE_ENTRY[0], ty: MONTE_ENTRY[1], facing: 'up' },
       { x: 16, y: 70, to: 'charco', tx: CHARCO_ENTRY[0], ty: CHARCO_ENTRY[1], facing: 'down' },

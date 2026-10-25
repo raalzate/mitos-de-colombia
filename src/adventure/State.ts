@@ -26,6 +26,8 @@ export interface AdventureState {
   homes: Partial<Record<FighterId, number>>;
   /** minutos de la noche que ya pasaron desde las 6:00 PM */
   minutes: number;
+  /** objetos del mapa que Juan ya recogió («monte:22,4»): no vuelven a aparecer */
+  taken: string[];
 }
 
 /** La noche entera: de las 6:00 PM a las 12:00 AM. */
@@ -75,7 +77,7 @@ export type FightOutcome = 'win' | 'lose' | 'fled';
 const KEY = 'mitos-aventura-v5';
 
 export function newAdventure(rnd: () => number = Math.random): AdventureState {
-  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0 };
+  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0, taken: [] };
 }
 
 export function loadAdventure(): AdventureState | null {
@@ -89,6 +91,7 @@ export function loadAdventure(): AdventureState | null {
     s.sightings ??= {};
     s.homes ??= rollHomes();
     s.minutes ??= 0;
+    s.taken ??= [];
     // partidas de antes del machete ganado: el que ya calmó mitos ya tenía machete
     if (s.calmed.length && !s.flags.includes('machete')) s.flags.push('machete');
     return s;

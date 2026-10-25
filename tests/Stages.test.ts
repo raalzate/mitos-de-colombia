@@ -4,9 +4,9 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../src/config/game-config';
 import { splashPose } from '../src/art/SplashPose';
 
 describe('escenarios', () => {
-  it('hay nueve escenarios con nombre y subtítulo', () => {
-    expect(STAGE_IDS.length).toBe(9);
-    expect(STAGE_IDS).toEqual(expect.arrayContaining(['selva', 'cantina', 'cementerio']));
+  it('hay diez escenarios con nombre y subtítulo, con dos montes distintos', () => {
+    expect(STAGE_IDS.length).toBe(10);
+    expect(STAGE_IDS).toEqual(expect.arrayContaining(['selva', 'robledal', 'cantina', 'cementerio']));
     for (const id of STAGE_IDS) {
       expect(STAGES[id].id).toBe(id);
       expect(STAGES[id].name.length).toBeGreaterThan(3);

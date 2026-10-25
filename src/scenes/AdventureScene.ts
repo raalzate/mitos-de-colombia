@@ -14,7 +14,7 @@ import {
   STEP, inRect, walkable, type Cell, type Dir, type Guardian, type Mood, type Npc, type Spirit,
 } from '../adventure/World';
 import {
-  areaIn, soundIn, buildingFootprint, buildingName, campoSpot, doorCell, getMap, interiorOf, moodIn, propFootprint,
+  areaIn, soundIn, buildingFootprint, buildingName, campoSpot, cellsOf, doorCell, getMap, interiorOf, moodIn, propFootprint,
   type GameMap, type MapBuilding, type MapProp, type Sound,
 } from '../adventure/Maps';
 import { STORIES, STORY_IDS } from '../adventure/Stories';
@@ -40,7 +40,7 @@ import {
 import {
   WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
-import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse, buildItemIcon, buildMacheteCinto } from '../adventure/OverworldArt';
+import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse, buildItemIcon, buildMacheteCinto, type ItemIcon } from '../adventure/OverworldArt';
 import { ITEM_NAME, currentMission, items, missions, waypoint, type ItemId, type Spot } from '../adventure/Missions';
 import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
@@ -111,7 +111,15 @@ const feetX = (cx: number) => cx * CELL + CELL / 2;
 const feetY = (cy: number) => cy * CELL + CELL - 3;
 const key = (x: number, y: number) => `${x},${y}`;
 
-interface NpcView { npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean; talks: number }
+interface NpcView {
+  npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean; talks: number;
+  /** lo que tiene en la mano antes de dárselo a Juan */
+  held?: Phaser.GameObjects.Image;
+}
+
+/** Quién tiene qué antes de dárselo a Juan: se le ve en la mano hasta que se lo entrega. */
+const HELD: Record<string, ItemIcon> = { 'ABUELA ROSA': 'farol', 'DON JULIO': 'machete', 'CABO RAMÍREZ': 'mapa', 'PADRE ANSELMO': 'escapulario' };
+const ALL_ICONS: ItemIcon[] = ['farol', 'machete', 'mapa', 'escapulario', 'perro', 'caballo', 'arepa', 'lena'];
 interface HiddenView { h: Hidden; g: Guardian; z: Zoned }
 interface SpiritView { s: Spirit; x: number; y: number; sprite: Phaser.GameObjects.Sprite; shown: boolean; steps: number; cooldown: number; procedural: boolean }
 interface Light { x: number; y: number; r: number; flicker: number }
@@ -170,6 +178,13 @@ export class AdventureScene extends Phaser.Scene {
   private announcing: Promise<void> = Promise.resolve();
   private owned: ItemId[] = [];
   private belt: Phaser.GameObjects.Image | null = null;
+  /** el tercio de leña a la espalda de Juan, mientras se lo lleva a don Julio */
+  private carry: Phaser.GameObjects.Image | null = null;
+  /** la abuela ya le pasó el farol (antes de terminar la presentación) */
+  private lanternInHand = false;
+  /** lo que va volando de mano en mano; si es el farol, alumbra en el aire */
+  private flying: Phaser.GameObjects.Image | null = null;
+  private propImgs = new Map<string, Phaser.GameObjects.Image>();
   private clock!: Phaser.GameObjects.Container;
   private clockLabel!: Phaser.GameObjects.BitmapText;
   private clockShown = -1;
@@ -213,6 +228,9 @@ export class AdventureScene extends Phaser.Scene {
     this.dogWarnCd = 0;
     this.mapView = null;
     this.belt = null;
+    this.carry = null;
+    this.lanternInHand = false;
+    this.propImgs.clear();
     this.hudKey = '';
     this.hudMissionId = null;
     this.clockShown = -1;
@@ -223,7 +241,9 @@ export class AdventureScene extends Phaser.Scene {
     sfx.setBattle(false);
 
     this.gm = getMap(this.st.map);
-    this.map = this.gm.grid;
+    // copia propia: lo que Juan ya recogió deja la casilla libre
+    this.map = this.gm.grid.map((r) => [...r]);
+    for (const p of this.gm.props) if (this.taken(p)) for (const [x, y] of cellsOf(p)) this.map[y][x] = '.';
     this.ensureTextures();
     this.buildGround();
     this.buildObjects();
@@ -275,6 +295,7 @@ export class AdventureScene extends Phaser.Scene {
     add('av_shadow', () => buildShadow(26));
     add('av_shadow_big', () => buildShadow(44));
     add('av_tree', () => buildTree());
+    for (const id of ALL_ICONS) add(`av_item_${id}`, () => buildItemIcon(id));
     for (const g of GUARDIANS) for (const f of [0, 1]) add(`av_clue_${g.clue}_${f}`, () => buildClue(g.clue, f));
     for (const v of VILLAGER_KINDS) if (!this.textures.exists(`av_${v}`)) addSheet(this, `av_${v}`, buildVillager(v), 48, 48);
     for (const s of SPIRIT_KINDS) if (!this.textures.exists(`av_spirit_${s}`)) addSheet(this, `av_spirit_${s}`, buildSpirit(s), 48, 48);
@@ -464,6 +485,7 @@ export class AdventureScene extends Phaser.Scene {
       this.addLights(b.set === 'town' ? buildingLights(b.kind as BuildingKind) : cityBuildingLights(b.kind as CityBuildingKind), tex, cx, bottom, 30);
     }
     for (const p of this.gm.props) {
+      if (this.taken(p)) continue;
       const [pw] = propFootprint(p);
       const x0 = p.x - Math.floor((Math.max(1, pw) - 1) / 2);
       // el tapete (32 px, sin huella) arranca en el borde izquierdo de su baldosa
@@ -475,6 +497,7 @@ export class AdventureScene extends Phaser.Scene {
       // la vía del metro va por encima de todo: Juan pasa por debajo
       const depth = p.kind === 'metro_via' ? 2500 : hung ? -5000 : p.kind === 'tapete' ? -6000 : bottom - 2;
       const img = this.add.image(cx, bottom, tex).setOrigin(0.5, 1).setScale(2).setDepth(depth);
+      this.propImgs.set(this.propKey(p), img);
       if (p.set !== 'town') this.blinkers.push({ img, base: tex.slice(0, -2) });
       const lights = p.set === 'town' ? propLights(p.kind as PropKind) : p.set === 'city' ? cityPropLights(p.kind as CityPropKind) : furnitureLights(p.kind as FurnitureKind);
       this.addLights(lights, tex, cx, bottom, p.kind === 'farol' || p.kind === 'poste' ? 70 : 34);
@@ -510,6 +533,14 @@ export class AdventureScene extends Phaser.Scene {
     for (const s of this.statics) s.img.visible = s.x1 > l && s.x0 < r && s.y1 > t && s.y0 < b;
   }
 
+  private propKey(p: MapProp): string {
+    return `${this.gm.id}:${p.x},${p.y}`;
+  }
+
+  private taken(p: MapProp): boolean {
+    return this.st.taken.includes(this.propKey(p));
+  }
+
   private npcTexture(key: string): string {
     if (this.textures.exists(`av_${key}`)) return `av_${key}`;
     const alt = NPC_FALLBACK[key];
@@ -531,6 +562,7 @@ export class AdventureScene extends Phaser.Scene {
     this.setHeroFrame();
     this.placeHero(feetX(this.st.x), feetY(this.st.y));
     if (this.hasDog) this.buildDog();
+    if (this.st.flags.includes('lena') && !hasMachete(this.st)) this.carryWood();
 
     // los mitos no se ven: rondan escondidos lejos de Juan
     const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id) && homeOf(this.st, g).map === this.gm.id);
@@ -559,6 +591,8 @@ export class AdventureScene extends Phaser.Scene {
     const sprite = this.add.sprite(feetX(x), feetY(y), this.npcTexture(npc.key), 0).setOrigin(0.5, 47 / 48);
     if (npc.key === 'perro') sprite.setScale(0.75);
     const view: NpcView = { npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0 };
+    const item = HELD[npc.name];
+    if (item && !(items(this.st) as ItemIcon[]).includes(item)) view.held = this.add.image(0, 0, `av_item_${item}`);
     this.faceNpc(view, npc.facing);
     this.npcs.push(view);
     return view;
@@ -619,9 +653,11 @@ export class AdventureScene extends Phaser.Scene {
       this.lightImg.setScale(rr / 64);
       this.night.batchDraw(this.lightImg, Math.round(x - sx), Math.round(y - sy));
     };
-    // el farol de Juan tiembla un poquito
+    // el farol de Juan tiembla un poquito; antes de que la abuela se lo dé, lo tiene ella
     const r = LANTERN_R + Math.sin(this.frame / 7) * 2 + (this.frame % 23 === 0 ? -3 : 0);
-    eraseScaled(this.hero.x, this.hero.y - 16, r);
+    if (this.st.flags.includes('intro') || this.lanternInHand) eraseScaled(this.hero.x, this.hero.y - 16, r);
+    for (const n of this.npcs) if (n.held?.texture.key === 'av_item_farol') eraseScaled(n.held.x, n.held.y, r * 0.85);
+    if (this.flying?.active && this.flying.texture.key === 'av_item_farol') eraseScaled(this.flying.x, this.flying.y, r * 0.85);
     for (const l of this.lamps) eraseScaled(l.x, l.y, l.r + Math.sin(this.frame / 9 + l.flicker) * 2);
     this.night.endDraw(true);
   }
@@ -695,6 +731,7 @@ export class AdventureScene extends Phaser.Scene {
     this.frame++;
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
     this.animateWorld();
+    this.syncHeld();
     this.cullStatics();
     this.drawNight();
     this.updateHud();
@@ -909,6 +946,7 @@ export class AdventureScene extends Phaser.Scene {
     }
     const i = await this.dialog.ask('¿LE DA LA AREPA AL PERRO?', ['¡TOME, POBRECITO!', 'TODAVÍA NO'], { cancel: 1 });
     if (i !== 0) return;
+    await this.giveTo(n.sprite, 'arepa');
     sfx.play('bloom');
     for (let k = 0; k < 3; k++) await this.tween({ targets: n.sprite, scaleY: 0.66, duration: 110, yoyo: true });
     sfx.play('ladrido');
@@ -1388,6 +1426,8 @@ export class AdventureScene extends Phaser.Scene {
       'Y EN LA PLAZA ANDA UN PERRITO FLACO, SIN DUEÑO. DICEN QUE ESOS PERROS HUELEN A LOS ESPANTOS ANTES QUE NADIE... SI SE LO GANA, NO LO DEJA SOLO NUNCA.',
     ], { speaker: 'ABUELA ROSA' });
     await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE FAROL... Y EL MACHETE DEL ABUELO, PUES!'], { speaker: 'JUAN MACHETE' });
+    await this.giveFrom(abuela, 'farol');
+    this.lanternInHand = true;
     sfx.play('ultimate');
     await this.dialog.say([
       'EL FAROL TÓMELO. EL MACHETE DE SU ABUELO LO TIENE GUARDADO DON JULIO, EL DEL TRAPICHE.',
@@ -1477,6 +1517,7 @@ export class AdventureScene extends Phaser.Scene {
 
   private propAt(x: number, y: number): MapProp | undefined {
     return this.gm.props.find((p) => {
+      if (this.taken(p)) return false;
       const [pw, ph] = propFootprint(p);
       const x0 = p.x - Math.floor((Math.max(1, pw) - 1) / 2);
       return x >= x0 && x < x0 + Math.max(1, pw) && y > p.y - Math.max(1, ph) && y <= p.y;
@@ -1540,6 +1581,7 @@ export class AdventureScene extends Phaser.Scene {
       await this.dialog.say([npc.name === 'DOÑA GLORIA'
         ? '¿PA\'L PERRITO FLACO DE LA PLAZA? TOME, MIJO, LA ÚLTIMA AREPA QUE ME QUEDÓ. ¡ESE PERRO HUELE ESPANTOS, DICEN!'
         : '¡UNA AREPA DE CHOCLO CON QUESITO! ¿PA\' USTED O PA\' ALGÚN PERRITO? JA, JA, LLÉVESELA.'], { speaker: npc.name });
+      await this.giveFrom(n, 'arepa');
       await this.dialog.say(['JUAN GUARDA LA AREPA EN EL CARRIEL.']);
       n.talks++;
     } else if (npc.lines?.length) await this.dialog.say(npc.lines[n.talks % npc.lines.length], { speaker: npc.name });
@@ -1594,12 +1636,22 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('relincho');
     await this.dialog.say([
       '¡USTED CALMÓ AL SILBÓN! ANOCHE LA MULA DURMIÓ COMO UNA BENDITA.',
-      'PALABRA DE ARRIERO: LUCERO ES SUYO. LO DEJÉ AMARRADO EN EL LLANO, AL PRINCIPIO DEL CAMINO DE HERRADURA. ¡QUE LE VAYA BONITO EN SANTA FE!',
+      'PALABRA DE ARRIERO: LUCERO ES SUYO. ESPÉREME UN MOMENTICO, QUE YA SE LO TRAIGO...',
     ], { speaker: S });
     this.st.flags.push('caballo');
     saveAdventure(this.st);
     const lucero = this.gm.npcs.find((x) => x.key === 'caballo');
-    if (lucero && !this.npcs.some((x) => x.npc === lucero)) this.addNpc(lucero);
+    if (lucero && !this.npcs.some((x) => x.npc === lucero)) {
+      const v = this.addNpc(lucero);
+      const tx = v.sprite.x;
+      this.faceNpc(v, 'left');
+      v.sprite.setX(tx + 160).setAlpha(0);
+      sfx.play('galope');
+      await this.tween({ targets: v.sprite, x: tx, alpha: 1, duration: 1100, ease: 'Sine.out' });
+      sfx.play('relincho');
+      await this.shake(v.sprite, 3);
+    }
+    await this.dialog.say(['AHÍ SE LO DEJO AMARRADO, AL LADO DE LA MULA. HÁBLELE A LUCERO CUANDO QUIERA IRSE PA\' SANTA FE DE ANTIOQUIA. ¡QUE LE VAYA BONITO!'], { speaker: S });
     sfx.play('ultimate');
     await this.dialog.say(['¡JUAN SE GANÓ A LUCERO! CON ÉL PUEDE VIAJAR A SANTA FE DE ANTIOQUIA.']);
   }
@@ -1613,12 +1665,14 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     if (this.st.flags.includes('lena')) {
-      sfx.play('confirm');
+      await this.giveTo(n.sprite, 'lena', this.carry);
       await this.dialog.say([
         '¡ESO ES LEÑA SECA DE LA BUENA! Y SIN TUMBAR NI UN PALO VIVO... ASÍ HACÍA SU ABUELO.',
         'EL QUE RESPETA EL MONTE PUEDE CARGAR ESTO. TOME, MIJO: EL MACHETE DE SU ABUELO. AFILADITO, COMO ÉL LO DEJÓ.',
       ], { speaker: S });
+      await this.giveFrom(n, 'machete');
       this.st.flags.push('machete');
+      this.wearMachete();
       saveAdventure(this.st);
       sfx.play('ultimate');
       this.cameras.main.flash(200, 255, 230, 160);
@@ -1650,6 +1704,7 @@ export class AdventureScene extends Phaser.Scene {
       'TODAS LAS NOCHES LA GENTE VIENE A DENUNCIAR: QUE UN SILBIDO EN EL LLANO, QUE UN LLANTO EN EL RÍO... YO LOS VOY MARCANDO EN ESTE MAPA DEL MUNICIPIO.',
       'TÓMELO, QUE YO ME SÉ EL PUEBLO DE MEMORIA. CADA VEZ QUE USTED VEA UNA SEÑAL O UN ESPANTO, QUEDA MARCADO AHÍ TAMBIÉN.',
     ], { speaker: S });
+    await this.giveFrom(n, 'mapa');
     this.st.flags.push('mapa');
     reportSightings(this.st);
     saveAdventure(this.st);
@@ -1667,6 +1722,7 @@ export class AdventureScene extends Phaser.Scene {
       'TOME ESTE ESCAPULARIO DE LA VIRGEN DEL CARMEN. ESTÁ BENDITO: LLÉVELO SIEMPRE PEGADITO AL PECHO.',
       'CON ÉL ESOS ESPÍRITUS NO SE LE VUELVEN A ARRIMAR. ESO SÍ: A LOS ESPANTOS GRANDES TOCA ENFRENTARLOS CON VALOR... Y CON EL MACHETE.',
     ], { speaker: S });
+    await this.giveFrom(n, 'escapulario');
     this.st.flags.push('escapulario');
     saveAdventure(this.st);
     sfx.play('ultimate');
@@ -1702,17 +1758,28 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   /** En el claro del monte puro: Juan recoge leña caída y la Madremonte lo deja ir porque no tumbó nada vivo. */
-  private async gatherWood(): Promise<void> {
+  private async gatherWood(p: MapProp): Promise<void> {
     sfx.play('creak');
     this.cameras.main.shake(400, 0.006);
     await this.dialog.say(['JUAN RECOGE LOS PALOS SECOS Y LOS AMARRA EN UN TERCIO...']);
     sfx.play('whisper');
     await this.dialog.say(['¿QUIÉN ANDA EN MI MONTE?...', '...LEÑA CAÍDA. ESO SÍ SE PUEDE, MUCHACHO. LLÉVATELA, Y NO VUELVAS CON MACHETE A TUMBAR LO QUE ESTÁ VIVO.'], { speaker: '¿?', shake: true });
     await this.dialog.say(['¡GRACIAS, SEÑORA... QUIEN QUIERA QUE SEA! ¡PALABRA QUE NO!'], { speaker: 'JUAN MACHETE', shake: true });
+    // el tronco se deshace en el tercio que Juan se echa a la espalda; ya no vuelve a estar ahí
+    const log = this.propImgs.get(this.propKey(p));
+    this.st.taken.push(this.propKey(p));
+    for (const [x, y] of cellsOf(p)) this.map[y][x] = '.';
+    if (log) {
+      this.propImgs.delete(this.propKey(p));
+      await this.tween({ targets: log, alpha: 0, scaleY: 1.4, duration: 300 });
+      const bundle = this.add.image(log.x, log.y - 12, 'av_item_lena');
+      log.destroy();
+      await this.handOver(bundle, this.hero);
+    }
     this.st.flags.push('lena');
+    this.carryWood();
     saveAdventure(this.st);
-    sfx.play('confirm');
-    await this.dialog.say(['JUAN CARGA UN TERCIO DE LEÑA SECA. HAY QUE LLEVÁRSELO A DON JULIO, AL TRAPICHE.']);
+    await this.dialog.say(['JUAN CARGA UN TERCIO DE LEÑA SECA A LA ESPALDA. HAY QUE LLEVÁRSELO A DON JULIO, AL TRAPICHE.']);
   }
 
   /** Cosas del mapa que se pueden usar: el tablado, el castillo de pólvora, la rockola, la silleta… */
@@ -1731,14 +1798,18 @@ export class AdventureScene extends Phaser.Scene {
       case 'puesto_arepas':
         sfx.play('bloom');
         await this.dialog.say(['¡UNA AREPA DE CHOCLO CON QUESITO! JUAN SE LA COME DE TRES MORDISCOS. ¡QUÉ DELICIA!']);
-        if (this.gm.kind === 'campo' && this.giveArepa()) await this.dialog.say(['...Y GUARDA OTRA EN EL CARRIEL, POR SI ACASO.']);
+        if (this.gm.kind === 'campo' && this.giveArepa()) {
+          const stall = this.propImgs.get(this.propKey(p));
+          await this.handOver(this.add.image(stall?.x ?? this.hero.x, (stall?.y ?? this.hero.y) - 24, 'av_item_arepa'), this.hero);
+          await this.dialog.say(['...Y GUARDA OTRA EN EL CARRIEL, POR SI ACASO.']);
+        }
         return true;
       case 'puesto_fruta': sfx.play('bloom'); await this.dialog.say(['MANGO BICHE CON SAL, LIMÓN Y PIMIENTA. ¡JUAN HACE CARA DE ÁCIDO, PERO PIDE OTRO!']); return true;
       case 'fogon_lena': case 'olla': await this.dialog.say(['UN SANCOCHO HIRVIENDO EN EL FOGÓN DE LEÑA. ¡HUELE A DOMINGO EN FAMILIA!']); return true;
       case 'sagrado_corazon': case 'virgen': case 'altar': await this.dialog.say(['JUAN SE PERSIGNA. «QUE DIOS Y LA VIRGEN ME ACOMPAÑEN CONTRA LOS ESPANTOS».']); return true;
       case 'tiple': case 'guitarra': case 'acordeon': await this.dialog.say(['UN INSTRUMENTO COLGADO EN LA PARED. ALGUIEN EN ESTA CASA TOCA MUY BONITO.']); return true;
       case 'tronco':
-        if (this.gm.id === 'monte' && this.st.flags.includes('encargo_lena') && !this.st.flags.includes('lena') && !hasMachete(this.st)) await this.gatherWood();
+        if (this.gm.id === 'monte' && this.st.flags.includes('encargo_lena') && !this.st.flags.includes('lena') && !hasMachete(this.st)) await this.gatherWood(p);
         else await this.dialog.say(['UN TRONCO CAÍDO, PODRIDO Y LLENO DE MUSGO. DE AHÍ SALEN HONGOS Y CUCARRONES.']);
         return true;
       case 'mula':
@@ -2010,9 +2081,6 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    for (const id of ['farol', 'machete', 'mapa', 'escapulario', 'perro', 'caballo'] as const) {
-      if (!this.textures.exists(`av_item_${id}`)) addPixmap(this, `av_item_${id}`, buildItemIcon(id));
-    }
     this.hudTop = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
     // el reloj de la noche, arriba a la derecha bajo lo que carga Juan (a la izquierda va el nombre del sitio)
     this.clock = this.add.container(GAME_WIDTH - 39, 28).setScrollFactor(0).setDepth(3950);
@@ -2154,6 +2222,63 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   /** El machete del abuelo al cinto: de frente a un lado de la cadera, de lado en la funda. */
+  private carryWood(): void {
+    this.carry ??= this.add.image(0, 0, 'av_item_lena');
+    this.syncCarry();
+  }
+
+  private syncCarry(): void {
+    const c = this.carry, h = this.hero;
+    if (!c || !h) return;
+    const f = this.st.facing;
+    // va en la espalda: de frente se asoma detrás de los hombros, de espaldas se ve entero
+    const dx = f === 'left' ? 7 : f === 'right' ? -7 : 0;
+    c.setPosition(Math.round(h.x + dx), Math.round(h.y - (f === 'up' ? 22 : 30))).setDepth(f === 'up' ? h.depth + 0.6 : h.depth - 0.6);
+  }
+
+  /** Lo que la gente tiene en la mano la sigue cuando camina o se voltea. */
+  private syncHeld(): void {
+    for (const n of this.npcs) {
+      if (!n.held) continue;
+      const f = n.facing, side = f === 'left' ? -1 : 1;
+      n.held.setPosition(Math.round(n.sprite.x + (f === 'up' ? -9 : 9 * side)), Math.round(n.sprite.y - 15))
+        .setDepth(n.sprite.depth + (f === 'up' ? -0.5 : 0.5)).setVisible(n.sprite.visible).setAlpha(n.sprite.alpha);
+    }
+  }
+
+  /** Un objeto pasa de mano en mano: sale de donde está, vuela en arco y se le mete al que lo recibe. */
+  private async handOver(img: Phaser.GameObjects.Image, to: { x: number; y: number }): Promise<void> {
+    img.setDepth(5000).setVisible(true).setAlpha(1);
+    this.flying = img;
+    const sx = img.x, sy = img.y, tx = to.x, ty = to.y - 20;
+    const arc = { t: 0 };
+    sfx.play('whoosh');
+    await this.tween({
+      targets: arc, t: 1, duration: 560, ease: 'Sine.inOut',
+      onUpdate: () => {
+        const k = Math.sin(arc.t * Math.PI);
+        img.setPosition(sx + (tx - sx) * arc.t, sy + (ty - sy) * arc.t - k * 22).setScale(1 + k * 0.8);
+      },
+    });
+    sfx.play('confirm');
+    await this.tween({ targets: img, scale: 2, alpha: 0, duration: 200 });
+    img.destroy();
+  }
+
+  /** La persona le entrega a Juan lo que tenía en la mano (o lo saca del bolsillo si no se le veía). */
+  private async giveFrom(n: NpcView, icon: ItemIcon): Promise<void> {
+    const img = n.held ?? this.add.image(n.sprite.x, n.sprite.y - 16, `av_item_${icon}`);
+    n.held = undefined;
+    await this.handOver(img, this.hero);
+  }
+
+  /** Juan le entrega algo a alguien (la leña a don Julio, la arepa al perro). */
+  private async giveTo(target: { x: number; y: number }, icon: ItemIcon, from?: Phaser.GameObjects.Image | null): Promise<void> {
+    const img = from ?? this.add.image(this.hero.x, this.hero.y - 20, `av_item_${icon}`);
+    if (from === this.carry) this.carry = null;
+    await this.handOver(img, target);
+  }
+
   private wearMachete(): void {
     if (this.belt) return;
     if (!this.textures.exists('av_machete_cinto')) addSheet(this, 'av_machete_cinto', buildMacheteCinto(), 8, 16);
@@ -2162,6 +2287,7 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private syncBelt(): void {
+    this.syncCarry();
     const b = this.belt, h = this.hero;
     if (!b || !h) return;
     const f = this.st.facing;
@@ -2199,7 +2325,7 @@ export class AdventureScene extends Phaser.Scene {
     const id = g.id;
     const fight: AdventureFight = { id, escapes: this.st.escapes[id] ?? 0 };
     this.registry.set('adventureFight', fight);
-    setSettings(this, { ...getSettings(this), mode: 'cpu', p1: HERO_FIGHTER, p2: id, stage: g.stage, difficulty: fightDifficulty(this.st) });
+    setSettings(this, { ...getSettings(this), mode: 'cpu', p1: HERO_FIGHTER, p2: id, stage: homeOf(this.st, g).stage ?? g.stage, difficulty: fightDifficulty(this.st) });
     saveAdventure(this.st);
     sfx.play(id === 'silbon' ? 'whistle' : 'screamer');
     // como en los juegos de bolsillo: al aparecer el mito cambia de una la música a la de batalla

@@ -302,16 +302,18 @@ export const RUSTLE_RATE = 0.03;
 export interface Haunt {
   map: string;
   zone: Rect;
+  /** escenario de la pelea si se le encuentra aquí; si no, el de su leyenda */
+  stage?: StageId;
   /** cómo se nombra el sitio en las pistas */
   place: string;
 }
 
 /** Los dos montes, las dos aguas y las dos cantinas: cada noche se sortea quién ronda dónde. */
 export const HAUNTS = {
-  monte: { map: 'campo', zone: R(63, 1, 94, 43), place: 'EL MONTE' },
-  montePuro: { map: 'monte', zone: R(1, 1, 38, 30), place: 'EL MONTE PURO' },
-  cienaga: { map: 'campo', zone: R(2, 52, 29, 69), place: 'LA CIÉNAGA' },
-  rioAbajo: { map: 'charco', zone: R(1, 2, 42, 28), place: 'RÍO ABAJO' },
+  monte: { map: 'campo', zone: R(63, 1, 94, 43), place: 'EL MONTE', stage: 'selva' },
+  montePuro: { map: 'monte', zone: R(1, 1, 38, 30), place: 'EL MONTE PURO', stage: 'robledal' },
+  cienaga: { map: 'campo', zone: R(2, 52, 29, 69), place: 'LA CIÉNAGA', stage: 'pantano' },
+  rioAbajo: { map: 'charco', zone: R(1, 2, 42, 28), place: 'RÍO ABAJO', stage: 'ribera' },
   cantina0: { map: 'int:cantina0', zone: R(1, 2, 11, 7), place: 'LA CANTINA LA ÚLTIMA LÁGRIMA' },
   cantina1: { map: 'int:cantina1', zone: R(1, 2, 9, 6), place: 'LA CANTINA EL REMOLINO' },
 } satisfies Record<string, Haunt>;
@@ -473,8 +475,8 @@ export const NPCS: Npc[] = [
   ] },
   // el perro flaco de la plaza: se gana con una arepa y desde ahí acompaña a Juan
   { key: 'perro', name: 'PERRO CALLEJERO', x: 36, y: 30, facing: 'down', wander: 2, gone: 'perro' },
-  // Lucero, el caballo que don Rubén le regala a Juan, amarrado al principio del camino de herradura
-  { key: 'caballo', name: 'LUCERO', x: 8, y: 9, facing: 'right', needs: 'caballo', action: 'caballo' },
+  // Lucero, el caballo que don Rubén le regala a Juan: queda amarrado al lado de la mula, junto a él
+  { key: 'caballo', name: 'LUCERO', x: 16, y: 26, facing: 'left', needs: 'caballo', action: 'caballo' },
   { key: 'arriero', name: 'DON RUBÉN', story: 'arrieros', x: 14, y: 26, facing: 'left', lines: [
     ['ESTA MULA SE NIEGA A PASAR POR EL LLANO DE NOCHE. ALLÁ SE OYE SILBAR Y HAY HUESOS REGADOS.'],
     ['YO ATRAVESÉ EL MONTE UNA VEZ. LA MADREMONTE ME ENREDÓ LA MULA EN LOS BEJUCOS. ¡NUNCA MÁS!'],

@@ -100,6 +100,14 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     events: [{ name: 'frog', weight: 3 }, { name: 'bamboo', weight: 3 }, { name: 'farWhistle', weight: 2 }, { name: 'owl', weight: 2 }, { name: 'branch', weight: 2 }],
     every: [3, 8],
   },
+  // montaña arriba: viento frío entre los robles, ramas que crujen y búhos; menos ranas que en la selva
+  robledal: {
+    drone: [43.65, 46.25, 21.83], droneCutoff: 150,
+    bed: { type: 'bandpass', freq: 900, q: 0.8, gain: 0.05, lfoRate: 0.12, lfoDepth: 0.04 },
+    musicBox: false,
+    events: [{ name: 'branch', weight: 4 }, { name: 'owl', weight: 3 }, { name: 'whisper', weight: 2 }, { name: 'farWhistle', weight: 1 }],
+    every: [4, 9],
+  },
   cantina: {
     drone: [46.25, 49, 23.12], droneCutoff: 190, droneGain: 0.06,
     bed: { type: 'bandpass', freq: 650, q: 1.2, gain: 0.035, lfoRate: 0.3, lfoDepth: 0.015 },

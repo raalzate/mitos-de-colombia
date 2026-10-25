@@ -268,7 +268,8 @@ export function buildHorse(kind: HorseKind): Pixmap {
   return sheet;
 }
 
-export type ItemIcon = 'farol' | 'machete' | 'mapa' | 'escapulario' | 'perro' | 'caballo';
+/** Lo que se ve en el HUD y lo que pasa de mano en mano (la arepa y el tercio de leña solo van de paso). */
+export type ItemIcon = 'farol' | 'machete' | 'mapa' | 'escapulario' | 'perro' | 'caballo' | 'arepa' | 'lena';
 
 /** Iconos de 12 px de lo que carga Juan, para la barra de arriba. */
 export function buildItemIcon(kind: ItemIcon): Pixmap {
@@ -298,6 +299,15 @@ export function buildItemIcon(kind: ItemIcon): Pixmap {
       pm.line(3, 1, 6, 5, 1, C(0x8a5a30)); pm.line(9, 1, 6, 5, 1, C(0x8a5a30));
       pm.rect(1, 1, 4, 5, C(0x6a2a1a)); pm.rect(2, 2, 2, 3, C(0xe0c890));
       pm.rect(7, 6, 4, 5, C(0x6a2a1a)); pm.rect(8, 7, 2, 3, C(0xe0c890)); pm.set(8, 8, C(0xd82020));
+      break;
+    case 'arepa':
+      pm.ellipse(6, 7, 5, 3, C(0xf0c860)); pm.ellipse(6, 6, 4, 2, C(0xf8dc80));
+      pm.set(4, 6, C(0xc88a30)); pm.set(8, 7, C(0xc88a30)); pm.rect(5, 5, 2, 1, C(0xfff4e0));
+      break;
+    case 'lena':
+      // tercio de palos secos amarrado con un bejuco
+      for (const [y, c] of [[3, 0x8a5a30], [5, 0x6a3c1c], [7, 0x9a6a3a], [9, 0x7a4a24]] as const) pm.line(0, y + 1, 11, y - 1, 2, C(c));
+      pm.vline(4, 2, 10, C(0x3a6a2a)); pm.vline(8, 1, 9, C(0x3a6a2a));
       break;
     case 'caballo':
       pm.ellipse(5, 7, 4, 2, C(0x8a4a22)); pm.polygon([[7, 6], [8, 1], [11, 2], [11, 4], [9, 7]], C(0x8a4a22));

@@ -10,8 +10,8 @@ export const STAGE_LAYER_WIDTH = 640;
 
 export type StageId =
   | 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo'
-  | 'selva' | 'cantina' | 'cementerio';
-export const STAGE_IDS: StageId[] = ['ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo', 'selva', 'cantina', 'cementerio'];
+  | 'selva' | 'robledal' | 'cantina' | 'cementerio';
+export const STAGE_IDS: StageId[] = ['ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo', 'selva', 'robledal', 'cantina', 'cementerio'];
 
 export type AmbientKind = 'fly' | 'ember' | 'leaf' | 'drop' | 'none';
 
@@ -175,6 +175,25 @@ export const STAGES: Record<StageId, StageTheme> = {
     mist: { color: [170, 200, 180, 60], color2: [200, 225, 205, 48], alpha: 1 },
     ambient: 'fly',
     ambientTint: 0xd8ff70,
+    lightning: false,
+  },
+  robledal: {
+    id: 'robledal',
+    name: 'Monte Puro',
+    subtitle: 'Robledal de niebla - montaña arriba',
+    sky: [0x06080e, 0x0a0e16, 0x10161e, 0x161e26, 0x1e282e, 0x283236, 0x323c3c, 0x3c4642],
+    stars: 12,
+    moon: { x: 112, y: 54, r: 16, color: 0xd8dccc, light: 0xf4f6ea },
+    sun: null,
+    clouds: { c1: [120, 132, 136, 150], c2: [150, 160, 162, 120], line: [80, 90, 96, 140] },
+    far: { kind: 'mountains', color: 0x141c22, color2: 0x1e282c },
+    water: { kind: 'thicket', bands: [0x101810, 0x121c14, 0x0e1610, 0x0c120e], glint: 0xc8e0b0, glintDark: 0x6a8a60, reflect: null },
+    mid: { kind: 'jungle', dark: 0x0a120c, mid: 0x24342a, light: 0x4a6448, soil: 0x1e1a12, accent: 0x8aa078 },
+    ground: { kind: 'trail', soil: 0x2e2a1c, soilD: 0x1c1a12, soilL: 0x46402a, grass: 0x2a4026, grassL: 0x3e5a34, water: 0x1e2a26 },
+    fore: { kind: 'rocks', c1: 0x0a0e0c, c2: 0x182220 },
+    mist: { color: [190, 205, 205, 82], color2: [220, 230, 228, 64], alpha: 1 },
+    ambient: 'leaf',
+    ambientTint: 0xb8c8a0,
     lightning: false,
   },
   cantina: {

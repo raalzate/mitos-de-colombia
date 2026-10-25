@@ -36,10 +36,10 @@ el Hombre Caimán se reparten las dos aguas, y la Muelona se mete dentro de una 
 | El Sombrerón | Calle de abajo del pueblo | Un sombrero negro enorme | Callejón del Sombrerón |
 | La Muelona | Dentro de la cantina La Última Lágrima o de El Remolino | Un diente más grande que un dedo | Cantina La Última Copa |
 | El Silbón | El llano | Huesos regados | Llanos del Silbón |
-| El Hombre Caimán | La ciénaga o Río Abajo | Huellas de caimán... y de pie | Ciénaga del Caimán |
-| La Llorona | Río Abajo o la ciénaga | Charquitos de lágrimas | Ribera de los Antiguos |
-| La Patasola | El monte o el Monte Puro | Huellas de un solo pie | Monte de la Patasola |
-| La Madremonte | El Monte Puro o el monte | Ramas partidas y musgo | Monte de la Patasola |
+| El Hombre Caimán | La ciénaga o Río Abajo | Huellas de caimán... y de pie | El de su sitio: ciénaga o ribera |
+| La Llorona | Río Abajo o la ciénaga | Charquitos de lágrimas | El de su sitio: ribera o ciénaga |
+| La Patasola | El monte o el Monte Puro | Huellas de un solo pie | El de su sitio: Monte de la Patasola o Monte Puro |
+| La Madremonte | El Monte Puro o el monte | Ramas partidas y musgo | El de su sitio: Monte Puro o Monte de la Patasola |
 | El Mohán | El río grande | Pepitas de oro en la orilla | Ribera de los Antiguos |
 | Bachué | Laguna del sur | Escamas doradas | Laguna de Iguaque |
 
@@ -52,6 +52,18 @@ También hay espíritus que no pelean pero asustan y dan pistas: el **duende** e
 el monte y la **mano peluda** que sale de la tierra en el cementerio. En la hierba alta a veces algo se mueve y Juan
 se lleva el susto, sin pelea. El **padre Anselmo**, en la puerta de la iglesia, le da a Juan un **escapulario**
 bendito: con él el duende, el pollo y la mano peluda ya no aparecen.
+
+La pelea se hace en el escenario del sitio donde estaba el mito esa noche: los dos montes son dos escenarios
+distintos (el guadual del **Monte de la Patasola** y el robledal de niebla del **Monte Puro**).
+
+## Las cosas pasan de mano en mano
+
+Lo que Juan consigue lo tiene alguien primero, y se le ve: la **abuela** tiene el farol encendido (Juan empieza a
+oscuras), **don Julio** el machete, el **cabo** el mapa y el **padre Anselmo** el escapulario. Al entregarlo, el
+objeto vuela de la mano de quien lo tenía a la de Juan y ya no vuelve a estar allá. El tronco del Monte Puro
+desaparece cuando Juan recoge la leña (para siempre: queda en `taken` de la partida) y Juan carga el tercio a la
+espalda hasta dárselo a don Julio. La arepa pasa de la vendedora a Juan y de Juan al perro. **Lucero** lo trae don
+Rubén al galope y queda amarrado a su lado, junto a la mula, en la vereda.
 
 ## Una sola noche
 

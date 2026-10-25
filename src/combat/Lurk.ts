@@ -218,6 +218,7 @@ export const STAGE_LURKS: Record<StageId, string[]> = {
   infierno: ['llamas', 'acercarse'],
   pueblo: ['calle', 'acercarse'],
   selva: ['saltos', 'acercarse'],
+  robledal: ['acercarse', 'saltos'],
   cantina: ['bombillo', 'calle'],
   cementerio: ['tumba', 'acercarse'],
 };
