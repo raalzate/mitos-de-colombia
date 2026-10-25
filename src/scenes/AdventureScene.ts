@@ -2028,6 +2028,10 @@ export class AdventureScene extends Phaser.Scene {
     v.add(this.add.image(ox, oy, 'av_mapa').setOrigin(0).setScale(S));
     v.add(this.add.bitmapText(GAME_WIDTH / 2, 8, 'font', 'MAPA DE AVISTAMIENTOS').setOrigin(0.5, 0).setTint(0xf8d048));
     v.add(this.add.bitmapText(ox + 88 * S, oy - 12, 'font', 'MONTE PURO').setOrigin(0.5, 0).setTint(0x9ad070));
+    // Río Abajo queda bajando por la trocha del sur de la ciénaga
+    const rio = this.add.bitmapText(ox + 16 * S + 2, oy + 63 * S, 'font', 'RÍO ABAJO').setOrigin(0, 0.5).setTint(0x8ac8f0);
+    v.add(this.add.rectangle(rio.x - 2, rio.y, rio.width + 4, 9, 0x0a0806, 0.8).setOrigin(0, 0.5));
+    v.add(rio);
     const dot = (x: number, y: number, color: number, r = 2) =>
       this.add.rectangle(ox + x * S + 1, oy + y * S + 1, r * 2 + 2, r * 2 + 2, color).setStrokeStyle(1, 0x140a10);
     const blink: Phaser.GameObjects.GameObject[] = [];
@@ -2044,8 +2048,8 @@ export class AdventureScene extends Phaser.Scene {
       v.add(this.add.rectangle(ox + 120 * S + 10, ly + 4, 6, 6, calm ? 0x5a5048 : color).setOrigin(0).setStrokeStyle(1, 0x140a10));
       v.add(this.add.bitmapText(ox + 120 * S + 20, ly + 3, 'font', FIGHTERS[g.id].name.length > 14 ? FIGHTERS[g.id].name.replace(/^(EL|LA) /, '') : FIGHTERS[g.id].name).setTint(calm ? 0x6a6058 : list.length ? 0xf8f0d8 : 0xa89878));
     });
-    // Juan: en el campo, donde está; en el monte puro, arriba en la trocha; en otro sitio, solo se dice dónde anda
-    const here: [number, number] | null = this.gm.id === 'campo' ? [this.st.x, this.st.y] : this.gm.id === 'monte' ? [88, 1] : null;
+    // Juan: en el campo, donde está; en el Monte Puro o en Río Abajo, en la trocha que lleva allá; en otro sitio, solo se dice dónde anda
+    const here: [number, number] | null = this.gm.id === 'campo' ? [this.st.x, this.st.y] : this.gm.id === 'monte' ? [88, 1] : this.gm.id === 'charco' ? [16, 70] : null;
     if (here) {
       const j = this.add.rectangle(ox + here[0] * S + 1, oy + here[1] * S + 1, 5, 5, 0xffffff).setStrokeStyle(1, 0x140a10);
       v.add(j);
