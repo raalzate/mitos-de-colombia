@@ -14,16 +14,16 @@ import {
   STEP, inRect, walkable, type Cell, type Dir, type Guardian, type Mood, type Npc, type Spirit,
 } from '../adventure/World';
 import {
-  areaIn, soundIn, buildingFootprint, buildingName, doorCell, getMap, interiorOf, moodIn, propFootprint,
+  areaIn, soundIn, buildingFootprint, buildingName, campoSpot, doorCell, getMap, interiorOf, moodIn, propFootprint,
   type GameMap, type MapBuilding, type MapProp, type Sound,
 } from '../adventure/Maps';
 import { STORIES, STORY_IDS } from '../adventure/Stories';
 import {
-  addSighting, allCalmed, applyOutcome, clearAdventure, fightDifficulty, hasMachete, loadAdventure, newAdventure, reportSightings, saveAdventure,
+  LAST_HOUR, MS_PER_MINUTE, TRIP_MINUTES, addSighting, allCalmed, applyOutcome, clearAdventure, clockText, nightOver, fightDifficulty, hasEscapulario, hasMachete, homeOf, loadAdventure, newAdventure, reportSightings, saveAdventure,
   type AdventureFight, type AdventureState, type FightOutcome,
 } from '../adventure/State';
 import {
-  GLIMPSE_MAX, GLIMPSE_MIN, HEAR_RADIUS, ambushChance, dist, popSpot, relocate, spawnHidden, vanishChance, wander, zoneCells, type Hidden,
+  GLIMPSE_MAX, GLIMPSE_MIN, HEAR_RADIUS, ambushChance, dist, popSpot, relocate, spawnHidden, vanishChance, wander, zoneCells, type Hidden, type Zoned,
 } from '../adventure/Hunt';
 import { getSettings, setSettings } from '../utils/game';
 import {
@@ -112,7 +112,7 @@ const feetY = (cy: number) => cy * CELL + CELL - 3;
 const key = (x: number, y: number) => `${x},${y}`;
 
 interface NpcView { npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean; talks: number }
-interface HiddenView { h: Hidden; g: Guardian }
+interface HiddenView { h: Hidden; g: Guardian; z: Zoned }
 interface SpiritView { s: Spirit; x: number; y: number; sprite: Phaser.GameObjects.Sprite; shown: boolean; steps: number; cooldown: number; procedural: boolean }
 interface Light { x: number; y: number; r: number; flicker: number }
 
@@ -170,6 +170,11 @@ export class AdventureScene extends Phaser.Scene {
   private announcing: Promise<void> = Promise.resolve();
   private owned: ItemId[] = [];
   private belt: Phaser.GameObjects.Image | null = null;
+  private clock!: Phaser.GameObjects.Container;
+  private clockLabel!: Phaser.GameObjects.BitmapText;
+  private clockShown = -1;
+  /** milisegundos que van de este minuto de la noche */
+  private tick = 0;
   /** Lo que no se mueve del mapa, con su caja ya calculada, para no dibujar lo que está fuera de la cámara. */
   private statics: { img: Phaser.GameObjects.Image; x0: number; y0: number; x1: number; y1: number }[] = [];
   private culledAt = { x: NaN, y: NaN };
@@ -185,8 +190,8 @@ export class AdventureScene extends Phaser.Scene {
     this.registry.remove('adventureFight');
     if (fight && data.outcome) {
       if (data.outcome === 'lose') clearAdventure();
+      // ganar o volarse no se guarda solo: al volver al mapa se le pregunta
       this.st = applyOutcome(this.st, fight, data.outcome);
-      if (data.outcome !== 'lose') saveAdventure(this.st);
     }
     this.registry.set('adventure', this.st);
     this.menu = new MenuInput();
@@ -210,6 +215,8 @@ export class AdventureScene extends Phaser.Scene {
     this.belt = null;
     this.hudKey = '';
     this.hudMissionId = null;
+    this.clockShown = -1;
+    this.tick = 0;
     this.mission = { drop: PANEL_HIDE };
     this.announcing = Promise.resolve();
     sfx.setTension(0);
@@ -510,7 +517,7 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private buildActors(): void {
-    // los mitos y los espíritus rondan San Agustín; el monte puro solo tiene su silencio
+    // los espíritus rondan San Agustín; los mitos, el sitio que les tocó esta noche
     const campo = this.gm.id === 'campo';
     for (const npc of this.gm.npcs) {
       if (npc.needs && !this.st.flags.includes(npc.needs)) continue;
@@ -525,16 +532,19 @@ export class AdventureScene extends Phaser.Scene {
     this.placeHero(feetX(this.st.x), feetY(this.st.y));
     if (this.hasDog) this.buildDog();
 
-    if (!campo) return;
     // los mitos no se ven: rondan escondidos lejos de Juan
-    const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id));
-    const hs = spawnHidden(this.map, left, this.rnd, this.st);
-    this.hidden = hs.map((h, i) => ({ h, g: left[i] }));
+    const left = GUARDIANS.filter((g) => !this.st.calmed.includes(g.id) && homeOf(this.st, g).map === this.gm.id);
+    const zs: Zoned[] = left.map((g) => ({ id: g.id, zone: homeOf(this.st, g).zone }));
+    const hs = spawnHidden(this.map, zs, this.rnd, this.st);
+    this.hidden = hs.map((h, i) => ({ h, g: left[i], z: zs[i] }));
     for (const v of this.hidden) {
       v.h.escapes = this.st.escapes[v.g.id] ?? 0;
-      for (let i = 0; i < 6; i++) wander(this.map, v.h, v.g, this.rnd, (x, y) => this.occupied(x, y));
+      // en un cuarto todo queda cerca: Juan alcanza a dar unos pasos antes de que salte
+      if (this.gm.kind === 'interior') v.h.rest = 3;
+      for (let i = 0; i < 6; i++) wander(this.map, v.h, v.z, this.rnd, (x, y) => this.occupied(x, y));
       this.syncClues(v);
     }
+    if (!campo) return;
     for (const s of SPIRITS) {
       const tex = `av_spirit_${s.kind}`;
       const procedural = this.textures.get(tex).getSourceImage() instanceof HTMLCanvasElement;
@@ -680,7 +690,7 @@ export class AdventureScene extends Phaser.Scene {
     return null;
   }
 
-  override update(): void {
+  override update(_time: number, delta: number): void {
     inputManager.update();
     this.frame++;
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
@@ -695,6 +705,7 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     if (this.dialog.busy || this.locked) return;
+    if (this.passTime(delta)) return;
 
     if (this.moving) {
       this.progress += 1 / WALK_FRAMES;
@@ -1001,6 +1012,7 @@ export class AdventureScene extends Phaser.Scene {
     gallop?.remove();
     const [ax, ay] = (by === 'jeep' ? dest.arrival : dest.horseArrival)!;
     Object.assign(this.st, { map: dest.id, x: ax, y: ay, facing: 'down' as Dir });
+    this.st.minutes += TRIP_MINUTES;
     saveAdventure(this.st);
     startWithLoading(this, 'AdventureScene', { arrive: by === 'jeep' ? 'car' : 'horse' }, dest.name);
   }
@@ -1034,14 +1046,14 @@ export class AdventureScene extends Phaser.Scene {
     if (ex && this.st.x === ex.x && this.st.y === ex.y) { void this.leave(); return; }
     const link = this.gm.links?.find((l) => l.x === this.st.x && l.y === this.st.y);
     if (link) { void this.goTo(link.to, link.tx, link.ty, link.facing); return; }
-    if (!this.ready || this.gm.kind !== 'campo') return;
+    if (!this.ready) return;
     this.dogSenses();
     const hero = { x: this.st.x, y: this.st.y };
 
     for (const v of this.hidden) {
       if (v.h.rest > 0) v.h.rest--;
       if (this.rnd() < 0.6) {
-        wander(this.map, v.h, v.g, this.rnd, (x, y) => this.occupied(x, y));
+        wander(this.map, v.h, v.z, this.rnd, (x, y) => this.occupied(x, y));
         this.syncClues(v);
       }
     }
@@ -1160,21 +1172,27 @@ export class AdventureScene extends Phaser.Scene {
     const lying = v.g.id === 'patasola' && fall && this.textures.exists(drawnAnimKey('patasola', 'p1', 'fall')) && this.rnd() < 0.5;
     if (lying) sp.setTexture(drawnAnimKey('patasola', 'p1', 'fall'), fall.lying ?? 0).setY(sp.y + 4);
     const eyes = this.eyesAt(sp.x, sp.y - sp.displayHeight * (lying ? 0.4 : 0.78)).setAlpha(0);
-    addSighting(this.st, v.g.id, v.h.x, v.h.y);
+    this.sight(v.g.id, v.h.x, v.h.y);
     sfx.monster(v.g.id, 'attack');
     await this.tween({ targets: [sp, eyes], alpha: 0.85, duration: 300 });
     await this.wait(500);
     await this.tween({ targets: [sp, eyes], alpha: 0, duration: 400 });
     sp.destroy(); eyes.destroy();
-    for (let i = 0; i < 3; i++) wander(this.map, v.h, v.g, this.rnd, (x, y) => this.occupied(x, y));
+    for (let i = 0; i < 3; i++) wander(this.map, v.h, v.z, this.rnd, (x, y) => this.occupied(x, y));
     this.syncClues(v);
+  }
+
+  /** Anota el avistamiento en el mapa del cabo, que solo muestra el campo: lo de otros mapas va a su puerta o trocha. */
+  private sight(id: FighterId, x: number, y: number): void {
+    const p = campoSpot(this.gm.id, x, y);
+    if (p) addSighting(this.st, id, p[0], p[1]);
   }
 
   private async clueEvent(v: HiddenView): Promise<void> {
     this.locked = true;
     await this.bubble(this.hero, 1, 400);
     sfx.play(MYTH_SOUND[v.g.id]);
-    addSighting(this.st, v.g.id, this.st.x, this.st.y);
+    this.sight(v.g.id, this.st.x, this.st.y);
     await this.dialog.say([v.g.clueText], { speaker: 'JUAN MACHETE' });
     this.locked = false;
   }
@@ -1196,7 +1214,7 @@ export class AdventureScene extends Phaser.Scene {
     await this.tween({ targets: sp, alpha: 1, scale: MYTH_MAP_SCALE, duration: 160, ease: 'Back.out' });
     await Promise.all([this.bubble(this.hero, 2, 600), this.shake(this.hero, 8)]);
     await this.dialog.say([v.g.fright], { speaker: 'JUAN MACHETE', shake: true });
-    addSighting(this.st, v.g.id, spot[0], spot[1]);
+    this.sight(v.g.id, spot[0], spot[1]);
 
     if (!hasMachete(this.st)) {
       // sin machete no hay pelea: Juan sale corriendo y el espanto se ríe y se esconde
@@ -1204,7 +1222,7 @@ export class AdventureScene extends Phaser.Scene {
       await this.dialog.say([v.g.flee]);
       await this.vanish(sp);
       v.h.rest = 12;
-      relocate(this.map, v.h, v.g, this.rnd, this.st);
+      relocate(this.map, v.h, v.z, this.rnd, this.st);
       this.clearClues(v.g.id);
       saveAdventure(this.st);
       this.locked = false;
@@ -1232,7 +1250,7 @@ export class AdventureScene extends Phaser.Scene {
     v.h.escapes++;
     this.st.escapes[v.g.id] = v.h.escapes;
     v.h.rest = 12;
-    relocate(this.map, v.h, v.g, this.rnd, this.st);
+    relocate(this.map, v.h, v.z, this.rnd, this.st);
     this.clearClues(v.g.id);
     saveAdventure(this.st);
   }
@@ -1241,6 +1259,10 @@ export class AdventureScene extends Phaser.Scene {
 
   /** Devuelve true si algo pasó y la escena quedó ocupada. */
   private spiritStep(): boolean {
+    if (hasEscapulario(this.st)) {
+      for (const sv of this.spirits) if (sv.shown) void this.spiritLeave(sv);
+      return false;
+    }
     for (const sv of this.spirits) {
       const inZone = inRect(sv.s.zone, this.st.x, this.st.y);
       if (sv.shown) {
@@ -1355,8 +1377,9 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('whisper');
     await this.dialog.say([
       'LOS ESPANTOS ANDAN ALBOROTADOS... DE NOCHE SE OYEN SILBIDOS, LLANTOS EN EL RÍO Y PASOS DE UNA SOLA PATA EN EL MONTE.',
-      'ANDAN SUELTOS TODOS LOS MITOS: EL SOMBRERÓN Y LA MUELONA EN EL PUEBLO, EL SILBÓN EN EL LLANO, LA LLORONA Y EL MOHÁN EN EL RÍO, EL HOMBRE CAIMÁN EN LA CIÉNAGA...',
-      '...LA PATASOLA Y LA MADREMONTE EN EL MONTE Y BACHUÉ EN LA LAGUNA DEL SUR. ¡YA NADIE SE ATREVE A SALIR!',
+      'ANDAN SUELTOS TODOS LOS MITOS: EL SOMBRERÓN EN LAS CALLES, LA MUELONA METIDA EN ALGUNA DE LAS DOS CANTINAS, EL SILBÓN EN EL LLANO Y EL MOHÁN EN EL RÍO GRANDE...',
+      '...LA PATASOLA Y LA MADREMONTE SE REPARTEN LOS DOS MONTES, LA LLORONA Y EL HOMBRE CAIMÁN SE REPARTEN LA CIÉNAGA Y RÍO ABAJO, Y BACHUÉ VIVE EN LA LAGUNA DEL SUR.',
+      'Y CADA NOCHE CAMBIAN DE SITIO, MIJO. ¡YA NADIE SE ATREVE A SALIR!',
     ], { speaker: 'ABUELA ROSA', shake: true });
     abuela.scared = false;
     await this.dialog.say([
@@ -1371,6 +1394,7 @@ export class AdventureScene extends Phaser.Scene {
       'EL TRAPICHE QUEDA AQUÍ ABAJITO: COJA EL CAMINO DE LA VEREDA PA\'BAJO, HACIA EL RÍO. ES LA CASONA DE MADERA DE LA IZQUIERDA, JUSTO ANTES DEL PUENTE.',
       'PERO ESE MACHETE NO SE REGALA, MIJO: SE GANA. Y SIN MACHETE NI SE LE ARRIME A UN ESPANTO.',
       'Y PASE DONDE EL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO: ÉL TIENE EL MAPA DE DÓNDE HAN VISTO A CADA ESPANTO.',
+      'SON LAS SEIS DE LA TARDE. TIENE HASTA LA MEDIANOCHE: SI A LAS DOCE QUEDAN ESPANTOS SUELTOS, LA NOCHE VUELVE A EMPEZAR.',
       'SI LO TUMBAN, SE ACABÓ TODO Y TOCA EMPEZAR DE NUEVO. Y SI EL ESPANTO SE LE VUELA, TOCA IR A BUSCARLO OTRA VEZ. ¡VAYA CON DIOS!',
     ], { speaker: 'ABUELA ROSA' });
     this.st.flags.push('intro');
@@ -1431,6 +1455,7 @@ export class AdventureScene extends Phaser.Scene {
       if (v) v.h.rest = 12;
       await this.dialog.say([g.flee, `¡${name} SE VOLÓ DE LA PELEA! ANDA ESCONDIDO OTRA VEZ.`]);
       await this.dialog.say(['¡ESPERE Y VERÁ, QUE YO LO ENCUENTRO!'], { speaker: 'JUAN MACHETE' });
+      await this.offerSave();
       this.locked = false;
       this.showArea();
       return;
@@ -1438,6 +1463,7 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('ultimate');
     await this.dialog.say([g.defeat, `MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.${allCalmed(this.st) ? ' ¡VUELVE CON LA ABUELA ROSA!' : ''}`]);
     await this.dialog.say(['¡QUÉ PELEA TAN BERRACA, PUES! ¡SIGAMOS!'], { speaker: 'JUAN MACHETE' });
+    await this.offerSave();
     this.locked = false;
     this.showArea();
   }
@@ -1472,6 +1498,7 @@ export class AdventureScene extends Phaser.Scene {
       else if (npc.npc.name === 'DON RUBÉN') await this.talkRuben(npc);
       else if (npc.npc.name === 'DON JULIO') await this.talkJulio(npc);
       else if (npc.npc.name === 'CABO RAMÍREZ') await this.talkCabo(npc);
+      else if (npc.npc.name === 'PADRE ANSELMO') await this.talkPadre(npc);
       else await this.talkVillager(npc);
       if (npc.sprite.active) this.faceNpc(npc, before);
       this.locked = false;
@@ -1629,6 +1656,21 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play('ultimate');
     await this.dialog.say([touchActive() ? '¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON EL BOTÓN MAPA O DESDE EL MENÚ.' : '¡JUAN RECIBIÓ EL MAPA DE AVISTAMIENTOS! SE ABRE CON LA TECLA M O DESDE EL MENÚ.']);
     this.openMap();
+  }
+
+  /** El padre Anselmo bendice un escapulario: con él, el duende, el pollo maligno y la mano peluda no se le arriman a Juan. */
+  private async talkPadre(n: NpcView): Promise<void> {
+    if (hasEscapulario(this.st)) { await this.talkVillager(n); return; }
+    const S = 'PADRE ANSELMO';
+    await this.dialog.say([
+      'AH, EL NIETO DE DOÑA ROSA. ¿Y ESA CARA DE SUSTO, HIJO? ¿LO TIENEN LOCO EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA DEL CEMENTERIO?',
+      'TOME ESTE ESCAPULARIO DE LA VIRGEN DEL CARMEN. ESTÁ BENDITO: LLÉVELO SIEMPRE PEGADITO AL PECHO.',
+      'CON ÉL ESOS ESPÍRITUS NO SE LE VUELVEN A ARRIMAR. ESO SÍ: A LOS ESPANTOS GRANDES TOCA ENFRENTARLOS CON VALOR... Y CON EL MACHETE.',
+    ], { speaker: S });
+    this.st.flags.push('escapulario');
+    saveAdventure(this.st);
+    sfx.play('ultimate');
+    await this.dialog.say(['¡JUAN RECIBIÓ EL ESCAPULARIO! YA NO LE SALDRÁN EL DUENDE, EL POLLO MALIGNO NI LA MANO PELUDA.']);
   }
 
   /** Al entrar al trapiche sin machete, don Julio llama a Juan para que nadie se vaya sin hablarle. */
@@ -1839,6 +1881,58 @@ export class AdventureScene extends Phaser.Scene {
     this.locked = false;
   }
 
+  // ---------------------------------------------------------------- el reloj de la noche
+
+  /** La noche corre mientras Juan anda libre (no en diálogos ni menús). Devuelve true si algo ocupó la escena. */
+  private passTime(delta: number): boolean {
+    if (!this.ready || this.st.flags.includes('fin')) return false;
+    this.tick += Math.min(delta, 100);
+    while (this.tick >= MS_PER_MINUTE) { this.tick -= MS_PER_MINUTE; this.st.minutes++; }
+    if (nightOver(this.st)) { void this.midnight(); return true; }
+    if (this.st.minutes >= LAST_HOUR && !this.st.flags.includes('aviso_once') && !this.moving) { void this.lastHour(); return true; }
+    return false;
+  }
+
+  private async lastHour(): Promise<void> {
+    this.locked = true;
+    this.st.flags.push('aviso_once');
+    sfx.play('sting');
+    this.tweens.add({ targets: this.clock, scale: 1.25, duration: 160, yoyo: true, repeat: 2 });
+    await this.dialog.say(['¡YA SON LAS ONCE DE LA NOCHE! A LAS DOCE SE ACABA TODO: SI QUEDAN ESPANTOS SUELTOS, LA NOCHE VUELVE A EMPEZAR. ¡HAY QUE APURARSE!'], { speaker: 'JUAN MACHETE', shake: true });
+    this.locked = false;
+  }
+
+  /** Dan las doce: se acaba la noche y el juego vuelve a empezar desde la vereda. */
+  private async midnight(): Promise<void> {
+    this.locked = true;
+    const left = GUARDIANS.length - this.st.calmed.length;
+    sfx.setTension(1);
+    for (let i = 0; i < 3; i++) {
+      sfx.play('sting');
+      this.cameras.main.shake(260, 0.006);
+      await this.wait(450);
+    }
+    await this.dialog.say([
+      '¡DONG!... ¡DONG!... ¡DONG!... DAN LAS DOCE EN LA IGLESIA DE SAN AGUSTÍN.',
+      `SE ACABÓ LA NOCHE. ${left === 1 ? 'UN ESPANTO SIGUE SUELTO' : `${left} ESPANTOS SIGUEN SUELTOS`} Y EL PUEBLO QUEDA EN SUS MANOS.`,
+    ], { shake: true });
+    await this.dialog.say(['JUAN SE DESPIERTA EN LA VEREDA, JUNTO A LA ABUELA... ¿FUE UN SUEÑO? SON LAS SEIS DE LA TARDE Y LA NOCHE VUELVE A EMPEZAR.']);
+    clearAdventure();
+    this.registry.set('adventure', newAdventure());
+    this.cameras.main.fadeOut(400, 0, 0, 0);
+    await this.wait(420);
+    startWithLoading(this, 'AdventureScene', { fresh: true }, 'OTRA NOCHE EN SAN AGUSTÍN');
+  }
+
+  /** Al volver de una pelea se le pregunta a Juan si quiere guardar. */
+  private async offerSave(): Promise<void> {
+    const i = await this.dialog.ask('¿GUARDAR LA PARTIDA?', ['SÍ, GUARDAR', 'NO'], { cancel: 1 });
+    if (i !== 0) return;
+    saveAdventure(this.st);
+    sfx.play('confirm');
+    await this.dialog.say(['PARTIDA GUARDADA.']);
+  }
+
   // ---------------------------------------------------------------- el mapa de avistamientos
 
   /** El mapa del cabo Ramírez: San Agustín visto desde arriba, con marcas de colores donde han visto a cada mito. */
@@ -1916,10 +2010,15 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   private buildHud(): void {
-    for (const id of ['farol', 'machete', 'mapa', 'perro', 'caballo'] as const) {
+    for (const id of ['farol', 'machete', 'mapa', 'escapulario', 'perro', 'caballo'] as const) {
       if (!this.textures.exists(`av_item_${id}`)) addPixmap(this, `av_item_${id}`, buildItemIcon(id));
     }
     this.hudTop = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
+    // el reloj de la noche, arriba a la derecha bajo lo que carga Juan (a la izquierda va el nombre del sitio)
+    this.clock = this.add.container(GAME_WIDTH - 39, 28).setScrollFactor(0).setDepth(3950);
+    this.clock.add(this.add.rectangle(0, 0, 66, 13, 0x101828, 0.85).setStrokeStyle(1, 0x8a6a40));
+    this.clockLabel = this.add.bitmapText(0, 0, 'font', '').setOrigin(0.5).setTint(0xf8f0d8);
+    this.clock.add(this.clockLabel);
     this.hudMission = this.add.container(0, 0).setScrollFactor(0).setDepth(3950);
     // flecha con cola, que se lea a primera vista; apunta en una de ocho direcciones
     this.hudArrow = this.add.polygon(0, 0, [0, 3, 6, 3, 6, 0, 12, 5, 6, 10, 6, 7, 0, 7], 0xf8e040).setStrokeStyle(1, 0x140a10).setScrollFactor(0).setDepth(3951);
@@ -2005,6 +2104,11 @@ export class AdventureScene extends Phaser.Scene {
     if (this.frame % 10 === 0 && !this.dialog.busy && !this.locked && !this.mapView) this.refreshHud();
     const quiet = !this.dialog.busy && !this.mapView;
     this.hudTop.setVisible(!this.mapView);
+    this.clock.setVisible(!this.mapView && this.ready && !this.st.flags.includes('fin'));
+    if (this.st.minutes !== this.clockShown) {
+      this.clockShown = this.st.minutes;
+      this.clockLabel.setText(clockText(this.st.minutes)).setTint(this.st.minutes >= LAST_HOUR ? 0xf86848 : 0xf8f0d8);
+    }
     const has = quiet && !!this.hudMissionId;
     if (has && !this.locked && this.menu.pressed(MENU_KEYS.mission)) this.showMission();
     const out = this.mission.drop < PANEL_HIDE / 2;

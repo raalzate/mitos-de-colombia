@@ -1,5 +1,8 @@
 import type { FighterId } from '../combat/CombatTypes';
-import { inRect, walkable, type Cell, type Guardian, type Rect } from './World';
+import { inRect, walkable, type Cell, type Rect } from './World';
+
+/** Lo que ronda: solo importa el rectángulo del que no sale. */
+export interface Zoned { id: FighterId; zone: Rect }
 
 /**
  * Mitos escondidos: no se ven en el mapa. Rondan su zona, dejan señales en el suelo,
@@ -41,7 +44,7 @@ export function zoneCells(map: Cell[][], zone: Rect, far?: { x: number; y: numbe
 }
 
 /** Lo pone en un sitio al azar de su zona, a una distancia prudente del héroe. */
-export function relocate(map: Cell[][], h: Hidden, g: Guardian, rnd: Rnd, hero: { x: number; y: number }): void {
+export function relocate(map: Cell[][], h: Hidden, g: Zoned, rnd: Rnd, hero: { x: number; y: number }): void {
   let cells = zoneCells(map, g.zone, { ...hero, d: 10 });
   if (!cells.length) cells = zoneCells(map, g.zone);
   const [x, y] = cells[Math.floor(rnd() * cells.length)];
@@ -49,7 +52,7 @@ export function relocate(map: Cell[][], h: Hidden, g: Guardian, rnd: Rnd, hero: 
   h.trail = [];
 }
 
-export function spawnHidden(map: Cell[][], guardians: Guardian[], rnd: Rnd, hero: { x: number; y: number }): Hidden[] {
+export function spawnHidden(map: Cell[][], guardians: Zoned[], rnd: Rnd, hero: { x: number; y: number }): Hidden[] {
   return guardians.map((g) => {
     const h: Hidden = { id: g.id, x: 0, y: 0, trail: [], rest: 0, escapes: 0 };
     relocate(map, h, g, rnd, hero);
@@ -58,7 +61,7 @@ export function spawnHidden(map: Cell[][], guardians: Guardian[], rnd: Rnd, hero
 }
 
 /** Un paso de ronda: se mueve una casilla dentro de su zona y a veces deja una señal donde estaba. */
-export function wander(map: Cell[][], h: Hidden, g: Guardian, rnd: Rnd, occupied: (x: number, y: number) => boolean): boolean {
+export function wander(map: Cell[][], h: Hidden, g: Zoned, rnd: Rnd, occupied: (x: number, y: number) => boolean): boolean {
   const dirs: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
   const [dx, dy] = dirs[Math.floor(rnd() * 4)];
   const nx = h.x + dx, ny = h.y + dy;

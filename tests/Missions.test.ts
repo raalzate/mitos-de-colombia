@@ -56,3 +56,17 @@ describe('misiones', () => {
     expect(MISSION_IDS).toContain('mitos');
   });
 });
+
+describe('el escapulario', () => {
+  it('es una misión con su meta en el padre Anselmo y se carga como objeto', () => {
+    const m = missions(withFlags()).find((x) => x.id === 'escapulario')!;
+    expect(m.done).toBe(false);
+    expect(m.step.goal).toEqual({ map: 'campo', x: 41, y: 25 });
+    expect(items(withFlags('escapulario'))).toContain('escapulario');
+    expect(missions(withFlags('escapulario')).find((x) => x.id === 'escapulario')!.done).toBe(true);
+  });
+
+  it('desde Río Abajo la flecha apunta a la trocha de subida', () => {
+    expect(waypoint('charco', { map: 'campo', x: 23, y: 24 }, () => undefined)).toEqual({ map: 'charco', x: 21, y: 1 });
+  });
+});

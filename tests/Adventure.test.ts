@@ -1,13 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { FIGHTER_IDS } from '../src/data/fighters';
 import {
-  BUILDINGS, GUARDIANS, HERO_START, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, PROPS, SIGNS, SPIRITS, HERO_FIGHTER,
+  BUILDINGS, GUARDIANS, HAUNTS, HERO_START, SWAPS, MAP_H, MAP_W, NPCS, PESCADOR_REFUGIO, PROPS, SIGNS, SPIRITS, HERO_FIGHTER,
   areaName, buildMap, doorOf, inRect, propCells, walkable,
 } from '../src/adventure/World';
 import { BUILDING_FOOTPRINT } from '../src/adventure/TownArt';
 import { TRAIL_LEN, ambushChance, fleeFightChance, popSpot, spawnHidden, vanishChance, wander, zoneCells } from '../src/adventure/Hunt';
 import { paginate, wrap } from '../src/adventure/text';
-import { MAX_SIGHTINGS, addSighting, allCalmed, applyOutcome, fightDifficulty, hasMachete, newAdventure, reportSightings } from '../src/adventure/State';
+import {
+  FIGHT_MINUTES, MAX_SIGHTINGS, NIGHT_MINUTES, addSighting, allCalmed, applyOutcome, clockText, fightDifficulty, hasMachete, homeOf, newAdventure, nightOver, reportSightings, rollHomes,
+} from '../src/adventure/State';
+import { campoSpot, getMap } from '../src/adventure/Maps';
+
+/** Cada mito con su primer sitio del campo, para las pruebas que ruedan sobre el mapa grande. */
+const ON_CAMPO = GUARDIANS.flatMap((g) => g.haunts.filter((h) => h.map === 'campo').slice(0, 1).map((h) => ({ id: g.id, zone: h.zone })));
 
 describe('combates del modo aventura', () => {
   it('ganar calma al mito', () => {
@@ -22,7 +28,8 @@ describe('combates del modo aventura', () => {
     s.calmed.push('silbon');
     s.flags.push('intro');
     s.x = 30;
-    expect(applyOutcome(s, { id: 'patasola' }, 'lose')).toEqual(newAdventure());
+    const fresh = applyOutcome(s, { id: 'patasola' }, 'lose');
+    expect({ ...fresh, homes: {} }).toEqual({ ...newAdventure(), homes: {} });
   });
 
   it('los mitos se ponen más bravos a medida que Juan calma a los demás', () => {
@@ -72,10 +79,11 @@ describe('mapa del modo aventura', () => {
     for (const b of BUILDINGS) expect(seen.has(doorOf(b).join()), `puerta de ${b.kind}`).toBe(true);
   });
 
-  it('cada mito tiene en su zona bastante terreno alcanzable para esconderse', () => {
-    for (const m of GUARDIANS) {
-      const cells = zoneCells(g, m.zone).filter(([x, y]) => seen.has(`${x},${y}`));
-      expect(cells.length, m.id).toBeGreaterThan(20);
+  it('cada sitio de cada mito tiene bastante terreno para esconderse', () => {
+    for (const m of GUARDIANS) for (const hn of m.haunts) {
+      const grid = hn.map === 'campo' ? g : getMap(hn.map).grid;
+      const cells = zoneCells(grid, hn.zone).filter(([x, y]) => hn.map !== 'campo' || seen.has(`${x},${y}`));
+      expect(cells.length, `${m.id} en ${hn.place}`).toBeGreaterThan(hn.map.startsWith('int:') ? 15 : 20);
     }
     for (const s of SPIRITS) expect(zoneCells(g, s.zone).some(([x, y]) => seen.has(`${x},${y}`)), s.kind).toBe(true);
   });
@@ -105,15 +113,15 @@ describe('mitos escondidos', () => {
   const g = buildMap();
 
   it('aparecen lejos de Juan y dentro de su zona', () => {
-    const hs = spawnHidden(g, GUARDIANS, Math.random, { x: HERO_START[0], y: HERO_START[1] });
+    const hs = spawnHidden(g, ON_CAMPO, Math.random, { x: HERO_START[0], y: HERO_START[1] });
     hs.forEach((h, i) => {
-      expect(inRect(GUARDIANS[i].zone, h.x, h.y)).toBe(true);
+      expect(inRect(ON_CAMPO[i].zone, h.x, h.y)).toBe(true);
       expect(walkable(g, h.x, h.y)).toBe(true);
     });
   });
 
   it('rondan sin salir de su zona y dejan señales detrás', () => {
-    const m = GUARDIANS.find((x) => x.id === 'silbon')!;
+    const m = ON_CAMPO.find((x) => x.id === 'silbon')!;
     const [h] = spawnHidden(g, [m], Math.random, { x: 0, y: 0 });
     for (let i = 0; i < 200; i++) {
       wander(g, h, m, Math.random, () => false);
@@ -175,5 +183,73 @@ describe('machete y mapa de avistamientos', () => {
     for (let i = 0; i < MAX_SIGHTINGS + 2; i++) addSighting(s, 'llorona', 30 + i, 50);
     expect(s.sightings.llorona).toHaveLength(MAX_SIGHTINGS);
     expect(s.sightings.llorona!.at(-1)).toEqual([30 + MAX_SIGHTINGS + 1, 50]);
+  });
+});
+
+describe('cada noche los mitos cambian de sitio', () => {
+  it('la Patasola y la Madremonte se reparten los dos montes; la Llorona y el Hombre Caimán, las dos aguas', () => {
+    const places = new Set<string>();
+    for (let i = 0; i < 40; i++) {
+      const s = newAdventure();
+      for (const [a, b] of SWAPS) {
+        const ha = homeOf(s, GUARDIANS.find((g) => g.id === a)!), hb = homeOf(s, GUARDIANS.find((g) => g.id === b)!);
+        expect(ha.place).not.toBe(hb.place);
+        places.add(`${a}:${ha.place}`);
+      }
+    }
+    // con 40 noches cada uno pasó por los dos sitios
+    expect(places.size).toBe(4);
+  });
+
+  it('la Muelona se esconde dentro de una de las dos cantinas', () => {
+    const muelona = GUARDIANS.find((g) => g.id === 'muelona')!;
+    expect(muelona.haunts.map((h) => h.map).sort()).toEqual(['int:cantina0', 'int:cantina1']);
+    const where = new Set(Array.from({ length: 40 }, () => homeOf({ ...newAdventure(), homes: rollHomes() }, muelona).map));
+    expect(where.size).toBe(2);
+  });
+
+  it('el mapa del cabo marca lo de otros mapas en su puerta o en su trocha', () => {
+    expect(campoSpot('campo', 5, 6)).toEqual([5, 6]);
+    expect(campoSpot(HAUNTS.cantina0.map, 3, 3)).toEqual(doorOf(BUILDINGS.find((b) => b.id === 'cantina0')!));
+    expect(campoSpot('charco', 10, 10)).toEqual([16, 69]);
+    expect(campoSpot('monte', 10, 10)).toEqual([88, 2]);
+    const s = newAdventure();
+    reportSightings(s);
+    for (const [x, y] of Object.values(s.sightings).flat()) expect(walkable(buildMap(), x, y), `${x},${y}`).toBe(true);
+  });
+
+  it('a Río Abajo se baja por la trocha de la ciénaga y se vuelve por el mismo lado', () => {
+    const campo = getMap('campo'), charco = getMap('charco');
+    const down = campo.links!.find((l) => l.to === 'charco')!;
+    expect(walkable(campo.grid, down.x, down.y)).toBe(true);
+    const up = charco.links!.find((l) => l.to === 'campo')!;
+    expect([up.tx, up.ty]).toEqual([down.x, down.y - 1]);
+    expect(walkable(charco.grid, down.tx, down.ty)).toBe(true);
+  });
+});
+
+describe('el reloj de la noche', () => {
+  it('va de las 6:00 PM a las 12:00 AM', () => {
+    expect(clockText(0)).toBe('6:00 PM');
+    expect(clockText(95)).toBe('7:35 PM');
+    expect(clockText(359)).toBe('11:59 PM');
+    expect(clockText(NIGHT_MINUTES)).toBe('12:00 AM');
+  });
+
+  it('a medianoche se acaba la noche, salvo que ya haya ganado', () => {
+    const s = newAdventure();
+    expect(s.minutes).toBe(0);
+    expect(nightOver(s)).toBe(false);
+    s.minutes = NIGHT_MINUTES;
+    expect(nightOver(s)).toBe(true);
+    s.flags.push('fin');
+    expect(nightOver(s)).toBe(false);
+  });
+
+  it('cada pelea se lleva un rato de la noche', () => {
+    const s = newAdventure();
+    applyOutcome(s, { id: 'silbon' }, 'win');
+    applyOutcome(s, { id: 'mohan' }, 'fled');
+    expect(s.minutes).toBe(FIGHT_MINUTES * 2);
   });
 });

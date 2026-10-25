@@ -1,5 +1,6 @@
 import type { Difficulty, FighterId } from '../combat/CombatTypes';
-import { GUARDIANS, HERO_START, type Dir } from './World';
+import { GUARDIANS, HERO_START, SWAPS, walkable, type Dir, type Guardian, type Haunt } from './World';
+import { campoSpot, getMap } from './Maps';
 import type { StoryId } from './Stories';
 import type { MissionId } from './Missions';
 
@@ -21,6 +22,45 @@ export interface AdventureState {
   sightings: Partial<Record<FighterId, [number, number][]>>;
   /** misión que Juan escogió seguir en pantalla */
   pinned?: MissionId;
+  /** sitio que le tocó a cada mito esta noche (índice en Guardian.haunts) */
+  homes: Partial<Record<FighterId, number>>;
+  /** minutos de la noche que ya pasaron desde las 6:00 PM */
+  minutes: number;
+}
+
+/** La noche entera: de las 6:00 PM a las 12:00 AM. */
+export const NIGHT_MINUTES = 360;
+/** Un minuto de la noche dura 10 s de juego andando: la noche completa, una hora. */
+export const MS_PER_MINUTE = 10_000;
+/** Lo que se lleva una pelea y un viaje largo. */
+export const FIGHT_MINUTES = 10;
+export const TRIP_MINUTES = 30;
+/** desde las 11:00 PM el reloj se pone rojo y Juan avisa que queda poco */
+export const LAST_HOUR = 300;
+
+/** 0 → «6:00 PM», 360 → «12:00 AM». */
+export function clockText(minutes: number): string {
+  const m = Math.max(0, Math.min(NIGHT_MINUTES, Math.floor(minutes)));
+  const h = 6 + Math.floor(m / 60);
+  return `${h === 12 ? 12 : h}:${String(m % 60).padStart(2, '0')} ${h === 12 ? 'AM' : 'PM'}`;
+}
+
+export const nightOver = (s: AdventureState) => s.minutes >= NIGHT_MINUTES && !s.flags.includes('fin');
+
+/** Sortea dónde ronda cada mito esta noche: las parejas se intercambian el sitio y los demás escogen uno de los suyos. */
+export function rollHomes(rnd: () => number = Math.random): Partial<Record<FighterId, number>> {
+  const homes: Partial<Record<FighterId, number>> = {};
+  for (const g of GUARDIANS) homes[g.id] = Math.floor(rnd() * g.haunts.length);
+  for (const [a, b] of SWAPS) {
+    const swap = rnd() < 0.5 ? 1 : 0;
+    homes[a] = swap;
+    homes[b] = swap;
+  }
+  return homes;
+}
+
+export function homeOf(s: AdventureState, g: Guardian): Haunt {
+  return g.haunts[s.homes[g.id] ?? 0] ?? g.haunts[0];
 }
 
 /** Combate en curso del modo aventura: lo lee el FightScene para volver al mapa al terminar. */
@@ -34,8 +74,8 @@ export type FightOutcome = 'win' | 'lose' | 'fled';
 
 const KEY = 'mitos-aventura-v5';
 
-export function newAdventure(): AdventureState {
-  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {} };
+export function newAdventure(rnd: () => number = Math.random): AdventureState {
+  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0 };
 }
 
 export function loadAdventure(): AdventureState | null {
@@ -47,6 +87,8 @@ export function loadAdventure(): AdventureState | null {
     s.stories ??= [];
     s.map ??= 'campo';
     s.sightings ??= {};
+    s.homes ??= rollHomes();
+    s.minutes ??= 0;
     // partidas de antes del machete ganado: el que ya calmó mitos ya tenía machete
     if (s.calmed.length && !s.flags.includes('machete')) s.flags.push('machete');
     return s;
@@ -74,6 +116,7 @@ export function clearAdventure(): void {
 /** Aplica el resultado de un combate. Perder reinicia la partida desde cero. */
 export function applyOutcome(s: AdventureState, fight: AdventureFight, outcome: FightOutcome): AdventureState {
   if (outcome === 'lose') return newAdventure();
+  s.minutes += FIGHT_MINUTES;
   if (outcome === 'fled') {
     s.escapes[fight.id] = (s.escapes[fight.id] ?? 0) + 1;
     return s;
@@ -93,6 +136,9 @@ export const allCalmed = (s: AdventureState) => GUARDIANS.every((g) => s.calmed.
 /** Sin el machete del abuelo, Juan no se le mide a ningún espanto. */
 export const hasMachete = (s: AdventureState) => s.flags.includes('machete');
 
+/** Con el escapulario bendito el duende, el pollo maligno y la mano peluda ya no se le arriman. */
+export const hasEscapulario = (s: AdventureState) => s.flags.includes('escapulario');
+
 export const MAX_SIGHTINGS = 3;
 
 /** Anota dónde se vio un mito; se guardan los últimos avistamientos de cada uno. */
@@ -107,6 +153,16 @@ export function addSighting(s: AdventureState, id: FighterId, x: number, y: numb
 export function reportSightings(s: AdventureState): void {
   for (const g of GUARDIANS) {
     if (s.calmed.includes(g.id)) continue;
-    addSighting(s, g.id, Math.round((g.zone.x0 + g.zone.x1) / 2), Math.round((g.zone.y0 + g.zone.y1) / 2));
+    const { map, zone } = homeOf(s, g);
+    const [cx, cy] = [Math.round((zone.x0 + zone.x1) / 2), Math.round((zone.y0 + zone.y1) / 2)];
+    // la marca va en la casilla libre más cercana al centro del sitio, no encima de un árbol
+    const grid = getMap(map).grid;
+    let best: [number, number] = [cx, cy], bd = Infinity;
+    for (let y = zone.y0; y <= zone.y1; y++) for (let x = zone.x0; x <= zone.x1; x++) {
+      const d = Math.abs(x - cx) + Math.abs(y - cy);
+      if (d < bd && walkable(grid, x, y)) { best = [x, y]; bd = d; }
+    }
+    const spot = campoSpot(map, best[0], best[1]);
+    if (spot) addSighting(s, g.id, spot[0], spot[1]);
   }
 }

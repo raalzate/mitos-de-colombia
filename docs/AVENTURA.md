@@ -27,18 +27,20 @@ respetarlos". Con los nueve calmados vuelve donde la abuela para el final.
 
 ![El Sombrerón aparece](screenshots/12-sombreron-a-caballo.png)
 
-Los mitos no se ven en el mapa. Cada uno ronda la zona de su leyenda y se delata:
+Los mitos no se ven en el mapa. Cada uno ronda la zona de su leyenda y se delata. Algunos tienen **dos sitios
+posibles** y cada noche se sortea cuál les toca: la Patasola y la Madremonte se reparten los dos montes, la Llorona y
+el Hombre Caimán se reparten las dos aguas, y la Muelona se mete dentro de una de las dos cantinas.
 
 | Mito | Dónde ronda | Señal que deja | Escenario de la pelea |
 |---|---|---|---|
 | El Sombrerón | Calle de abajo del pueblo | Un sombrero negro enorme | Callejón del Sombrerón |
-| La Muelona | Junto a la cantina | Un diente más grande que un dedo | Cantina La Última Copa |
+| La Muelona | Dentro de la cantina La Última Lágrima o de El Remolino | Un diente más grande que un dedo | Cantina La Última Copa |
 | El Silbón | El llano | Huesos regados | Llanos del Silbón |
-| El Hombre Caimán | La ciénaga | Huellas de caimán... y de pie | Ciénaga del Caimán |
-| La Llorona | Orilla del río | Charquitos de lágrimas | Ribera de los Antiguos |
-| La Patasola | Norte del monte | Huellas de un solo pie | Monte de la Patasola |
-| La Madremonte | Sur del monte | Ramas partidas y musgo | Monte de la Patasola |
-| El Mohán | Río abajo | Pepitas de oro en la orilla | Ribera de los Antiguos |
+| El Hombre Caimán | La ciénaga o Río Abajo | Huellas de caimán... y de pie | Ciénaga del Caimán |
+| La Llorona | Río Abajo o la ciénaga | Charquitos de lágrimas | Ribera de los Antiguos |
+| La Patasola | El monte o el Monte Puro | Huellas de un solo pie | Monte de la Patasola |
+| La Madremonte | El Monte Puro o el monte | Ramas partidas y musgo | Monte de la Patasola |
+| El Mohán | El río grande | Pepitas de oro en la orilla | Ribera de los Antiguos |
 | Bachué | Laguna del sur | Escamas doradas | Laguna de Iguaque |
 
 Además de las señales, los mitos **se oyen** de lejos (silbido, llanto, pasos de una sola pata...) y a veces **se
@@ -48,7 +50,17 @@ espera a que alguien se acerque.
 
 También hay espíritus que no pelean pero asustan y dan pistas: el **duende** en el pueblo, el **pollo maligno** en
 el monte y la **mano peluda** que sale de la tierra en el cementerio. En la hierba alta a veces algo se mueve y Juan
-se lleva el susto, sin pelea.
+se lleva el susto, sin pelea. El **padre Anselmo**, en la puerta de la iglesia, le da a Juan un **escapulario**
+bendito: con él el duende, el pollo y la mano peluda ya no aparecen.
+
+## Una sola noche
+
+Todo pasa en una noche: el reloj (arriba a la derecha) empieza a las **6:00 PM** y la noche termina a las
+**12:00 AM**. Un minuto de la noche son 10 segundos andando por el mapa (en diálogos y menús el reloj se detiene),
+cada pelea se lleva 10 minutos y cada viaje en jeep o a caballo, 30. A las 11:00 PM el reloj se pone rojo y Juan
+avisa. A medianoche, si quedan espantos sueltos, se acaba la noche: la partida se borra y todo vuelve a empezar, con
+los mitos sorteados de nuevo. Los valores están en `src/adventure/State.ts` (`MS_PER_MINUTE`, `FIGHT_MINUTES`,
+`TRIP_MINUTES`).
 
 ## Firulais, el perro
 
@@ -83,6 +95,7 @@ amarrado al principio del camino de herradura, en el llano, y con él Juan puede
 
 | Lugar | Cómo se llega | Zonas |
 |---|---|---|
+| **Río Abajo** (44 × 30) | Por la trocha del sur de la ciénaga | El caño con su puente, el juncal y el charco de los ahogados |
 | **San Agustín** (120 × 72 casillas) | Inicio | Vereda La Esperanza, pueblo y plaza principal, cementerio, el llano, el monte, el río grande, la ciénaga, potreros del sur, laguna de Bachué, terminal de jeeps y fiestas |
 | **Medellín** (80 × 60) | En el yipao de don Evelio, desde la terminal de jeeps | Terminal del Norte, Plaza Botero, Parque Berrío y el metro, Pueblito Paisa, Comuna 13, Feria de las Flores, parque del río |
 | **Santa Fe de Antioquia** (64 × 46) | A caballo con Lucero, por el camino de herradura | Plaza mayor con su ceiba, catedral, Calle de la Amargura, río Cauca y Puente de Occidente |
@@ -114,7 +127,8 @@ o sobarle la barriga a la gorda de Botero.
 
 ## Guardado
 
-La partida se guarda sola en el navegador (`localStorage`) en cada suceso importante y desde el menú de pausa.
+La partida se guarda en el navegador (`localStorage`) en cada suceso importante y desde el menú de pausa. Al volver
+de una pelea (ganada o con el mito volado) el juego **pregunta si se quiere guardar**.
 Si el navegador no deja guardar, la partida dura mientras la pestaña esté abierta.
 
 ## Dónde está en el código

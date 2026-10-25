@@ -268,7 +268,7 @@ export function buildHorse(kind: HorseKind): Pixmap {
   return sheet;
 }
 
-export type ItemIcon = 'farol' | 'machete' | 'mapa' | 'perro' | 'caballo';
+export type ItemIcon = 'farol' | 'machete' | 'mapa' | 'escapulario' | 'perro' | 'caballo';
 
 /** Iconos de 12 px de lo que carga Juan, para la barra de arriba. */
 export function buildItemIcon(kind: ItemIcon): Pixmap {
@@ -292,6 +292,12 @@ export function buildItemIcon(kind: ItemIcon): Pixmap {
       pm.ellipse(6, 7, 4, 3, C(0xc89058)); pm.rect(7, 2, 4, 4, C(0xc89058));
       pm.set(9, 3, ink); pm.rect(7, 1, 1, 2, C(0x8a5a30)); pm.rect(1, 4, 1, 3, C(0xc89058));
       pm.vline(3, 9, 11, C(0x8a5a30)); pm.vline(8, 9, 11, C(0x8a5a30));
+      break;
+    case 'escapulario':
+      // cordón café con los dos cuadritos de tela de la Virgen del Carmen
+      pm.line(3, 1, 6, 5, 1, C(0x8a5a30)); pm.line(9, 1, 6, 5, 1, C(0x8a5a30));
+      pm.rect(1, 1, 4, 5, C(0x6a2a1a)); pm.rect(2, 2, 2, 3, C(0xe0c890));
+      pm.rect(7, 6, 4, 5, C(0x6a2a1a)); pm.rect(8, 7, 2, 3, C(0xe0c890)); pm.set(8, 8, C(0xd82020));
       break;
     case 'caballo':
       pm.ellipse(5, 7, 4, 2, C(0x8a4a22)); pm.polygon([[7, 6], [8, 1], [11, 2], [11, 4], [9, 7]], C(0x8a4a22));

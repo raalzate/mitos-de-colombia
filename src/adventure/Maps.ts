@@ -122,7 +122,10 @@ function campo(): GameMap {
   return {
     id: 'campo', kind: 'campo', name: 'SAN AGUSTÍN', grid: buildMap(), buildings, props, signs: SIGNS, npcs: NPCS, areas: AREAS,
     darkness: { tension: 0.82, alegre: 0.45 }, sound: { tension: 'monte', alegre: 'fiesta' }, arrival: [111, 17], horseArrival: [7, 9],
-    links: [{ x: 88, y: 1, to: 'monte', tx: MONTE_ENTRY[0], ty: MONTE_ENTRY[1], facing: 'up' }],
+    links: [
+      { x: 88, y: 1, to: 'monte', tx: MONTE_ENTRY[0], ty: MONTE_ENTRY[1], facing: 'up' },
+      { x: 16, y: 70, to: 'charco', tx: CHARCO_ENTRY[0], ty: CHARCO_ENTRY[1], facing: 'down' },
+    ],
   };
 }
 
@@ -177,6 +180,55 @@ function monte(): GameMap {
     id: 'monte', kind: 'campo', name: 'MONTE PURO', grid: g, buildings: [], props, signs, npcs: [], areas,
     darkness: { tension: 0.9, alegre: 0.6 }, sound: { tension: 'monte', alegre: 'monte' }, arrival: MONTE_ENTRY,
     links: [{ x: MONTE_ENTRY[0], y: H - 2, to: 'campo', tx: 88, ty: 2, facing: 'down' }],
+  };
+}
+
+// ------------------------------------------------------------------ Río Abajo
+
+export const CHARCO_W = 44;
+export const CHARCO_H = 30;
+/** casilla donde aparece Juan al bajar por la trocha de la ciénaga */
+export const CHARCO_ENTRY: [number, number] = [21, 2];
+
+/** Río abajo de la ciénaga: un caño ancho con su puente, juncales y el charco hondo donde se ahoga la luna. */
+function charco(): GameMap {
+  const W = CHARCO_W, H = CHARCO_H;
+  const g: Cell[][] = Array.from({ length: H }, () => Array.from({ length: W }, () => '.' as Cell));
+  fill(g, 0, 0, W - 1, 0, 'T'); fill(g, 0, H - 1, W - 1, H - 1, 'T');
+  fill(g, 0, 0, 0, H - 1, 'T'); fill(g, W - 1, 0, W - 1, H - 1, 'T');
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) {
+    const n = (x * 7 + y * 13) % 17;
+    if (n === 0 || n === 9) g[y][x] = 'T';
+    else if (n < 5) g[y][x] = '"';
+  }
+  // el caño: tres filas de agua con la orilla mordida
+  fill(g, 1, 11, W - 2, 13, '~');
+  for (let x = 1; x < W - 1; x++) { if ((x * 5) % 7 === 0) g[10][x] = '~'; if ((x * 3) % 5 === 0) g[14][x] = '~'; }
+  // juncal de la izquierda: charquitos entre la hierba alta
+  for (let y = 17; y <= 27; y++) for (let x = 2; x <= 14; x++) g[y][x] = (x * 7 + y * 3) % 5 === 0 ? '~' : '"';
+  // el charco de los ahogados
+  ellipseFill(g, 31, 22, 11, 5, '"');
+  ellipseFill(g, 31, 22, 8, 3, '~');
+  // trochas: baja de la ciénaga, cruza el puente y se abre hacia el juncal y el charco
+  const trail: [number, number, number, number][] = [[21, 1, 21, 16], [6, 16, 33, 16], [21, 16, 21, 27], [6, 16, 6, 26], [33, 16, 33, 18]];
+  for (const [x0, y0, x1, y1] of trail) fill(g, x0, y0, x1, y1, '=');
+  fill(g, 21, 10, 21, 14, 'B');
+  const tp = (kind: PropKind, x: number, y: number): MapProp => ({ set: 'town', kind, x, y });
+  const props: MapProp[] = [tp('roca', 12, 6), tp('tronco', 33, 7), tp('roca', 38, 26), tp('tronco', 25, 25), tp('roca', 17, 20)];
+  const signs: Sign[] = [
+    { x: 20, y: 3, lines: ['RÍO ABAJO.', 'DONDE LA CIÉNAGA SE VUELVE CAÑO. DE NOCHE NADIE PESCA AQUÍ: SE OYEN COSAS EN EL AGUA.'] },
+    { x: 34, y: 15, lines: ['EL CHARCO DE LOS AHOGADOS.', 'HONDO Y QUIETO. EL QUE SE ASOMA DE NOCHE VE OTRA CARA QUE NO ES LA SUYA.'] },
+  ];
+  stamp(g, [], props, signs, '.');
+  const areas: Area[] = [
+    { name: 'EL CHARCO DE LOS AHOGADOS', r: R(19, 17, 42, 28) },
+    { name: 'EL JUNCAL', r: R(1, 17, 15, 28) },
+    { name: 'RÍO ABAJO', r: R(0, 0, W - 1, H - 1) },
+  ];
+  return {
+    id: 'charco', kind: 'campo', name: 'RÍO ABAJO', grid: g, buildings: [], props, signs, npcs: [], areas,
+    darkness: { tension: 0.88, alegre: 0.6 }, sound: { tension: 'monte', alegre: 'monte' }, arrival: CHARCO_ENTRY,
+    links: [{ x: CHARCO_ENTRY[0], y: 1, to: 'campo', tx: 16, ty: 69, facing: 'up' }],
   };
 }
 
@@ -630,6 +682,7 @@ export function getMap(id: MapId): GameMap {
   else if (id === 'medellin') m = medellin();
   else if (id === 'santafe') m = santafe();
   else if (id === 'monte') m = monte();
+  else if (id === 'charco') m = charco();
   else if (id.startsWith('int:')) {
     const key = id.slice(4);
     const def = INTERIORS[key];
@@ -643,6 +696,18 @@ export function getMap(id: MapId): GameMap {
   return m;
 }
 
-export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', 'monte', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
+export const ALL_MAP_IDS: MapId[] = ['campo', 'medellin', 'santafe', 'monte', 'charco', ...Object.keys(INTERIORS).map((k) => `int:${k}`)];
+
+/**
+ * Dónde queda en el campo un sitio de otro mapa, para marcarlo en el mapa del cabo:
+ * la puerta de un interior o la trocha que lleva a otro monte o a Río Abajo.
+ */
+export function campoSpot(id: MapId, x: number, y: number): [number, number] | null {
+  if (id === 'campo') return [x, y];
+  const m = getMap(id);
+  if (m.exit?.to === 'campo') return [m.exit.tx, m.exit.ty];
+  const back = m.links?.find((l) => l.to === 'campo');
+  return back ? [back.tx, back.ty] : null;
+}
 
 export { HERO_START, doorOf };

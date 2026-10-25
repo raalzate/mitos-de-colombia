@@ -200,8 +200,8 @@ export const SIGNS: Sign[] = [
   { x: 41, y: 17, lines: ['CEMENTERIO DE SAN AGUSTÍN.', 'DICEN QUE ALGO PELUDO SALE DE LA TIERRA A AGARRAR TOBILLOS.'] },
   { x: 41, y: 52, lines: ['RÍO GRANDE. PROHIBIDO BAÑARSE DE NOCHE.', 'EL MOHÁN SE LLEVA A LOS QUE SE METEN.'] },
   { x: 77, y: 52, lines: ['LAGUNA SAGRADA.', 'DE AQUÍ SALIÓ BACHUÉ CON UN NIÑO EN BRAZOS, MADRE DE LOS MUISCAS.'] },
-  { x: 11, y: 52, lines: ['CIÉNAGA. CUIDADO CON LOS CAIMANES...', '...Y CON LOS QUE NO SON CAIMANES DEL TODO.'] },
-  { x: 87, y: 3, lines: ['SUBIDA AL MONTE PURO.', 'MONTAÑA ARRIBA NO HAY CAMINO NI CASAS: SOLO ROBLES, NEBLINA Y LA MADREMONTE.'] },
+  { x: 11, y: 52, lines: ['CIÉNAGA. CUIDADO CON LOS CAIMANES...', '...Y CON LOS QUE NO SON CAIMANES DEL TODO. POR LA TROCHA DEL SUR SE BAJA A RÍO ABAJO.'] },
+  { x: 87, y: 3, lines: ['SUBIDA AL MONTE PURO.', 'MONTAÑA ARRIBA NO HAY CAMINO NI CASAS: SOLO ROBLES, NEBLINA... Y ALGÚN ESPANTO DEL MONTE.'] },
   { x: 5, y: 7, lines: ['CAMINO DE HERRADURA A SANTA FE DE ANTIOQUIA.', 'TRES DÍAS A PIE... UNO A CABALLO. ¡SIN BESTIA NI LO INTENTE!'] },
 ];
 
@@ -274,6 +274,7 @@ export function buildMap(): Cell[][] {
   for (let y = 55; y <= 68; y++) if (g[y][16] === '~') g[y][16] = 'B';
   rect(g, 16, 55, 16, 68, g[55][16] === 'B' ? 'B' : '=');
   for (let y = 55; y <= 68; y++) g[y][16] = g[y][16] === '~' || g[y][16] === 'B' ? 'B' : '=';
+  rect(g, 16, 69, 16, 70, '='); // baja a Río Abajo
 
   for (const b of [...BUILDINGS, ...CAMPO_CITY_BUILDINGS]) {
     const [w, h] = b.kind in BUILDING_FOOTPRINT ? BUILDING_FOOTPRINT[b.kind as BuildingKind] : CITY_BUILDING_FOOTPRINT[b.kind as CityBuildingKind];
@@ -297,10 +298,31 @@ export function walkable(g: Cell[][], x: number, y: number): boolean {
 /** Probabilidad de que algo se mueva en la hierba alta y asuste a Juan (sin pelea) */
 export const RUSTLE_RATE = 0.03;
 
+/** Un sitio donde puede rondar un mito: el mapa y el rectángulo del que nunca sale. */
+export interface Haunt {
+  map: string;
+  zone: Rect;
+  /** cómo se nombra el sitio en las pistas */
+  place: string;
+}
+
+/** Los dos montes, las dos aguas y las dos cantinas: cada noche se sortea quién ronda dónde. */
+export const HAUNTS = {
+  monte: { map: 'campo', zone: R(63, 1, 94, 43), place: 'EL MONTE' },
+  montePuro: { map: 'monte', zone: R(1, 1, 38, 30), place: 'EL MONTE PURO' },
+  cienaga: { map: 'campo', zone: R(2, 52, 29, 69), place: 'LA CIÉNAGA' },
+  rioAbajo: { map: 'charco', zone: R(1, 2, 42, 28), place: 'RÍO ABAJO' },
+  cantina0: { map: 'int:cantina0', zone: R(1, 2, 11, 7), place: 'LA CANTINA LA ÚLTIMA LÁGRIMA' },
+  cantina1: { map: 'int:cantina1', zone: R(1, 2, 9, 6), place: 'LA CANTINA EL REMOLINO' },
+} satisfies Record<string, Haunt>;
+
+/** Parejas que se intercambian el sitio al azar cada noche. */
+export const SWAPS: [FighterId, FighterId][] = [['patasola', 'madremonte'], ['llorona', 'hombrecaiman']];
+
 export interface Guardian {
   id: FighterId;
-  /** dónde ronda: el mito se mueve dentro de este rectángulo y nunca sale de él */
-  zone: Rect;
+  /** dónde puede rondar; cada noche se sortea uno (ver State.homes) */
+  haunts: Haunt[];
   /** escenario donde ocurre su leyenda */
   stage: StageId;
   /** señal que deja en el suelo por donde pasa */
@@ -320,7 +342,7 @@ export interface Guardian {
 /** Todos los mitos de la tierra: andan escondidos, cada uno rondando el lugar de su leyenda. */
 export const GUARDIANS: Guardian[] = [
   {
-    id: 'sombreron', zone: R(22, 33, 59, 43), stage: 'pueblo', clue: 'sombrero',
+    id: 'sombreron', haunts: [{ map: 'campo', zone: R(22, 33, 59, 43), place: 'LA CALLE DE ABAJO' }], stage: 'pueblo', clue: 'sombrero',
     clueText: 'UN SOMBRERO NEGRO ENORME TIRADO EN LA CALLE... ¿DE QUIÉN SERÁ? MEJOR NO LO TOCO.',
     fright: 'ESE SOMBRERO TAN GRANDE EN PLENO PUEBLO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!',
     taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.',
@@ -328,7 +350,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'EL SOMBRERÓN SE TAPA CON EL SOMBRERO... ¡Y DEBAJO NO QUEDA NADIE!',
   },
   {
-    id: 'muelona', zone: R(21, 25, 31, 36), stage: 'cantina', clue: 'diente',
+    id: 'muelona', haunts: [HAUNTS.cantina0, HAUNTS.cantina1], stage: 'cantina', clue: 'diente',
     clueText: '¿UN DIENTE? ¡ESTE DIENTE ES MÁS GRANDE QUE MI DEDO! ALGUIEN CON MUCHA MUELA ANDA POR AQUÍ...',
     fright: '¿Y ESA SEÑORA TAN BONITA?... ¡AVE MARÍA, QUÉ DIENTES! ¡ES LA MUELONA!',
     taunt: 'JI, JI, JI... VEN, PAISITA, QUE TE QUIERO DAR UN BESITO...',
@@ -336,7 +358,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA MUELONA SUELTA UNA CARCAJADA Y SE METE ENTRE LAS SOMBRAS DE LA CANTINA.',
   },
   {
-    id: 'silbon', zone: R(2, 1, 60, 15), stage: 'llanos', clue: 'huesos',
+    id: 'silbon', haunts: [{ map: 'campo', zone: R(2, 1, 60, 15), place: 'EL LLANO' }], stage: 'llanos', clue: 'huesos',
     clueText: 'HUESOS... UN MONTÓN DE HUESOS REGADOS EN LA HIERBA. ALGUIEN LOS VIENE CONTANDO.',
     fright: '¡AVE MARÍA, PUES! ¿Y ESE SILBIDO?... DO, RE, MI, FA, SOL, LA, SI... ¡QUÉ MIEDO TAN BERRACO!',
     taunt: 'FIIIIIIU... CUANDO LO OYES CERCA, ESTOY LEJOS... Y CUANDO LO OYES LEJOS...',
@@ -344,31 +366,31 @@ export const GUARDIANS: Guardian[] = [
     flee: 'FIIIIIIU... EL SILBIDO SE VA ALEJANDO HASTA QUE YA NO SE OYE.',
   },
   {
-    id: 'hombrecaiman', zone: R(2, 52, 29, 69), stage: 'pantano', clue: 'huella_caiman',
+    id: 'hombrecaiman', haunts: [HAUNTS.cienaga, HAUNTS.rioAbajo], stage: 'pantano', clue: 'huella_caiman',
     clueText: 'HUELLAS DE CAIMÁN... PERO A RATOS PARECEN DE PIE DE CRISTIANO. ¡QUÉ COSA TAN RARA!',
     fright: '¡ESE CAIMÁN TIENE CARA DE CRISTIANO! ¡VIRGEN DEL CARMEN!',
     taunt: '¡GRRRR! ¡NADIE ME MIRA CUANDO ME BAÑO EN EL RÍO!',
-    defeat: 'EL HOMBRE CAIMÁN SE ZAMBULLE EN LA CIÉNAGA Y NO VUELVE A ASOMARSE.',
+    defeat: 'EL HOMBRE CAIMÁN SE ZAMBULLE EN EL AGUA Y NO VUELVE A ASOMARSE.',
     flee: '¡SPLASH! EL HOMBRE CAIMÁN SE HUNDE EN EL BARRO Y SOLO QUEDAN BURBUJAS.',
   },
   {
-    id: 'llorona', zone: R(20, 48, 60, 51), stage: 'ribera', clue: 'charco_lagrimas',
+    id: 'llorona', haunts: [HAUNTS.rioAbajo, HAUNTS.cienaga], stage: 'ribera', clue: 'charco_lagrimas',
     clueText: 'UN CHARQUITO... ¿DE LÁGRIMAS? Y SE OYE UN LLANTO QUE VIENE Y VA CON EL RÍO.',
     fright: '¡ESE LLANTO! ¡UY, NO, PARCE, SE ME PARARON HASTA LOS PELOS DEL BIGOTE!',
     taunt: '¡AAAAY, MIS HIJOS! ¿TÚ HAS VISTO A MIS HIJOS?',
     defeat: 'LA LLORONA DEJA DE LLORAR. POR PRIMERA VEZ EN SIGLOS, SONRÍE.',
-    flee: 'LA LLORONA SE DESHACE EN NEBLINA... ¡AAAAY! EL LLANTO SIGUE RÍO ABAJO.',
+    flee: 'LA LLORONA SE DESHACE EN NEBLINA... ¡AAAAY! EL LLANTO SE PIERDE ENTRE EL AGUA.',
   },
   {
-    id: 'patasola', zone: R(63, 1, 94, 20), stage: 'selva', clue: 'huella_pata',
+    id: 'patasola', haunts: [HAUNTS.monte, HAUNTS.montePuro], stage: 'selva', clue: 'huella_pata',
     clueText: 'HUELLAS DE UN SOLO PIE... UNA, OTRA, OTRA... ¡SIN EL OTRO PIE! ¡ALGO VA SALTANDO POR AQUÍ!',
     fright: '¡TUM... TUM... TUM! ¡ALGO SALTA EN UNA SOLA PATA! ¡VIRGEN SANTÍSIMA!',
-    taunt: '¡NADIE SALE DEL MONTE CUANDO YO LO DIGO!',
+    taunt: '¡NADIE SALE DE MI MONTE CUANDO YO LO DIGO!',
     defeat: 'LA PATASOLA SE PIERDE ENTRE LOS ÁRBOLES, MÁS TRANQUILA.',
     flee: '¡TUM, TUM, TUM! LA PATASOLA SE PIERDE DE UN SALTO ENTRE LOS ÁRBOLES.',
   },
   {
-    id: 'madremonte', zone: R(63, 21, 94, 43), stage: 'selva', clue: 'ramas',
+    id: 'madremonte', haunts: [HAUNTS.montePuro, HAUNTS.monte], stage: 'selva', clue: 'ramas',
     clueText: 'RAMAS PARTIDAS Y MUSGO FRESCO... COMO SI EL MONTE MISMO HUBIERA CAMINADO POR AQUÍ.',
     fright: '¡LOS ÁRBOLES SE MUEVEN SOLOS! ¡ESA SEÑORA ESTÁ HECHA DE MUSGO Y RAÍCES!',
     taunt: '¿QUIÉN ANDA TUMBANDO MI MONTE CON ESE MACHETE?',
@@ -376,7 +398,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA MADREMONTE SE VUELVE HOJAS Y EL VIENTO SE LA LLEVA.',
   },
   {
-    id: 'mohan', zone: R(61, 48, 118, 51), stage: 'ribera', clue: 'oro',
+    id: 'mohan', haunts: [{ map: 'campo', zone: R(20, 48, 118, 51), place: 'EL RÍO GRANDE' }], stage: 'ribera', clue: 'oro',
     clueText: '¡PEPITAS DE ORO EN LA ORILLA! ...UY, NO. EL ABUELO DECÍA QUE ASÍ ENGAÑA EL MOHÁN A LA GENTE.',
     fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!',
     taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?',
@@ -384,7 +406,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'JE, JE, JE... EL MOHÁN SE ZAMBULLE Y EL RÍO SE QUEDA QUIETICO.',
   },
   {
-    id: 'bachue', zone: R(60, 53, 118, 70), stage: 'laguna', clue: 'escamas',
+    id: 'bachue', haunts: [{ map: 'campo', zone: R(60, 53, 118, 70), place: 'LA LAGUNA DE BACHUÉ' }], stage: 'laguna', clue: 'escamas',
     clueText: 'ESCAMAS DORADAS, GRANDES COMO MONEDAS... DE UNA CULEBRA MUY, MUY GRANDE.',
     fright: '¡DE LA LAGUNA SALE UNA SERPIENTE GIGANTE CON CARA DE MUJER! ¡MAMITA LINDA!',
     taunt: 'SOY LA MADRE DE TODOS. DEMUÉSTRAME QUE ERES DIGNO DE ESTA TIERRA.',
@@ -431,6 +453,7 @@ export const NPCS: Npc[] = [
   ] },
   { key: 'cura', name: 'PADRE ANSELMO', story: 'navidad', x: 41, y: 25, facing: 'down', lines: [
     ['QUE DIOS LO ACOMPAÑE, HIJO. ESOS ESPANTOS NO SE VEN A SIMPLE VISTA: HAY QUE BUSCAR LAS SEÑALES QUE DEJAN.'],
+    ['¿LO MOLESTAN EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA? CON UN ESCAPULARIO BENDITO NO SE LE ARRIMAN.'],
     ['HUESOS EN EL LLANO, LÁGRIMAS EN EL RÍO, HUELLAS DE UNA SOLA PATA EN EL MONTE... DONDE HAY SEÑAL, HAY ESPANTO.'],
   ] },
   { key: 'policia', name: 'CABO RAMÍREZ', story: 'dorado', x: 23, y: 24, facing: 'right', lines: [
@@ -457,7 +480,7 @@ export const NPCS: Npc[] = [
     ['YO ATRAVESÉ EL MONTE UNA VEZ. LA MADREMONTE ME ENREDÓ LA MULA EN LOS BEJUCOS. ¡NUNCA MÁS!'],
   ] },
   { key: 'campesina', name: 'DOÑA ELVIRA', story: 'caiman', x: 3, y: 43, facing: 'right', lines: [
-    ['EN LA CIÉNAGA VIVE UN SEÑOR QUE SE VOLVIÓ CAIMÁN POR ESPIAR A LAS MUCHACHAS EN EL RÍO. ¡DEJA HUELLAS RARÍSIMAS!'],
+    ['HAY UN SEÑOR QUE SE VOLVIÓ CAIMÁN POR ESPIAR A LAS MUCHACHAS EN EL RÍO. UNAS NOCHES ANDA EN LA CIÉNAGA Y OTRAS RÍO ABAJO. ¡DEJA HUELLAS RARÍSIMAS!'],
   ] },
   { key: 'cafetero', name: 'DON ALIRIO', story: 'cafe', x: 9, y: 31, facing: 'right', wander: 2, lines: [
     ['ESTE CAFÉ LO RECOGEMOS DE DÍA, PORQUE DE NOCHE EL DUENDE SE ROBA LOS GRANOS.'],
@@ -515,16 +538,16 @@ export interface Spirit {
 
 export const SPIRITS: Spirit[] = [
   { kind: 'duende', name: 'EL DUENDE', zone: R(2, 18, 60, 42), hints: [
-    'JI, JI, JI... ¿BUSCAS A LA MUELONA? SE ESCONDE DONDE SIRVEN GUARO, A LA IZQUIERDA DE LA PLAZA.',
+    'JI, JI, JI... ¿BUSCAS A LA MUELONA? SE ESCONDE DONDE SIRVEN GUARO: EN UNA DE LAS DOS CANTINAS.',
     'JI, JI... YO VI AL SOMBRERÓN EN LA CALLE DE ABAJO, ESPERANDO A LOS QUE SALEN TARDE.',
     '¡TE ESCONDÍ EL SOMBRERO!... MENTIRAS, JI, JI. EL SILBÓN ANDA EN EL LLANO; SIGUE LOS HUESOS.',
   ] },
   { kind: 'pollo', name: 'EL POLLO MALIGNO', zone: R(63, 1, 94, 43), hints: [
-    'PÍO... PÍO... (EL POLLO NEGRO MIRA HACIA EL NORTE DEL MONTE, DONDE SUENAN SALTOS DE UNA SOLA PATA)',
-    'PÍO... (EL POLLO TE CLAVA LOS OJOS ROJOS Y PICOTEA UNA RAMA PARTIDA. LA MADREMONTE ANDA CERCA)',
+    'PÍO... PÍO... (EL POLLO NEGRO MIRA MONTAÑA ARRIBA, HACIA EL MONTE PURO. ALLÁ ALGO SE MUEVE ESTA NOCHE)',
+    'PÍO... (EL POLLO TE CLAVA LOS OJOS ROJOS Y PICOTEA UNA RAMA PARTIDA. EN ESTE MONTE TAMBIÉN RONDA ALGUIEN)',
   ] },
   { kind: 'mano', name: 'LA MANO PELUDA', zone: R(44, 8, 58, 16), hints: [
-    '(LA MANO PELUDA TE AGARRA EL TOBILLO... Y SEÑALA CON UN DEDO HACIA EL RÍO, DONDE LLORA UNA MUJER)',
+    '(LA MANO PELUDA TE AGARRA EL TOBILLO... Y SEÑALA CON UN DEDO HACIA EL SUR, DONDE LLORA UNA MUJER)',
     '(LA MANO PELUDA ESCARBA LA TIERRA Y DIBUJA UNA LAGUNA CON UNA CULEBRA. LUEGO SE HUNDE)',
   ] },
 ];

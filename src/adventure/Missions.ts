@@ -6,8 +6,8 @@ import { GUARDIANS } from './World';
  * Puro: se calcula todo a partir de la partida, así nunca se desincroniza.
  */
 
-export type MissionId = 'machete' | 'mapa' | 'perro' | 'caballo' | 'mitos';
-export type ItemId = 'farol' | 'machete' | 'mapa' | 'perro' | 'caballo';
+export type MissionId = 'machete' | 'mapa' | 'escapulario' | 'perro' | 'caballo' | 'mitos';
+export type ItemId = 'farol' | 'machete' | 'mapa' | 'escapulario' | 'perro' | 'caballo';
 
 /** Un sitio del mundo: mapa y casilla. */
 export interface Spot { map: string; x: number; y: number }
@@ -26,12 +26,13 @@ export interface Mission {
   step: MissionStep;
 }
 
-export const MISSION_IDS: MissionId[] = ['machete', 'mapa', 'perro', 'caballo', 'mitos'];
+export const MISSION_IDS: MissionId[] = ['machete', 'mapa', 'escapulario', 'perro', 'caballo', 'mitos'];
 
 // sitios del campo donde se resuelve cada cosa
 const TRAPICHE: Spot = { map: 'int:trapiche0', x: 7, y: 5 };
 const CLARO: Spot = { map: 'monte', x: 25, y: 5 };
 const CABO: Spot = { map: 'campo', x: 23, y: 24 };
+const PADRE: Spot = { map: 'campo', x: 41, y: 25 };
 const PERRO: Spot = { map: 'campo', x: 36, y: 30 };
 const GLORIA: Spot = { map: 'campo', x: 46, y: 26 };
 const RUBEN: Spot = { map: 'campo', x: 14, y: 26 };
@@ -48,6 +49,8 @@ function step(s: AdventureState, id: MissionId): MissionStep {
       return { text: 'HABLE CON DON JULIO EN EL TRAPICHE: VEREDA ABAJO, ANTES DEL PUENTE.', goal: TRAPICHE };
     case 'mapa':
       return { text: 'PÍDALE EL MAPA AL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO.', goal: CABO };
+    case 'escapulario':
+      return { text: 'PÍDALE UN ESCAPULARIO BENDITO AL PADRE ANSELMO, EN LA PUERTA DE LA IGLESIA.', goal: PADRE };
     case 'perro':
       if (has(s, 'arepa')) return { text: 'DELE LA AREPA AL PERRITO FLACO DE LA PLAZA.', goal: PERRO };
       if (has(s, 'perro_visto')) return { text: 'CONSIGA UNA AREPA: DOÑA GLORIA, EN LA PLAZA, O DOÑA MARINA, EN LAS FIESTAS.', goal: GLORIA };
@@ -68,6 +71,7 @@ function step(s: AdventureState, id: MissionId): MissionStep {
 const TITLES: Record<MissionId, string> = {
   machete: 'EL MACHETE DEL ABUELO',
   mapa: 'EL MAPA DEL CABO',
+  escapulario: 'EL ESCAPULARIO',
   perro: 'UN AMIGO FIEL',
   caballo: 'LUCERO, EL CABALLO',
   mitos: 'CALMAR A LOS MITOS',
@@ -76,6 +80,7 @@ const TITLES: Record<MissionId, string> = {
 const DONE: Record<MissionId, (s: AdventureState) => boolean> = {
   machete: (s) => has(s, 'machete'),
   mapa: (s) => has(s, 'mapa'),
+  escapulario: (s) => has(s, 'escapulario'),
   perro: (s) => has(s, 'perro'),
   caballo: (s) => has(s, 'caballo'),
   mitos: (s) => has(s, 'fin'),
@@ -96,16 +101,17 @@ export function currentMission(s: AdventureState): Mission | null {
 export function items(s: AdventureState): ItemId[] {
   const out: ItemId[] = [];
   if (has(s, 'intro')) out.push('farol');
-  for (const id of ['machete', 'mapa', 'perro', 'caballo'] as const) if (has(s, id)) out.push(id);
+  for (const id of ['machete', 'mapa', 'escapulario', 'perro', 'caballo'] as const) if (has(s, id)) out.push(id);
   return out;
 }
 
-export const ITEM_NAME: Record<ItemId, string> = { farol: 'EL FAROL', machete: 'EL MACHETE', mapa: 'EL MAPA', perro: 'FIRULAIS', caballo: 'LUCERO' };
+export const ITEM_NAME: Record<ItemId, string> = { farol: 'EL FAROL', machete: 'EL MACHETE', mapa: 'EL MAPA', escapulario: 'EL ESCAPULARIO', perro: 'FIRULAIS', caballo: 'LUCERO' };
 
 export interface Exit { x: number; y: number; to: string; tx: number; ty: number }
 
 const MONTE_IN: Spot = { map: 'campo', x: 88, y: 1 };
 const MONTE_OUT: Spot = { map: 'monte', x: 20, y: 30 };
+const CHARCO_OUT: Spot = { map: 'charco', x: 21, y: 1 };
 
 /**
  * Hacia dónde apuntar desde el mapa en el que está Juan: la meta si está aquí, o la salida que lleva hacia ella.
@@ -114,6 +120,7 @@ const MONTE_OUT: Spot = { map: 'monte', x: 20, y: 30 };
 export function waypoint(here: string, goal: Spot, exitOf: (map: string) => Exit | undefined): Spot | null {
   if (goal.map === here) return goal;
   if (here === 'monte') return MONTE_OUT;
+  if (here === 'charco') return CHARCO_OUT;
   const inside = exitOf(here);
   if (inside) return { map: here, x: inside.x, y: inside.y };
   if (here !== 'campo') return null;
