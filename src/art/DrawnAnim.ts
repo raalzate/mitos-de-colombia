@@ -260,6 +260,52 @@ export function idleLife(id: FighterId, frame: number, hpFrac = 1): { sx: number
   return { sx, sy, dx, dy: 0 };
 }
 
+/* --------------------------- golpes y reposo dibujados (PixelLab) --------------------------- */
+
+/**
+ * Tira dibujada propia del golpe, si el personaje la tiene: `punch` para puños y `kick` para
+ * patadas (tools/import_pixellab_moves.py). Sin ella el golpe sale de la tira `attack`.
+ */
+export function moveStrip(id: FighterId, anim: string): 'punch' | 'kick' | null {
+  const m = DRAWN_ANIM[id];
+  if (!m) return null;
+  const kick = anim === 'lightkick' || anim === 'heavykick' || anim === 'airkick';
+  const punch = anim === 'light' || anim === 'heavy' || anim === 'airlight';
+  if (kick && m.kick) return 'kick';
+  if (punch && m.punch) return 'punch';
+  return null;
+}
+
+/** Poses clave de una tira de golpe dibujada: guardia (0), anticipación, impacto (`hit`), recuperación. */
+export function moveKeys(id: FighterId, action: 'punch' | 'kick'): StrikeKeys {
+  const s = DRAWN_ANIM[id][action];
+  const n = s?.frames ?? 1;
+  const hit = Math.min(n - 1, Math.max(1, s?.hit ?? Math.min(2, n - 1)));
+  const rec: number[] = [];
+  for (let k = hit + 1; k < n; k++) rec.push(k);
+  return { wind: Math.max(0, hit - 1), light: hit, heavy: hit, rec };
+}
+
+/** Fotograma del golpe en su tira dibujada, o null si el personaje no la tiene. */
+export function moveFrame(id: FighterId, anim: string, animFrame: number, p?: AttackProgress): DrawnFrame | null {
+  const action = moveStrip(id, anim);
+  if (!action) return null;
+  const k = moveKeys(id, action);
+  if (p) return { action, index: strikeIndex(k, isHeavy(anim), p) };
+  return { action, index: [k.wind, k.heavy, k.rec[0] ?? k.wind][Math.min(2, animFrame)] };
+}
+
+/** Con golpe dibujado, la pose fingida (estocada, inclinación, estiramiento) se reduce a este factor. */
+export const DRAWN_MOVE_MOTION = 0.35;
+
+/** Fotograma del reposo dibujado: ciclo a su propio ritmo (`fps`, ~8) sobre el reloj de 60 fps. */
+export function idleIndex(id: FighterId, frame: number): number {
+  const s = DRAWN_ANIM[id]?.idle;
+  if (!s || s.frames <= 1) return 0;
+  const ticks = s.fps ? 60 / s.fps : 5;
+  return Math.floor(Math.max(0, frame) / ticks) % s.frames;
+}
+
 /** Velocidades verticales entre las que dura la voltereta del salto con dirección (gravedad alta). */
 const FLIP_FROM = -5.8;
 const FLIP_TO = 5.5;
@@ -313,7 +359,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'idle':
       if (i.landing !== undefined && i.landing < LAND_TUCK) return tuckFrame(id);
       // postura de guardia: ciclo de 8 fotogramas (sube y baja la guardia) a 12 fps; la postura de MK II tiene 7 a 12,5 fps
-      return m.idle ? { action: 'idle', index: Math.floor(i.frame / 5) % m.idle.frames } : { action: 'walk', index: 0 };
+      return m.idle ? { action: 'idle', index: idleIndex(id, i.frame + (i.breathPhase ?? 0)) } : { action: 'walk', index: 0 };
     case 'dash':
     case 'walk': {
       const stride = walkStride(id);
@@ -361,8 +407,10 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'heavykick':
     case 'airlight':
     case 'airkick':
+      // con tira propia de puño/patada (PixelLab) se usan sus fotogramas dibujados
+      return moveFrame(id, i.anim, i.animFrame, i.attackProgress) ??
       // la patada usa la pose de máxima extensión (pierna estirada); el puño ligero, la primera
-      return strike(isHeavy(i.anim) || isKick(i.anim), i.animFrame);
+      strike(isHeavy(i.anim) || isKick(i.anim), i.animFrame);
     // tira de daño: [golpe, golpe fuerte, caída, tumbado, levantarse, victoria]; con 5 fotogramas
     // falta uno de los intermedios, así que se cuenta desde el final.
     case 'knockdown': {
@@ -511,7 +559,9 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
     default:
       if (i.attackProgress && (i.state === 'attack' || i.state === 'special')) {
         const m = strikeMotion(i.attackProgress, isHeavy(i.anim), isKick(i.anim));
-        pose.dx = m.dx; pose.dy = m.dy; pose.rot = m.rot; pose.sx = m.sx; pose.sy = m.sy;
+        // el golpe dibujado ya tiene su propia pose: solo queda un poco del empuje fingido
+        const k = moveStrip(id, i.anim) ? DRAWN_MOVE_MOTION : 1;
+        pose.dx = m.dx * k; pose.dy = m.dy * k; pose.rot = m.rot * k; pose.sx = 1 + (m.sx - 1) * k; pose.sy = 1 + (m.sy - 1) * k;
       }
   }
   return pose;

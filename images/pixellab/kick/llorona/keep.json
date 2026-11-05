@@ -1,0 +1,12 @@
+{
+ "source": "combo",
+ "keep": [
+  0,
+  10,
+  11,
+  12
+ ],
+ "hit": 2,
+ "strip_fx": [170, 260, 0.15, 0.55],
+ "note": "patada bajo el vestido (rodilla, vuelo del vestido, vuelta) de la secuencia puño+patada"
+}

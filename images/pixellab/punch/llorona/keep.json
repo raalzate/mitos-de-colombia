@@ -1,0 +1,14 @@
+{
+ "source": "combo",
+ "keep": [
+  0,
+  3,
+  4,
+  6,
+  8,
+  9
+ ],
+ "hit": 3,
+ "strip_fx": [170, 260, 0.15, 0.55],
+ "note": "puño (zarpazo) de la secuencia puño+patada; f02 (cambio de postura) descartado; se borran las chispas azules que añadió PixelLab"
+}

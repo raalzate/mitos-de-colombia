@@ -137,6 +137,18 @@
    "lying": 9,
    "air": 6,
    "airEnd": 7
+  },
+  "punch": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 3
+  },
+  "kick": {
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "sombreron": {
@@ -312,6 +324,12 @@
    "lying": 9,
    "air": 4,
    "airEnd": 4
+  },
+  "punch": {
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "bachue": {
