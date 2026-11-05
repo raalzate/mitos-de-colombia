@@ -14,6 +14,23 @@ export type StageEvent =
   | 'chatter' | 'glass' | 'laugh' | 'firework' | 'metro' | 'horn' | 'moto' | 'prayer'
   | 'farWhistle' | 'branch' | 'bamboo';
 
+/**
+ * Capa continua del ambiente (todas en bucle, con su propia respiración lenta):
+ * viento (ráfagas), río/agua, insectos (chicharras y grillos), fuego (rumor y chispas),
+ * lluvia, cuarto (tono de sala / rumor de ciudad) y gentío (murmullo).
+ */
+export type AmbienceKind = 'wind' | 'river' | 'insects' | 'fire' | 'rain' | 'room' | 'crowd';
+
+export interface AmbienceLayer {
+  kind: AmbienceKind;
+  /** volumen de la capa */
+  gain: number;
+  /** frecuencia central (Hz): filtro del ruido o tono del insecto */
+  freq: number;
+  /** ritmo propio (Hz): chirrido del insecto, ráfagas del viento, oleaje */
+  rate?: number;
+}
+
 export interface StageSoundTheme {
   /** tres osciladores del zumbido: dos en segunda menor y un sub grave (Hz) */
   drone: [number, number, number];
@@ -35,6 +52,10 @@ export interface StageSoundTheme {
   music?: MusicId;
   /** tic-tac de reloj de pared (segundos por golpe) */
   tick?: number;
+  /** capas continuas del ambiente; si faltan suena solo `bed` */
+  ambience?: AmbienceLayer[];
+  /** 0..1: cuánto espacio (reverberación) tiene el lugar */
+  reverb?: number;
 }
 
 export type SoundscapeId = StageId | 'menu' | 'fiesta' | 'hogar' | 'ciudad' | 'iglesia' | 'monte';
@@ -50,6 +71,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: true,
     events: [{ name: 'whisper', weight: 4 }, { name: 'creak', weight: 3 }, { name: 'distantScream', weight: 2 }],
     every: [5, 14],
+
+    ambience: [{ kind: 'wind', gain: 0.03, freq: 500, rate: 0.07 }],
+    reverb: 0.5,
   },
   ribera: {
     drone: [55, 58.27, 27.5], droneCutoff: 220,
@@ -57,6 +81,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: true,
     events: [{ name: 'frog', weight: 5 }, { name: 'owl', weight: 3 }, { name: 'splash', weight: 2 }, { name: 'whisper', weight: 2 }],
     every: [3, 8],
+
+    ambience: [{ kind: 'river', gain: 0.06, freq: 900, rate: 0.3 }, { kind: 'insects', gain: 0.007, freq: 4200, rate: 22 }],
+    reverb: 0.35,
   },
   llanos: {
     drone: [49, 51.91, 24.5], droneCutoff: 260,
@@ -64,6 +91,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'whistleTune', weight: 4 }, { name: 'thunder', weight: 3 }, { name: 'crickets', weight: 3 }, { name: 'distantScream', weight: 1 }],
     every: [4, 9],
+
+    ambience: [{ kind: 'wind', gain: 0.07, freq: 450, rate: 0.09 }, { kind: 'insects', gain: 0.008, freq: 4600, rate: 30 }],
+    reverb: 0.25,
   },
   laguna: {
     drone: [65.41, 69.3, 32.7], droneCutoff: 180,
@@ -71,6 +101,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'flute', weight: 4 }, { name: 'drip', weight: 4 }, { name: 'whisper', weight: 2 }],
     every: [3, 8],
+
+    ambience: [{ kind: 'river', gain: 0.025, freq: 650, rate: 0.12 }, { kind: 'wind', gain: 0.02, freq: 1100, rate: 0.05 }],
+    reverb: 0.6,
   },
   pantano: {
     drone: [41.2, 43.65, 20.6], droneCutoff: 150,
@@ -78,6 +111,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'frog', weight: 5 }, { name: 'bubbles', weight: 4 }, { name: 'splash', weight: 3 }, { name: 'crickets', weight: 3 }],
     every: [2, 6],
+
+    ambience: [{ kind: 'insects', gain: 0.012, freq: 3600, rate: 40 }, { kind: 'insects', gain: 0.007, freq: 5200, rate: 17 }, { kind: 'room', gain: 0.03, freq: 130 }],
+    reverb: 0.3,
   },
   infierno: {
     drone: [36.71, 38.89, 18.35], droneCutoff: 380,
@@ -85,6 +121,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'crackle', weight: 6 }, { name: 'bull', weight: 2 }, { name: 'distantScream', weight: 3 }, { name: 'creak', weight: 1 }],
     every: [2, 6],
+
+    ambience: [{ kind: 'fire', gain: 0.08, freq: 380, rate: 4 }, { kind: 'wind', gain: 0.03, freq: 260, rate: 0.11 }],
+    reverb: 0.4,
   },
   pueblo: {
     drone: [61.74, 65.41, 30.87], droneCutoff: 200,
@@ -92,6 +131,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: true,
     events: [{ name: 'bell', weight: 3 }, { name: 'dogHowl', weight: 3 }, { name: 'hooves', weight: 3 }, { name: 'steps', weight: 2 }],
     every: [4, 10],
+
+    ambience: [{ kind: 'wind', gain: 0.025, freq: 380, rate: 0.06 }, { kind: 'insects', gain: 0.005, freq: 4400, rate: 25 }],
+    reverb: 0.35,
   },
   selva: {
     drone: [51.91, 55, 25.96], droneCutoff: 170,
@@ -99,6 +141,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'frog', weight: 3 }, { name: 'bamboo', weight: 3 }, { name: 'farWhistle', weight: 2 }, { name: 'owl', weight: 2 }, { name: 'branch', weight: 2 }],
     every: [3, 8],
+
+    ambience: [{ kind: 'insects', gain: 0.011, freq: 5200, rate: 33 }, { kind: 'insects', gain: 0.007, freq: 3900, rate: 12 }, { kind: 'river', gain: 0.018, freq: 1200, rate: 0.4 }],
+    reverb: 0.3,
   },
   // montaña arriba: viento frío entre los robles, ramas que crujen y búhos; menos ranas que en la selva
   robledal: {
@@ -107,6 +152,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'branch', weight: 4 }, { name: 'owl', weight: 3 }, { name: 'whisper', weight: 2 }, { name: 'farWhistle', weight: 1 }],
     every: [4, 9],
+
+    ambience: [{ kind: 'wind', gain: 0.06, freq: 800, rate: 0.12 }],
+    reverb: 0.35,
   },
   cantina: {
     drone: [46.25, 49, 23.12], droneCutoff: 190, droneGain: 0.06,
@@ -115,6 +163,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     music: 'carrilera',
     events: [{ name: 'chatter', weight: 4 }, { name: 'glass', weight: 4 }, { name: 'laugh', weight: 2 }, { name: 'creak', weight: 1 }],
     every: [2, 6],
+
+    ambience: [{ kind: 'crowd', gain: 0.03, freq: 600, rate: 3 }, { kind: 'room', gain: 0.02, freq: 180 }],
+    reverb: 0.15,
   },
   cementerio: {
     drone: [38.89, 41.2, 19.45], droneCutoff: 170,
@@ -122,6 +173,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: true,
     events: [{ name: 'bell', weight: 2 }, { name: 'owl', weight: 3 }, { name: 'creak', weight: 3 }, { name: 'whisper', weight: 3 }, { name: 'dogHowl', weight: 2 }],
     every: [4, 9],
+
+    ambience: [{ kind: 'wind', gain: 0.05, freq: 380, rate: 0.08 }, { kind: 'insects', gain: 0.004, freq: 4300, rate: 20 }],
+    reverb: 0.5,
   },
   monte: {
     drone: [43.65, 46.25, 21.83], droneCutoff: 160, droneGain: 0.2,
@@ -129,6 +183,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'farWhistle', weight: 3 }, { name: 'owl', weight: 3 }, { name: 'branch', weight: 3 }, { name: 'whisper', weight: 2 }, { name: 'frog', weight: 1 }],
     every: [4, 10],
+
+    ambience: [{ kind: 'insects', gain: 0.011, freq: 4600, rate: 40 }, { kind: 'wind', gain: 0.03, freq: 600, rate: 0.1 }],
+    reverb: 0.4,
   },
   fiesta: {
     drone: [65.41, 82.41, 32.7], droneCutoff: 200, droneGain: 0, happy: true,
@@ -137,6 +194,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     music: 'cumbia',
     events: [{ name: 'firework', weight: 3 }, { name: 'chatter', weight: 3 }, { name: 'laugh', weight: 2 }, { name: 'glass', weight: 1 }],
     every: [3, 7],
+
+    ambience: [{ kind: 'crowd', gain: 0.035, freq: 800, rate: 4 }],
+    reverb: 0.2,
   },
   hogar: {
     drone: [73.42, 92.5, 36.71], droneCutoff: 200, droneGain: 0, happy: true,
@@ -146,6 +206,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     tick: 1,
     events: [{ name: 'crackle', weight: 5 }, { name: 'creak', weight: 1 }, { name: 'owl', weight: 1 }],
     every: [3, 7],
+
+    ambience: [{ kind: 'fire', gain: 0.025, freq: 420, rate: 2.5 }, { kind: 'room', gain: 0.01, freq: 160 }],
+    reverb: 0.1,
   },
   ciudad: {
     drone: [65.41, 98, 32.7], droneCutoff: 200, droneGain: 0, happy: true,
@@ -154,6 +217,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     music: 'salsa',
     events: [{ name: 'metro', weight: 2 }, { name: 'horn', weight: 3 }, { name: 'moto', weight: 3 }, { name: 'laugh', weight: 1 }],
     every: [3, 8],
+
+    ambience: [{ kind: 'room', gain: 0.06, freq: 160 }, { kind: 'wind', gain: 0.015, freq: 700, rate: 0.05 }],
+    reverb: 0.25,
   },
   iglesia: {
     drone: [43.65, 65.41, 21.83], droneCutoff: 160, droneGain: 0, happy: true,
@@ -162,6 +228,9 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     music: 'organo',
     events: [{ name: 'steps', weight: 2 }, { name: 'prayer', weight: 3 }, { name: 'bell', weight: 1 }, { name: 'creak', weight: 1 }],
     every: [5, 11],
+
+    ambience: [{ kind: 'room', gain: 0.012, freq: 150 }],
+    reverb: 0.8,
   },
 };
 
@@ -184,13 +253,18 @@ export type MusicId = 'cumbia' | 'carrilera' | 'bambuco' | 'salsa' | 'organo' | 
 /**
  * Instrumentos chiptune: bajo (triángulo), metal (cuadrada con filtro, tipo bombardino/trompeta),
  * punteo (tiple/requinto), rasgueo (acorde), teclado (montuno), órgano y coro (sostenidos);
- * percusión: guacharaca/maracas, tambor (llamador/conga), clave, campana.
+ * percusión: maracas, tambor, clave, campana, taiko; y los tambores de la cumbia: guacharaca
+ * (raspado largo-corto-corto), tambora (cuero grave y aro), llamador (marca el contratiempo) y
+ * conga/alegre (tono abierto, improvisa con golpes fantasma).
  */
 export type Instrument =
   | 'bass' | 'brass' | 'pluck' | 'strum' | 'keys' | 'organ' | 'choir'
-  | 'shaker' | 'drum' | 'clave' | 'cowbell' | 'taiko';
+  | 'shaker' | 'drum' | 'clave' | 'cowbell' | 'taiko'
+  | 'guacharaca' | 'tambora' | 'llamador' | 'conga';
 
-export const PERCUSSION: readonly Instrument[] = ['shaker', 'drum', 'clave', 'cowbell', 'taiko'];
+export const PERCUSSION: readonly Instrument[] = [
+  'shaker', 'drum', 'clave', 'cowbell', 'taiko', 'guacharaca', 'tambora', 'llamador', 'conga',
+];
 
 export interface MusicVoice {
   inst: Instrument;
@@ -199,6 +273,10 @@ export interface MusicVoice {
   vol: number;
   /** duración de cada nota en pasos */
   len: number;
+  /** percusión: probabilidad de un golpe fantasma suave en un paso vacío (el tamborero que improvisa) */
+  ghost?: number;
+  /** -1..1: lugar en el estéreo */
+  pan?: number;
 }
 
 export interface MusicTrack {
@@ -208,6 +286,10 @@ export interface MusicTrack {
   gain: number;
   /** filtro paso bajo (Hz) para que suene lejos o "de rockola" */
   muffle?: number;
+  /** 0..0.5: atraso de los pasos impares (el "tumbao" que no va cuadrado) */
+  swing?: number;
+  /** 0..1: cuánto de la pieza va a la reverberación */
+  room?: number;
   voices: MusicVoice[];
 }
 
@@ -263,6 +345,18 @@ const CUMBIA_LEAD = spread([
 const CUMBIA_BASS = [
   [36, 43], [43, 38], [43, 38], [36, 43], [41, 36], [36, 43], [43, 38], [36, 31],
 ].flatMap(([a, b]) => at(16, [[0, a], [8, b]]));
+// el "chucu-chucu": acorde corto en el contratiempo de cada tiempo, como el acordeón
+const CUMBIA_CHORDS = [[60, 64, 67], [59, 62, 67], [59, 62, 67], [60, 64, 67], [60, 65, 69], [60, 64, 67], [59, 62, 67], [60, 64, 67]];
+const CUMBIA_CHUCU = CUMBIA_CHORDS.flatMap((c) => at(16, [[2, c], [6, c], [10, c], [14, c]]));
+// guacharaca: raspado largo en el tiempo y dos cortos ("chaaa-ca-cha") en cada semicorchea
+const GUACHARACA_BEAT = [0.9, 0.3, 0.65, 0.45];
+// tambora: cuero grave en el 1 y el 3, aro (valores bajos) entre medio
+const TAMBORA_BAR = at(16, [[0, 1], [3, 0.35], [6, 0.4], [8, 0.9], [11, 0.35], [14, 0.5]]);
+const TAMBORA_FILL = at(16, [[0, 1], [3, 0.35], [6, 0.4], [8, 0.9], [10, 0.6], [12, 0.7], [13, 0.6], [14, 0.8], [15, 0.9]]);
+// llamador: marca el contratiempo, siempre igual
+const LLAMADOR_BAR = at(16, [[4, 0.8], [12, 0.8]]);
+// alegre: la conga que improvisa (más golpes fantasma al azar en la ejecución)
+const ALEGRE_BAR = at(16, [[2, 0.5], [6, 0.7], [7, 0.4], [10, 0.5], [14, 0.8], [15, 0.5]]);
 
 // Música de carrilera / despecho en La menor, vals: bajo en 1, rasgueo en 2 y 3
 const AM = [57, 60, 64];
@@ -333,56 +427,68 @@ const TAIKO_FILL = at(16, [[0, 1], [3, 0.55], [6, 0.8], [8, 1], [10, 0.6], [11, 
 
 export const MUSIC: Record<MusicId, MusicTrack> = {
   batalla: {
-    bpm: 112, stepsPerBeat: 4, gain: 0.55, muffle: 3200,
+    bpm: 112, stepsPerBeat: 4, gain: 0.55, muffle: 3200, room: 0.25,
     voices: [
       { inst: 'bass', steps: BATTLE_BASS, vol: 0.36, len: 1.7 },
-      { inst: 'taiko', steps: [...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_FILL], vol: 0.38, len: 1 },
+      { inst: 'taiko', steps: [...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_BAR, ...TAIKO_FILL], vol: 0.38, len: 1, ghost: 0.06 },
       { inst: 'choir', steps: BATTLE_PAD.flatMap((c) => at(16, [[0, c]])), vol: 0.022, len: 16 },
-      { inst: 'pluck', steps: BATTLE_BELL, vol: 0.06, len: 5 },
+      { inst: 'pluck', steps: BATTLE_BELL, vol: 0.06, len: 5, pan: 0.4 },
+      // aro seco de la tambora en los contratiempos: empuja sin volverse fiesta
+      { inst: 'tambora', steps: at(16, [[4, 0.3], [12, 0.3]]), vol: 0.12, len: 1, ghost: 0.05, pan: -0.3 },
     ],
   },
   cumbia: {
-    bpm: 100, stepsPerBeat: 4, gain: 0.5,
+    bpm: 100, stepsPerBeat: 4, gain: 0.5, swing: 0.08, room: 0.18,
     voices: [
       { inst: 'bass', steps: CUMBIA_BASS, vol: 0.32, len: 3 },
-      { inst: 'brass', steps: CUMBIA_LEAD, vol: 0.09, len: 1.6 },
-      { inst: 'brass', steps: CUMBIA_LEAD.map((n) => thirdBelow(n as number, 60)), vol: 0.055, len: 1.6 },
-      { inst: 'shaker', steps: [0.35, 0.15, 0.7, 0.2, 0.35, 0.15, 0.7, 0.2, 0.35, 0.15, 0.7, 0.2, 0.35, 0.15, 0.7, 0.35], vol: 0.12, len: 1 },
-      { inst: 'drum', steps: at(16, [[2, 0.6], [6, 0.6], [10, 0.6], [14, 0.8]]), vol: 0.3, len: 1 },
-      { inst: 'clave', steps: [...at(16, [[0, 0.5], [6, 0.5], [12, 0.5]]), ...at(16, [[4, 0.5], [8, 0.5]])], vol: 0.12, len: 1 },
+      { inst: 'brass', steps: CUMBIA_LEAD, vol: 0.09, len: 1.6, pan: 0.15 },
+      { inst: 'brass', steps: CUMBIA_LEAD.map((n) => thirdBelow(n as number, 60)), vol: 0.055, len: 1.6, pan: -0.2 },
+      { inst: 'strum', steps: CUMBIA_CHUCU, vol: 0.03, len: 0.8, pan: -0.35 },
+      { inst: 'guacharaca', steps: [...GUACHARACA_BEAT, ...GUACHARACA_BEAT, ...GUACHARACA_BEAT, ...GUACHARACA_BEAT], vol: 0.13, len: 1, pan: 0.45 },
+      { inst: 'tambora', steps: [...TAMBORA_BAR, ...TAMBORA_BAR, ...TAMBORA_BAR, ...TAMBORA_FILL], vol: 0.34, len: 1 },
+      { inst: 'llamador', steps: LLAMADOR_BAR, vol: 0.22, len: 1, pan: -0.4 },
+      { inst: 'conga', steps: ALEGRE_BAR, vol: 0.18, len: 1, ghost: 0.18, pan: 0.3 },
+      { inst: 'shaker', steps: at(16, [[2, 0.4], [6, 0.4], [10, 0.4], [14, 0.6]]), vol: 0.06, len: 1, pan: -0.5 },
     ],
   },
   carrilera: {
-    bpm: 138, stepsPerBeat: 2, gain: 0.45, muffle: 1700,
+    bpm: 138, stepsPerBeat: 2, gain: 0.45, muffle: 1700, room: 0.12,
     voices: [
       { inst: 'bass', steps: CARRILERA_ROOTS.flatMap((r) => at(6, [[0, r]])), vol: 0.3, len: 2 },
-      { inst: 'strum', steps: CARRILERA_CHORDS.flatMap((c) => at(6, [[2, c], [4, c]])), vol: 0.07, len: 1.2 },
-      { inst: 'pluck', steps: CARRILERA_LEAD, vol: 0.13, len: 2 },
-      { inst: 'pluck', steps: CARRILERA_LEAD.map((n) => thirdBelow(n, 60)), vol: 0.07, len: 2 },
+      { inst: 'strum', steps: CARRILERA_CHORDS.flatMap((c) => at(6, [[2, c], [4, c]])), vol: 0.07, len: 1.2, pan: -0.3 },
+      { inst: 'pluck', steps: CARRILERA_LEAD, vol: 0.13, len: 2, pan: 0.2 },
+      { inst: 'pluck', steps: CARRILERA_LEAD.map((n) => thirdBelow(n, 60)), vol: 0.07, len: 2, pan: 0.35 },
+      { inst: 'shaker', steps: at(6, [[2, 0.4], [4, 0.4]]), vol: 0.05, len: 1, ghost: 0.08, pan: -0.5 },
     ],
   },
   bambuco: {
-    bpm: 76, stepsPerBeat: 3, gain: 0.4, muffle: 2600,
+    bpm: 76, stepsPerBeat: 3, gain: 0.4, muffle: 2600, room: 0.2,
     voices: [
       { inst: 'bass', steps: BAMBUCO_ROOTS.flatMap(([a, b]) => at(6, [[0, a], [3, b]])), vol: 0.24, len: 2 },
-      { inst: 'strum', steps: BAMBUCO_CHORDS.flatMap((c) => at(6, [[0, c], [2, c], [3, c], [5, c]])), vol: 0.045, len: 1 },
-      { inst: 'pluck', steps: BAMBUCO_LEAD, vol: 0.12, len: 2 },
+      { inst: 'strum', steps: BAMBUCO_CHORDS.flatMap((c) => at(6, [[0, c], [2, c], [3, c], [5, c]])), vol: 0.045, len: 1, pan: -0.3 },
+      { inst: 'pluck', steps: BAMBUCO_LEAD, vol: 0.12, len: 2, pan: 0.25 },
+      // esterilla (raspado suave) y tambor de bambuco con el acento corrido
+      { inst: 'guacharaca', steps: at(6, [[0, 0.5], [2, 0.6], [3, 0.4], [5, 0.6]]), vol: 0.06, len: 1, pan: 0.45 },
+      { inst: 'llamador', steps: at(6, [[2, 0.6], [5, 0.8]]), vol: 0.12, len: 1, ghost: 0.05, pan: -0.4 },
     ],
   },
   salsa: {
-    bpm: 184, stepsPerBeat: 2, gain: 0.42,
+    bpm: 184, stepsPerBeat: 2, gain: 0.42, room: 0.15,
     voices: [
       { inst: 'bass', steps: SALSA_ROOTS.flatMap(([a, b]) => at(8, [[3, a], [6, b]])), vol: 0.32, len: 2.5 },
-      { inst: 'keys', steps: SALSA_MONTUNO, vol: 0.06, len: 0.9 },
-      { inst: 'brass', steps: SALSA_MAMBO, vol: 0.08, len: 1.6 },
-      { inst: 'brass', steps: SALSA_MAMBO.map((n) => thirdBelow(n, 60)), vol: 0.05, len: 1.6 },
-      { inst: 'clave', steps: [...at(8, [[2, 0.6], [4, 0.6]]), ...at(8, [[0, 0.6], [3, 0.6], [6, 0.6]])], vol: 0.12, len: 1 },
-      { inst: 'cowbell', steps: at(8, [[0, 0.6], [2, 0.35], [4, 0.45], [6, 0.35]]), vol: 0.06, len: 1 },
+      { inst: 'keys', steps: SALSA_MONTUNO, vol: 0.06, len: 0.9, pan: -0.25 },
+      { inst: 'brass', steps: SALSA_MAMBO, vol: 0.08, len: 1.6, pan: 0.2 },
+      { inst: 'brass', steps: SALSA_MAMBO.map((n) => thirdBelow(n, 60)), vol: 0.05, len: 1.6, pan: 0.35 },
+      { inst: 'clave', steps: [...at(8, [[2, 0.6], [4, 0.6]]), ...at(8, [[0, 0.6], [3, 0.6], [6, 0.6]])], vol: 0.12, len: 1, pan: 0.5 },
+      { inst: 'cowbell', steps: at(8, [[0, 0.6], [2, 0.35], [4, 0.45], [6, 0.35]]), vol: 0.06, len: 1, pan: -0.4 },
       { inst: 'drum', steps: at(8, [[6, 0.5], [7, 0.7]]), vol: 0.22, len: 1 },
+      // tumbao de conga: golpe tapado en el 2 y los dos abiertos en el 4 y su "y"
+      { inst: 'conga', steps: at(8, [[0, 0.25], [2, 0.5], [4, 0.25], [6, 0.9], [7, 0.85]]), vol: 0.16, len: 1, ghost: 0.1, pan: 0.25 },
+      { inst: 'guacharaca', steps: at(8, [[0, 0.8], [1, 0.3], [2, 0.5], [4, 0.8], [5, 0.3], [6, 0.5]]), vol: 0.05, len: 1, pan: -0.55 },
     ],
   },
   organo: {
-    bpm: 40, stepsPerBeat: 1, gain: 0.4, muffle: 2200,
+    bpm: 40, stepsPerBeat: 1, gain: 0.4, muffle: 2200, room: 0.6,
     voices: [
       { inst: 'organ', steps: ORGAN_CHORDS.flatMap((c) => at(4, [[0, c]])), vol: 0.05, len: 4 },
       { inst: 'organ', steps: ORGAN_PEDAL.flatMap((n) => at(4, [[0, n]])), vol: 0.07, len: 4 },
