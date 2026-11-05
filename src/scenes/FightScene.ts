@@ -872,7 +872,8 @@ export class FightScene extends Phaser.Scene {
     if (!wantsBanter(Math.abs(this.p1.x - this.p2.x), this.framesSinceBanter, Math.random())) return;
     const slot: PlayerSlot = Math.random() < 0.5 ? 1 : 2;
     const f = slot === 1 ? this.p1 : this.p2;
-    const line = pickLine(f.stats.id, Math.random(), this.lastLine[slot]);
+    const foe = slot === 1 ? this.p2 : this.p1;
+    const line = pickLine(f.stats.id, Math.random(), this.lastLine[slot], foe.stats.id);
     this.lastLine[slot] = line;
     this.say(slot, line);
   }
