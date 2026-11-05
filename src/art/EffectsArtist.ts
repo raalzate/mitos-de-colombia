@@ -271,7 +271,32 @@ export function buildParticles(): Record<string, Pixmap> {
   const splat = new Pixmap(7, 2);
   splat.rect(1, 0, 5, 1, hexToRgba(0x8a0010));
   splat.rect(0, 1, 7, 1, hexToRgba(0x5a0008));
-  return { leaf, drop, spark, fly, ember, blood, splat };
+  // luz que sube al calmarse un mito (blanca, para teñir): cruz con núcleo brillante
+  const mote = new Pixmap(5, 5);
+  mote.set(2, 0, hexToRgba(0xffffff, 110));
+  mote.set(2, 4, hexToRgba(0xffffff, 110));
+  mote.set(0, 2, hexToRgba(0xffffff, 110));
+  mote.set(4, 2, hexToRgba(0xffffff, 110));
+  mote.rect(1, 1, 3, 3, hexToRgba(0xffffff, 170));
+  mote.set(2, 2, hexToRgba(0xffffff));
+  return { leaf, drop, spark, fly, ember, blood, splat, mote, shadow: buildShadowBlob() };
+}
+
+/** Ancho y alto de la sombra de contacto (px). */
+export const SHADOW_W = 40;
+export const SHADOW_H = 7;
+
+/**
+ * Sombra de contacto: elipse negra con tres anillos de opacidad en escalones (sin
+ * degradado suave, sigue siendo pixel art). Se tiñe y escala en la escena.
+ */
+export function buildShadowBlob(): Pixmap {
+  const pm = new Pixmap(SHADOW_W, SHADOW_H);
+  const cx = SHADOW_W / 2, cy = SHADOW_H / 2;
+  pm.ellipse(cx, cy, SHADOW_W / 2, SHADOW_H / 2, hexToRgba(0x000000, 70));
+  pm.ellipse(cx, cy, SHADOW_W / 2 - 4, SHADOW_H / 2 - 1, hexToRgba(0x000000, 90));
+  pm.ellipse(cx, cy, SHADOW_W / 2 - 9, SHADOW_H / 2 - 1.5, hexToRgba(0x000000, 110));
+  return pm;
 }
 
 /** Arco de corte (blanco, para teñir): 4 frames. */
