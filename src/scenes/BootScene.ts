@@ -12,6 +12,7 @@ import { preloadDrawnFx } from '../art/DrawnFx';
 import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage } from '../utils/textures';
 import { setLoadingProgress } from '../ui/Loading';
 import { preloadNormals } from '../adventure/Lighting';
+import { setupView } from '../utils/view';
 
 /**
  * Genera todos los recursos gráficos de forma procedimental (pixel art en memoria).
@@ -58,6 +59,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
+    setupView(this);
     const g = this.add.graphics();
     g.fillStyle(0x07060d, 1).fillRect(0, 0, 384, 224);
     g.fillStyle(0xf8d048, 1).fillRect(120, 108, 144, 8);

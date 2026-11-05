@@ -9,6 +9,7 @@ import type { StageId } from '../art/StageArtist';
 import { splashPose } from '../art/SplashPose';
 import { drawnAnimKey, drawnFrame } from '../art/DrawnAnim';
 import { isSwitching, startWithLoading } from '../ui/Loading';
+import { setupView } from '../utils/view';
 
 export interface ResultData {
   winner: PlayerSlot;
@@ -39,6 +40,7 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create(): void {
+    setupView(this);
     this.index = 0;
     this.menu = new MenuInput();
     this.frame = 0;

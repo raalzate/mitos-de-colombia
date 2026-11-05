@@ -12,6 +12,7 @@ import type { FighterId } from '../combat/CombatTypes';
 import { startWithLoading } from '../ui/Loading';
 import { DEMO, demoRun } from '../demo/Demo';
 import { Pilot } from '../demo/Pilot';
+import { setupView } from '../utils/view';
 
 type Page = 'main' | 'difficulty' | 'controls' | 'adventure';
 
@@ -50,6 +51,7 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    setupView(this);
     this.idleFrames = 0;
     this.scaring = false;
     sfx.setTension(0);

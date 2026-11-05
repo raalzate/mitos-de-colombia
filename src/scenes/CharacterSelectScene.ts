@@ -5,6 +5,7 @@ import { sfx } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFullscreen } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
 import { addStageBackdrop, portraitKey, splashKey, text } from '../utils/textures';
+import { setupView } from '../utils/view';
 
 const COLS = 5;
 const CELL = 48;
@@ -50,6 +51,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    setupView(this);
     const s = getSettings(this);
     sfx.setSoundscape('menu');
     sfx.setTension(0);

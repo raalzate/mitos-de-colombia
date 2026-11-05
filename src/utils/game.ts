@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { InputManager } from '../combat/InputManager';
 import type { MatchSettings } from '../combat/CombatTypes';
 import { gameArea, toggleDocumentFullscreen, touchActive } from '../ui/TouchControls';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
+import { RENDER_SCALE } from './view';
 
 /** Entrada global compartida por todas las escenas. */
 export const inputManager = new InputManager();
@@ -59,10 +61,11 @@ export function toggleFullscreen(scene: Phaser.Scene): void {
  */
 export function fitIntegerZoom(game: Phaser.Game): void {
   const { w, h } = gameArea();
-  const gw = Number(game.config.width);
+  // el zoom entero se cuenta en píxeles lógicos (384x224): el lienzo ya trae RENDER_SCALE de por sí
+  const fit = Math.min(w / GAME_WIDTH, h / GAME_HEIGHT);
+  const zl = touchActive() ? Math.max(0.5, Math.floor(fit * 100) / 100) : Math.max(1, Math.floor(fit));
+  const z = zl / RENDER_SCALE;
   const gh = Number(game.config.height);
-  const fit = Math.min(w / gw, h / gh);
-  const z = touchActive() ? Math.max(0.5, Math.floor(fit * 100) / 100) : Math.max(1, Math.floor(fit));
   const parent = document.getElementById('game');
   // En táctil el juego se pega arriba: todo el espacio sobrante queda abajo, donde van los controles.
   if (parent) parent.style.height = touchActive() ? `${Math.ceil(gh * z)}px` : '';

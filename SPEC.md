@@ -16,7 +16,7 @@ Juego web de lucha 2D 1 vs 1 en pixel art de 16 bits, ambientado en leyendas col
 | Motor | Phaser 3.90 |
 | Build / tests | Vite, Vitest |
 | Gestor de paquetes | pnpm |
-| Resolución | 384×224 interna, escalado entero, sin suavizado (`pixelArt: true`) |
+| Resolución | 384×224 lógica en lienzo 768×448 (doble densidad), escalado entero, sin suavizado (`pixelArt: true`) |
 | Despliegue | Estático (Vercel) |
 | Paso de simulación | Fijo a 60 Hz con acumulador (independiente de la tasa de refresco) |
 

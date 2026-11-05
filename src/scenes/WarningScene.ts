@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
 import { MenuInput, inputManager } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
 import { text } from '../utils/textures';
+import { setupView } from '../utils/view';
 
 /** Advertencia previa: sustos repentinos, gritos fuertes y destellos. */
 export class WarningScene extends Phaser.Scene {
@@ -15,6 +16,7 @@ export class WarningScene extends Phaser.Scene {
   }
 
   create(): void {
+    setupView(this);
     this.menu = new MenuInput();
     this.frame = 0;
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x050003, 1).setOrigin(0);
