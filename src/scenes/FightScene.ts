@@ -43,6 +43,7 @@ import { aimLurk, buildLurk, lurkAt, lurkFeetY, lurkScale, lurkSounds, wantsLurk
 import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildHorse } from '../adventure/OverworldArt';
 import { addSheet } from '../utils/textures';
 import { startWithLoading } from '../ui/Loading';
+import { StageLifeView } from '../art/StageLifeView';
 import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../demo/Demo';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
@@ -200,6 +201,8 @@ export class FightScene extends Phaser.Scene {
   /** el mito se metió al fondo del escenario: la pelea espera a que vuelva */
   private lurk: { script: LurkScript; frame: number; ox: number; horse: Phaser.GameObjects.Image | null; walkDist: number; lastX: number; face: number; turn: number; horseX: number; horseDist: number } | null = null;
   private lurksRound = 0;
+  /** gente y animales del fondo del escenario */
+  private life!: StageLifeView;
   private framesSinceLurk = 0;
 
   /** disolución del mito vencido (se calma) */
@@ -297,6 +300,7 @@ export class FightScene extends Phaser.Scene {
     this.lightningFrames = 0;
 
     this.buildAmbient();
+    this.life = new StageLifeView(this, this.stageId);
 
     this.leafEmitter = this.add.particles(0, 0, 'p_leaf', {
       speed: { min: 30, max: 90 },
@@ -549,6 +553,7 @@ export class FightScene extends Phaser.Scene {
     const ko = this.p1.hp <= 0 || this.p2.hp <= 0;
     if (ko) {
       sfx.play('ko');
+      this.life.scare('ko');
       this.cameras.main.shake(300, 0.01);
       // cámara lenta y destello: el golpe final pesa
       this.slowFrames = KO_SLOWMO;
@@ -1213,6 +1218,7 @@ export class FightScene extends Phaser.Scene {
 
   private startCinematic(attacker: Fighter, defender: Fighter): void {
     const spec = attacker.stats.ultimateSpec;
+    this.life.scare('ultimate');
     this.combat.clearProjectiles();
     attacker.setState('cinematic');
     attacker.anim = 'ultimate';
@@ -1424,6 +1430,7 @@ export class FightScene extends Phaser.Scene {
       this.bleed(e.x, e.y, e.attacker.facing, bloodDrops(false, e.heavy, e.result.damage), e.heavy ? 3 : 1);
       this.sparkEmitter.explode(e.heavy ? 14 : 6, e.x, e.y);
       if (e.heavy) {
+        this.life.scare('hit');
         this.cameras.main.shake(150, 0.01);
         // destello breve en golpes fuertes: el impacto se siente en toda la pantalla
         if (this.flashRect.alpha < 0.15) this.flashRect.setFillStyle(0xfff4e0).setAlpha(0.15);
@@ -1690,6 +1697,7 @@ export class FightScene extends Phaser.Scene {
     this.river.setTexture(this.stageTex.river(Math.floor(this.logicFrame / 9) % 3));
     this.clouds.tilePositionX = this.logicFrame * 0.06 + cam.scrollX * 0.1;
     this.mist.tilePositionX = this.logicFrame * 0.25 + cam.scrollX * 0.8;
+    this.life.update(cam.scrollX, this.paused ? 0 : this.game.loop.delta);
     if (this.lightningRect) {
       if (this.lightningFrames > 0) {
         this.lightningFrames--;
