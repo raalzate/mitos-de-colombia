@@ -2,15 +2,17 @@ import type { FighterId } from '../combat/CombatTypes';
 
 /** Generado por tools/build_anim.sh a partir de images/Retro Folklore Character Sprite Sheet.png. */
 export type DrawnAction = 'walk' | 'attack' | 'hurt' | 'idle' | 'trans' | 'fall' | 'punch' | 'kick';
-export interface DrawnStrip { frames: number; w: number; h: number; interpolated?: boolean; keys?: number; lying?: number; air?: number; airEnd?: number; hit?: number; fps?: number }
+export interface DrawnStrip { frames: number; w: number; h: number; interpolated?: boolean; keys?: number; lying?: number; air?: number; airEnd?: number; hit?: number; fps?: number; res?: number }
 
 /** `fall` (caída y levantarse), `punch` y `kick` (golpes de PixelLab) son opcionales por personaje.
- * `hit`: fotograma de impacto de la tira; `fps`: ritmo propio del ciclo (reposo dibujado). */
+ * `hit`: fotograma de impacto de la tira; `fps`: ritmo propio del ciclo (reposo dibujado).
+ * `res`: densidad de la tira (2 = alta resolución): `w` y `h` van en píxeles de la imagen; el juego la
+ * dibuja a la misma talla lógica (w/res x h/res) con el doble de detalle (ver setTextureRes). */
 export const DRAWN_ANIM: Record<FighterId, Record<Exclude<DrawnAction, 'fall' | 'punch' | 'kick'>, DrawnStrip> & Partial<Record<'fall' | 'punch' | 'kick', DrawnStrip>>> = {
   madremonte: { walk: { frames: 7, w: 58, h: 72 }, attack: { frames: 6, w: 78, h: 72 }, hurt: { frames: 6, w: 70, h: 74 }, trans: { frames: 3, w: 78, h: 74 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 8, air: 6, airEnd: 7 }, punch: { frames: 6, w: 96, h: 94, hit: 3 }, kick: { frames: 5, w: 96, h: 94, hit: 2 } },
   patasola: { walk: { frames: 7, w: 60, h: 72 }, attack: { frames: 5, w: 94, h: 72 }, hurt: { frames: 5, w: 88, h: 72 }, trans: { frames: 3, w: 94, h: 72 }, idle: { frames: 8, w: 60, h: 72 }, fall: { frames: 13, w: 96, h: 94, lying: 7, air: 3, airEnd: 5 } },
   hombrecaiman: { walk: { frames: 6, w: 86, h: 72 }, attack: { frames: 5, w: 118, h: 74 }, hurt: { frames: 5, w: 106, h: 72 }, trans: { frames: 3, w: 118, h: 74 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 9, air: 6, airEnd: 7 }, punch: { frames: 7, w: 96, h: 94, hit: 3 }, kick: { frames: 6, w: 96, h: 94, hit: 4 } },
-  llorona: { walk: { frames: 6, w: 46, h: 72 }, attack: { frames: 5, w: 70, h: 70 }, hurt: { frames: 5, w: 96, h: 70 }, trans: { frames: 3, w: 96, h: 72 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 9, air: 6, airEnd: 7 }, punch: { frames: 6, w: 96, h: 94, hit: 3 }, kick: { frames: 4, w: 96, h: 94, hit: 2 } },
+  llorona: { walk: { frames: 6, w: 192, h: 188, res: 2 }, attack: { frames: 5, w: 70, h: 70 }, hurt: { frames: 5, w: 96, h: 70 }, trans: { frames: 3, w: 96, h: 72 }, idle: { frames: 4, w: 192, h: 188, fps: 6, res: 2 }, fall: { frames: 13, w: 96, h: 94, lying: 9, air: 6, airEnd: 7 }, punch: { frames: 6, w: 96, h: 94, hit: 3 }, kick: { frames: 4, w: 96, h: 94, hit: 2 } },
   sombreron: { walk: { frames: 6, w: 50, h: 72 }, attack: { frames: 5, w: 68, h: 72 }, hurt: { frames: 5, w: 70, h: 70 }, trans: { frames: 3, w: 70, h: 72 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 8, air: 5, airEnd: 6 }, punch: { frames: 6, w: 96, h: 94, hit: 4 }, kick: { frames: 6, w: 96, h: 94, hit: 3 } },
   mohan: { walk: { frames: 6, w: 60, h: 72 }, attack: { frames: 5, w: 92, h: 74 }, hurt: { frames: 5, w: 80, h: 74 }, trans: { frames: 3, w: 92, h: 74 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 9, air: 6, airEnd: 6 }, punch: { frames: 5, w: 96, h: 94, hit: 2 } },
   muelona: { walk: { frames: 6, w: 66, h: 72 }, attack: { frames: 5, w: 78, h: 72 }, hurt: { frames: 5, w: 78, h: 68 }, trans: { frames: 3, w: 78, h: 72 }, idle: { frames: 4, w: 96, h: 94, fps: 6 }, fall: { frames: 13, w: 96, h: 94, lying: 8, air: 6, airEnd: 6 }, punch: { frames: 7, w: 96, h: 94, hit: 4 }, kick: { frames: 6, w: 96, h: 94, hit: 1 } },

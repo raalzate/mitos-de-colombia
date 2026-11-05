@@ -83,6 +83,19 @@ repositorio.
 | Juan Machete | 12,3 | 14,9 |
 | Bachué | 10,9 | 9,8 |
 
+### Piloto en alta resolución: La Llorona
+
+Para que los luchadores no se vean tan pixelados en pantallas grandes, el lienzo se dibuja al doble de densidad
+(ver ARQUITECTURA, «Lienzo de doble densidad») y una tira puede traer `res: 2`: se dibuja en un lienzo de 192 px
+(la figura mide ~143 px, pies en la fila 187) y en el juego mide lo mismo que antes (~72 px lógicos) con el doble
+de detalle. El piloto es La Llorona: base (`/resize` de su primer fotograma de 96 a 192), **reposo** (4 fotogramas)
+y **andar** (6) en alta (`images/pixellab/hires/`, `tools/gen_pixellab_hires.py`; importados por
+`import_pixellab_moves.py`). Sus demás acciones (puño, patada, golpe recibido, ataque, caída, agacharse) siguen
+con las tiras de siempre y se ven más gruesas mientras no tengan versión en alta.
+
+Costo en PixelLab a 192 px: `animate-with-text-v3` cobra por área (≈ ancho × alto × (fotogramas + 1) / 65 536
+generaciones): reposo 192×192×4 = 3 generaciones; andar en un recorte de 112×160 con 6 fotogramas = 2.
+
 ## Arte del modo aventura
 
 - **Personajes** (Juan, abuela, don Toño, aldeanos, espíritus, perro): generados con **PixelLab**

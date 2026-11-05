@@ -1,0 +1,14 @@
+{
+ "endpoint": "/animate-with-text-v3",
+ "action": "side view, 2D fighting game sprite facing right, same character, same outfit, same colors, same size, same pixel art style, feet stay on the same ground line, no background, walking in place facing right (the body stays centered, no travel), slow eerie ghostly walk cycle: the legs step forward one after the other under the ragged dress, the dress hem and the long black hair sway with each step, hunched posture, clawed hands hang forward, loops back to the starting pose",
+ "frame_count": 6,
+ "seed": 23,
+ "size": 192,
+ "box": [
+  40,
+  32,
+  152,
+  192
+ ],
+ "images": 7
+}

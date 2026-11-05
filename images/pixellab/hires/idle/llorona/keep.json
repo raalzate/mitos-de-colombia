@@ -1,0 +1,11 @@
+{
+ "keep": [
+  0,
+  2,
+  3,
+  4
+ ],
+ "fps": 6,
+ "res": 2,
+ "note": "192x192, pies en la fila 187, 143 px de alto (res 2 = 71.5 px lógicos). f01 es copia exacta de f00 (la API devuelve el primer fotograma); f05 casi igual a f00 (cierra el ciclo). Respiración sutil, diseño intacto, sin halos ni alfa intermedio. Se dejan 4 fotogramas (f05 casi repite f00 y el ciclo ya vuelve a f00)."
+}
