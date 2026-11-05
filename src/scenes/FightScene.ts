@@ -654,6 +654,7 @@ export class FightScene extends Phaser.Scene {
     }
     this.softenRect.setFillStyle(color);
     this.dissolve = { slot, frame: 0, color, motes, blur, glow };
+    sfx.play('calm');
   }
 
   /** Un paso lógico de la disolución: avanza y suelta luces desde el cuerpo. */
