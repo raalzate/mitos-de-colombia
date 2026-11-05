@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DRAWN_ANIM } from '../src/art/drawnAnimManifest';
 import {
   LAND_FRAMES, LAND_TUCK, STRIKE_FOLLOW, WALK_STRIDE_PX, attackIndex, drawnAnimFile, drawnAnimKey, drawnFrame, drawnMotion, flipPhase, hitRecoil,
-  hitShake, landSquash, standHeight, strikeIndex, strikeKeys, strikeMotion, stripAnchor, walkFrameByDistance, walkPhase,
+  hitShake, idleIndex, landSquash, moveFrame, moveKeys, moveStrip, standHeight, strikeIndex, strikeKeys, strikeMotion, stripAnchor, walkFrameByDistance, walkPhase,
 } from '../src/art/DrawnAnim';
 import { DRAWN_METRICS } from '../src/art/drawnAnimMetrics';
 import { FIGHTER_IDS } from '../src/data/fighters';
@@ -137,10 +137,10 @@ describe('animación dibujada', () => {
         expect(changes).toBeLessThanOrEqual(4);
       }
     }
-    // en el juego los golpes ligeros y fuertes impactan con fotogramas distintos
-    const light = drawnFrame('juanmachete', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } })!;
-    const heavy = drawnFrame('juanmachete', { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: 10 } })!;
-    expect(light).toEqual({ action: 'attack', index: strikeKeys('juanmachete').light });
+    // en el juego los golpes ligeros y fuertes impactan con fotogramas distintos (personaje sin tiras de golpe propias)
+    const light = drawnFrame('sombreron', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } })!;
+    const heavy = drawnFrame('sombreron', { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: 10 } })!;
+    expect(light).toEqual({ action: 'attack', index: strikeKeys('sombreron').light });
     expect(heavy.index).toBeGreaterThan(light.index);
   });
 
@@ -269,5 +269,45 @@ describe('animación dibujada', () => {
     for (let k = 1; k < getup.length; k++) expect(getup[k]).toBeGreaterThanOrEqual(getup[k - 1]);
     expect(getup[0]).toBeGreaterThan(lying.index);
     expect(getup[3]).toBeLessThan(f.frames);
+  });
+
+  it('puño y patada dibujados (PixelLab): su propia tira si existe, si no la de golpes', () => {
+    const p = { startup: 9, active: 4, recovery: 15 };
+    expect(moveStrip('llorona', 'light')).toBe('punch');
+    expect(moveStrip('llorona', 'heavykick')).toBe('kick');
+    expect(moveStrip('juanmachete', 'heavy')).toBe('punch');
+    // sin tira de patada: la patada sigue saliendo de la tira de golpes
+    if (!DRAWN_ANIM.juanmachete.kick) expect(moveStrip('juanmachete', 'lightkick')).toBeNull();
+    expect(moveStrip('llorona', 'special1')).toBeNull();
+    for (const id of FIGHTER_IDS) {
+      for (const action of ['punch', 'kick'] as const) {
+        const s = DRAWN_ANIM[id][action];
+        if (!s) continue;
+        const k = moveKeys(id, action);
+        expect(k.heavy).toBe(s.hit);
+        expect(k.wind).toBeLessThan(k.heavy);
+        // impacto en los frames activos con el fotograma dibujado de máxima extensión
+        const f = drawnFrame(id, { ...base, state: 'attack', anim: action === 'punch' ? 'light' : 'lightkick', attackProgress: { ...p, frame: 10 } })!;
+        expect(f).toEqual({ action, index: s.hit });
+        // vuelve a la guardia por sus propios fotogramas
+        const end = moveFrame(id, action === 'punch' ? 'heavy' : 'heavykick', 0, { ...p, frame: 27 })!;
+        expect(end.action).toBe(action);
+        expect(end.index).not.toBe(s.hit);
+        expect(DRAWN_METRICS[id][action]?.length).toBe(s.frames);
+      }
+    }
+    // con golpe dibujado la pose fingida se suaviza
+    const drawn = drawnMotion('llorona', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } });
+    const faked = drawnMotion('sombreron', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } });
+    expect(Math.abs(drawn.dx)).toBeLessThan(Math.abs(faked.dx));
+  });
+
+  it('el reposo dibujado avanza a su propio ritmo y da la vuelta', () => {
+    for (const id of FIGHTER_IDS) {
+      const s = DRAWN_ANIM[id].idle;
+      const seq = Array.from({ length: 240 }, (_, f) => idleIndex(id, f));
+      expect(Math.max(...seq)).toBe(s.frames - 1);
+      if (s.fps) expect(seq[Math.ceil(60 / s.fps)]).toBe(1);
+    }
   });
 });

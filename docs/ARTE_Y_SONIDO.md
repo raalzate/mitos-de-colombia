@@ -17,8 +17,23 @@ usa el juego en `public/assets`:
 | `splash/` | Cuerpo entero (72 px en combate, 128 px en selección y VS) y 4 poses por personaje | `extract_splash.py`, `fix_splash.py` |
 | `anim/` | Tiras de animación: andar (6–7 fotogramas), golpe (5–6), daño (5–6), entrada a agacharse/bloquear (3) | `build_anim.sh` |
 | `anim/` (`fall`) | Caída y levantarse, 13 fotogramas por personaje, generados con PixelLab | `import_pixellab.py` |
+| `anim/` (`punch`, `kick`, `idle`) | Puño, patada y reposo propios generados con PixelLab (piloto: puño de Juan Machete, puño y patada de la Llorona); si faltan, el golpe sale de la tira `attack` | `gen_pixellab_moves.py`, `import_pixellab_moves.py` |
 | `fx/` | 35 efectos de poderes (proyectil, chorro, invocación, tornado) | `extract_fx.py` |
 | `aventura/` | Juan, la abuela, aldeanos, espíritus, perro, árbol y tileset del mapa (PixelLab) | `import_aventura.py` |
+
+### Puño, patada y reposo con PixelLab
+
+1. `python3 -I tools/gen_pixellab_moves.py <id> punch+kick` (una petición de 12 fotogramas, 1 generación) o
+   `<id> punch|kick|idle`. Parte de `images/pixellab/<id>_first.png` (a Juan se le quita el aura antes) con
+   `animate-with-text-v3`, primer y último fotograma = guardia; guarda los originales en `images/pixellab/<acción>/<id>/`
+   (o `combo/<id>/`). Con `--dry` solo muestra el texto. Si la API responde 402/429 se detiene.
+2. Revisar cada fotograma ampliado y escribir `images/pixellab/<acción>/<id>/keep.json`
+   (`keep`: fotogramas aceptados, `hit`: impacto, `source: "combo"`, `strip_fx`: chispas a borrar por color).
+3. `python3 -I tools/import_pixellab_moves.py <id>` y `python3 -I tools/measure_anim.py`.
+
+En combate (`DrawnAnim.ts`: `moveStrip`, `moveFrame`, `idleIndex`) los puños usan la tira `punch` y las patadas
+la `kick` cuando existen, y la pose fingida del golpe se reduce a `DRAWN_MOVE_MOTION`; el reposo dibujado cicla a
+su `fps` (8).
 
 `tools/build_anim.sh` regenera todas las tiras y el manifiesto `src/art/drawnAnimManifest.ts`. A la Patasola se le
 borra la pierna trasera; `clean_halo.py` quita los restos claros del fondo blanco en los bordes.

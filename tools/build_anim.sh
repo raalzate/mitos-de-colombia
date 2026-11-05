@@ -10,25 +10,7 @@ python3 -I tools/interpolate_walk.py "$OUT" idle                 # reposo = prim
 python3 -I tools/clean_halo.py "$OUT"                            # quita restos claros del fondo en los bordes
 python3 -I tools/import_pixellab.py                              # caídas generadas con PixelLab (si existen)
 python3 -I tools/fix_sprites.py "$OUT"                           # rellena huecos y quita el aura de Juan y los destellos
-python3 - <<'PY'
-import json
-m = json.load(open("public/assets/anim/manifest.json"))
-lines = ["import type { FighterId } from '../combat/CombatTypes';", "",
-         "/** Generado por tools/build_anim.sh a partir de images/Retro Folklore Character Sprite Sheet.png. */",
-         "export type DrawnAction = 'walk' | 'attack' | 'hurt' | 'idle' | 'trans' | 'fall';",
-         "export interface DrawnStrip { frames: number; w: number; h: number; interpolated?: boolean; keys?: number; lying?: number; air?: number; airEnd?: number }", "",
-         "/** `fall` (caída y levantarse, generada con PixelLab) es opcional por personaje. */",
-         "export const DRAWN_ANIM: Record<FighterId, Record<Exclude<DrawnAction, 'fall'>, DrawnStrip> & { fall?: DrawnStrip }> = {"]
-for cid, acts in m.items():
-    parts = ", ".join(
-        f"{a}: {{ frames: {v['frames']}, w: {v['w']}, h: {v['h']}"
-        + (", interpolated: true" if v.get("interpolated") else "")
-        + (f", keys: {v['keys']}" if v.get("keys") else "")
-        + (f", lying: {v['lying']}, air: {v['air']}, airEnd: {v['airEnd']}" if "lying" in v else "") + " }"
-        for a, v in acts.items())
-    lines.append(f"  {cid}: {{ {parts} }},")
-lines.append("};")
-open("src/art/drawnAnimManifest.ts", "w").write("\n".join(lines) + "\n")
-PY
+python3 -I tools/import_pixellab_moves.py                        # reposo, puño y patada de PixelLab (si existen)
+python3 -I tools/write_anim_manifest.py                          # src/art/drawnAnimManifest.ts
 python3 -I tools/measure_anim.py                              # eje y línea de suelo por fotograma
 rm -rf "$TMP"
