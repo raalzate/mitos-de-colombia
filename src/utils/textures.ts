@@ -133,3 +133,67 @@ export function splashKey(scene: Phaser.Scene, id: FighterId, slot: 'p1' | 'p2',
   const key = `splash_${id}_${slot}_${size}`;
   return scene.textures.exists(key) ? key : null;
 }
+
+/**
+ * Textura de alta densidad (tiras con `res` en el manifiesto): cada fotograma se declara con su tamaño lógico
+ * (ancho/res x alto/res) pero sigue leyendo todos sus píxeles de la imagen. Un sprite con esta textura mide en
+ * el juego lo mismo que uno normal a escala 1 (posiciones, orígenes, getBounds, recortes, escalas de pose) y en
+ * el lienzo de doble densidad muestra el doble de detalle: equivale a dibujarlo a escala 1/res sin que ningún
+ * llamador tenga que saberlo.
+ */
+export function setTextureRes(tex: Phaser.Textures.Texture, res: number): void {
+  const data = tex.customData as { res?: number };
+  if (res === 1 || data.res) return;
+  data.res = res;
+  const updateUVs = Phaser.Textures.Frame.prototype.updateUVs;
+  for (const name of tex.getFrameNames()) {
+    const f = tex.get(name);
+    const { cutX, cutY, cutWidth, cutHeight } = f;
+    // las coordenadas de textura salen del recorte en píxeles de la imagen
+    f.updateUVs = function (this: Phaser.Textures.Frame) {
+      const cw = this.cutWidth, ch = this.cutHeight;
+      this.cutWidth = cw * res;
+      this.cutHeight = ch * res;
+      updateUVs.call(this);
+      this.cutWidth = cw;
+      this.cutHeight = ch;
+      return this;
+    };
+    (f as unknown as { setCropUVs: CropUVs }).setCropUVs = cropUVs(res);
+    f.setSize(cutWidth / res, cutHeight / res, cutX, cutY);
+  }
+}
+
+type CropUVs = (crop: CropData, x: number, y: number, width: number, height: number, flipX: boolean, flipY: boolean) => CropData;
+interface CropData { u0: number; v0: number; u1: number; v1: number; x: number; y: number; cx: number; cy: number; cw: number; ch: number; width: number; height: number; flipX: boolean; flipY: boolean }
+
+/** Frame.setCropUVs para un fotograma lógico: el recorte se mide en lógico y se lee en píxeles de la imagen. */
+function cropUVs(res: number): CropUVs {
+  return function (this: Phaser.Textures.Frame, crop, x, y, width, height, flipX, flipY) {
+    const C = Phaser.Math.Clamp;
+    const rw = this.realWidth, rh = this.realHeight;
+    x = C(x, 0, rw);
+    y = C(y, 0, rh);
+    width = C(width, 0, rw - x);
+    height = C(height, 0, rh - y);
+    const ox = this.cutX + (flipX ? rw - x - width : x) * res;
+    const oy = this.cutY + (flipY ? rh - y - height : y) * res;
+    const tw = this.source.width, th = this.source.height;
+    crop.u0 = Math.max(0, ox / tw);
+    crop.v0 = Math.max(0, oy / th);
+    crop.u1 = Math.min(1, (ox + width * res) / tw);
+    crop.v1 = Math.min(1, (oy + height * res) / th);
+    crop.x = x;
+    crop.y = y;
+    crop.cx = ox;
+    crop.cy = oy;
+    // el cuadro en pantalla va en lógico
+    crop.cw = width;
+    crop.ch = height;
+    crop.width = width;
+    crop.height = height;
+    crop.flipX = flipX;
+    crop.flipY = flipY;
+    return crop;
+  };
+}

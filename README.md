@@ -10,7 +10,7 @@ a un combate al estilo Mortal Kombat.
 
 **Juégalo en el navegador:** https://mitos-de-colombia.vercel.app
 
-Hecho con Phaser 3, TypeScript y Vite. Resolución interna 384 × 224 con escalado entero y sin suavizado.
+Hecho con Phaser 3, TypeScript y Vite. Resolución lógica 384 × 224 dibujada en un lienzo de doble densidad (768 × 448), con escalado entero y sin suavizado.
 
 ## Capturas
 
