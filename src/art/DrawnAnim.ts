@@ -82,6 +82,11 @@ export const WALK_FRAME_TICKS = 5;
 /** Píxeles recorridos por fotograma clave de andar: los pies no patinan. Con intermedios sintetizados, la mitad. */
 export const WALK_STRIDE_PX = 7;
 
+/** Paso del ciclo de andar de un personaje (las tiras con intermedios avanzan medio paso por fotograma). */
+export function walkStride(id: FighterId): number {
+  return DRAWN_ANIM[id]?.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;
+}
+
 /** Fotograma del ciclo de andar según la distancia recorrida (sin deslizamiento de pies). */
 export function walkFrameByDistance(distance: number, frames: number, stride = WALK_STRIDE_PX): number {
   return Math.floor(Math.max(0, distance) / stride) % frames;
@@ -155,33 +160,55 @@ export function strikeIndex(k: StrikeKeys, heavy: boolean, p: AttackProgress): n
   return back[Math.min(back.length - 1, Math.floor(u * back.length))];
 }
 
-/** Desplazamiento e inclinación del golpe: recoge atrás, se lanza al impacto y vuelve con suavidad. */
-export function strikeMotion(p: AttackProgress, heavy: boolean, kick: boolean): { dx: number; rot: number } {
-  const reach = heavy ? 5 : 3;
-  const lean = kick ? -3 : heavy ? 4 : 2;
+export interface StrikeMotion { dx: number; dy: number; rot: number; sx: number; sy: number }
+
+/**
+ * Forma de cada golpe sobre el fotograma entero. Puño y patada comparten tira, así que se
+ * distinguen por el cuerpo: el puño se lanza hacia delante inclinado y estirado; la patada
+ * se echa hacia atrás (contrapeso de la pierna) y se eleva un poco.
+ * [recoger dx, recoger giro, alcance dx, inclinación, elevación dy, estiramiento]
+ */
+const STRIKE_SHAPE = {
+  punch: { light: [-3, -3, 7, 4, 0, 0.06], heavy: [-6, -5, 11, 7, 0, 0.09] },
+  kick: { light: [-2, -4, 5, -8, -2, 0.05], heavy: [-4, -6, 8, -13, -3, 0.07] },
+} as const;
+/** Sacudida del primer frame activo: el golpe "entra" un poco más allá y se asienta. */
+const STRIKE_SNAP = 2;
+
+/**
+ * Movimiento del golpe: anticipación (recoge atrás y se encoge), estocada en los frames activos
+ * (se lanza hacia delante, se estira y sobrepasa un instante) y vuelta suave a la guardia.
+ */
+export function strikeMotion(p: AttackProgress, heavy: boolean, kick: boolean): StrikeMotion {
+  const [wdx, wrot, reach, lean, lift, stretch] = STRIKE_SHAPE[kick ? 'kick' : 'punch'][heavy ? 'heavy' : 'light'];
   if (p.frame < p.startup) {
-    const t = p.startup > 0 ? (p.frame + 1) / p.startup : 1;
-    return { dx: -(heavy ? 3 : 2) * easeOut(t), rot: -2 * easeOut(t) };
+    const t = easeOut(p.startup > 0 ? (p.frame + 1) / p.startup : 1);
+    // anticipación: se encoge sobre sí mismo antes de soltar el golpe
+    return { dx: wdx * t, dy: 0, rot: wrot * t, sx: 1 - stretch * 0.5 * t, sy: 1 + stretch * 0.3 * t };
   }
-  if (p.frame < p.startup + p.active) return { dx: reach, rot: lean };
-  const t = p.recovery > 0 ? (p.frame - p.startup - p.active) / p.recovery : 1;
+  if (p.frame < p.startup + p.active) {
+    const snap = p.frame === p.startup ? STRIKE_SNAP : 0;
+    return { dx: reach + snap, dy: lift, rot: lean, sx: 1 + stretch, sy: 1 - stretch * 0.5 };
+  }
+  // el último frame de recuperación ya está en guardia (t = 1)
+  const t = p.recovery > 0 ? (p.frame - p.startup - p.active + 1) / p.recovery : 1;
   const follow = heavy ? STRIKE_FOLLOW + 0.1 : STRIKE_FOLLOW;
   const r = t < follow ? 1 : 1 - easeInOut((t - follow) / (1 - follow));
-  return { dx: reach * r, rot: lean * r };
+  return { dx: reach * r, dy: lift * r, rot: lean * r, sx: 1 + stretch * r, sy: 1 - stretch * 0.5 * r };
 }
 
 /** Retroceso al recibir un golpe: máximo y sostenido durante el hitstop, luego vuelve a la guardia. */
 export function hitRecoil(stun: number, stunStart: number, heavy: boolean): { dx: number; rot: number } {
   const t = stunStart > 0 ? 1 - stun / stunStart : 1;
   const r = t < 0.25 ? 1 : 1 - easeInOut((t - 0.25) / 0.75);
-  const a = heavy ? 1 : 0.6;
-  return { dx: -4 * a * r, rot: -9 * a * r };
+  const a = heavy ? 1 : 0.65;
+  return { dx: -8 * a * r, rot: -13 * a * r };
 }
 
 /** Temblor del que recibe el golpe durante el hitstop (px), más fuerte en golpes fuertes. */
 export function hitShake(hitstop: number): number {
   if (hitstop <= 0) return 0;
-  const amp = hitstop >= 6 ? 2 : 1;
+  const amp = hitstop >= 5 ? 3 : 2;
   return hitstop % 2 === 0 ? amp : -amp;
 }
 
@@ -190,9 +217,9 @@ export const LAND_FRAMES = 9;
 export const LAND_TUCK = 3;
 export function landSquash(n: number): { sx: number; sy: number } {
   if (n < 0 || n >= LAND_FRAMES) return { sx: 1, sy: 1 };
-  if (n < LAND_TUCK) return { sx: 1.08, sy: 0.9 };
+  if (n < LAND_TUCK) return { sx: 1.12, sy: 0.86 };
   const t = (n - LAND_TUCK) / (LAND_FRAMES - LAND_TUCK);
-  const s = 0.07 * (1 - easeOut(t));
+  const s = 0.1 * (1 - easeOut(t));
   return { sx: 1 + s, sy: 1 - s };
 }
 
@@ -233,9 +260,11 @@ export function idleLife(id: FighterId, frame: number, hpFrac = 1): { sx: number
   return { sx, sy, dx, dy: 0 };
 }
 
-/** Velocidades verticales entre las que dura la voltereta del salto con dirección. */
-const FLIP_FROM = -5;
-const FLIP_TO = 4.5;
+/** Velocidades verticales entre las que dura la voltereta del salto con dirección (gravedad alta). */
+const FLIP_FROM = -5.8;
+const FLIP_TO = 5.5;
+/** |vy| por debajo del cual el salto vertical se encoge en la cima. */
+const APEX_VY = 3.2;
 /** Fase de la voltereta (0..1) o null si no hay voltereta. */
 export function flipPhase(vy: number, vxForward: number): number | null {
   if (Math.abs(vxForward) < 0.1 || vy < FLIP_FROM || vy > FLIP_TO) return null;
@@ -285,8 +314,9 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       if (i.landing !== undefined && i.landing < LAND_TUCK) return tuckFrame(id);
       // postura de guardia: ciclo de 8 fotogramas (sube y baja la guardia) a 12 fps; la postura de MK II tiene 7 a 12,5 fps
       return m.idle ? { action: 'idle', index: Math.floor(i.frame / 5) % m.idle.frames } : { action: 'walk', index: 0 };
+    case 'dash':
     case 'walk': {
-      const stride = m.walk.interpolated ? WALK_STRIDE_PX / 2 : WALK_STRIDE_PX;
+      const stride = walkStride(id);
       if (i.walkDistance !== undefined) return { action: 'walk', index: walkPhase(i.walkDistance, walkN, stride, i.backward).index };
       const k = Math.floor(i.frame / WALK_FRAME_TICKS) % walkN;
       return { action: 'walk', index: i.backward ? (walkN - k) % walkN : k };
@@ -296,7 +326,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
       const vy = i.vy ?? (i.rising ? -5 : 5);
       if ((i.stateFrame ?? 99) < 2) return tuckFrame(id);
       if (flipPhase(vy, i.vxForward ?? 0) !== null) return tuckFrame(id);
-      if (Math.abs(vy) < 2.6) return tuckFrame(id);
+      if (Math.abs(vy) < APEX_VY) return tuckFrame(id);
       return standFrame(id);
     }
     case 'crouch':
@@ -331,7 +361,8 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
     case 'heavykick':
     case 'airlight':
     case 'airkick':
-      return strike(isHeavy(i.anim), i.animFrame);
+      // la patada usa la pose de máxima extensión (pierna estirada); el puño ligero, la primera
+      return strike(isHeavy(i.anim) || isKick(i.anim), i.animFrame);
     // tira de daño: [golpe, golpe fuerte, caída, tumbado, levantarse, victoria]; con 5 fotogramas
     // falta uno de los intermedios, así que se cuenta desde el final.
     case 'knockdown': {
@@ -343,7 +374,7 @@ export function drawnFrame(id: FighterId, i: DrawnFrameInput): DrawnFrame | null
           const k = Math.floor((i.lying ?? 99) / 3);
           return { action: 'fall', index: Math.min(fallLying, fallAirEnd + 1 + k) };
         }
-        const t = clamp01(((i.vy ?? 0) + 4) / 8);
+        const t = clamp01(((i.vy ?? 0) + 5) / 10);
         return { action: 'fall', index: Math.round(fallAir + (fallAirEnd - fallAir) * t) };
       }
       if (i.state === 'defeat' || i.grounded) return { action: 'hurt', index: hurtN >= 6 ? 3 : hurtN - 2 };
@@ -417,9 +448,15 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
       }
       break;
     }
+    case 'dash':
+      // carrerita: inclinado hacia donde va, a ras del suelo y un poco estirado
+      pose.rot = i.backward ? -6 : 7;
+      pose.dy = -1;
+      pose.sx = 1.05; pose.sy = 0.97;
+      break;
     case 'walk': {
       const n = DRAWN_ANIM[id].walk.frames;
-      if (i.walkDistance !== undefined) pose.dy = walkPhase(i.walkDistance, n, WALK_STRIDE_PX, i.backward).bob;
+      if (i.walkDistance !== undefined) pose.dy = walkPhase(i.walkDistance, n, walkStride(id), i.backward).bob;
       if (i.landing !== undefined && i.landing < LAND_FRAMES) {
         const s = landSquash(Math.max(LAND_TUCK, i.landing));
         pose.sx = s.sx; pose.sy = s.sy;
@@ -436,9 +473,9 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
         pose.rot = 360 * easeInOut(flip) * Math.sign(i.vxForward ?? 0);
         break;
       }
-      if (Math.abs(vy) < 2.6) { pose.center = true; break; }
+      if (Math.abs(vy) < APEX_VY) { pose.center = true; break; }
       // estirado al subir (más al despegar) y ligeramente al bajar buscando el suelo
-      const s = vy < 0 ? 0.03 + 0.05 * clamp01((-vy - 2.6) / 4) : 0.03;
+      const s = vy < 0 ? 0.04 + 0.07 * clamp01((-vy - APEX_VY) / 5) : 0.04;
       pose.sx = 1 - s * 0.6; pose.sy = 1 + s;
       break;
     }
@@ -464,7 +501,7 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
       if (i.state === 'defeat') break;
       if (!i.grounded) {
         // en el aire se inclina hacia atrás según baja
-        const down = clamp01(((i.vy ?? 0) + 4) / 10);
+        const down = clamp01(((i.vy ?? 0) + 5) / 12);
         pose.rot = -(3 + 9 * down);
       } else if ((i.lying ?? 99) < LAND_BOUNCE_FRAMES) {
         pose.dy = -Math.round(4 * Math.sin(Math.PI * (i.lying ?? 0) / LAND_BOUNCE_FRAMES));
@@ -474,7 +511,7 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
     default:
       if (i.attackProgress && (i.state === 'attack' || i.state === 'special')) {
         const m = strikeMotion(i.attackProgress, isHeavy(i.anim), isKick(i.anim));
-        pose.dx = m.dx; pose.rot = m.rot;
+        pose.dx = m.dx; pose.dy = m.dy; pose.rot = m.rot; pose.sx = m.sx; pose.sy = m.sy;
       }
   }
   return pose;

@@ -16,9 +16,10 @@ import { CombatHUD } from '../ui/CombatHUD';
 import { FIGHTERS, specialHint } from '../data/fighters';
 import { ORIGIN_Y } from '../art/CharacterArtist';
 import { splashPose, splashPoseIndex, type SplashPose } from '../art/SplashPose';
-import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, drawnMotion, frameCenterY, hitShake, standHeight, stripAnchor, walkPhase } from '../art/DrawnAnim';
+import { WALK_STRIDE_PX, drawnAnimKey, drawnFrame, drawnMotion, frameCenterY, hitShake, standHeight, stripAnchor, walkPhase, walkStride } from '../art/DrawnAnim';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
-import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, type DrawnFxKind } from '../art/DrawnFx';
+import { DRAWN_FX_FRAMES, drawnFxFor, drawnFxMotion, impactScale, strikeTrail, type DrawnFxKind } from '../art/DrawnFx';
+import { buildClawArc, buildGuardStar, buildImpactStar, buildMacheteArc } from '../art/EffectsArtist';
 import { sfx, type SfxName } from '../audio/Sfx';
 import { isMacheteAttack } from '../audio/Samples';
 import { SCARE_COOLDOWN, shouldRandomScare, tension } from '../combat/Fear';
@@ -45,8 +46,12 @@ import { startWithLoading } from '../ui/Loading';
 import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../demo/Demo';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
-const VS_FRAMES = 90;
-const DUEL_STEP = 110;
+const VS_FRAMES = 70;
+const DUEL_STEP = 96;
+/** ritmo de ronda: «¡LUCHA!» y comienzo tras el cartel de ronda; pausa tras el KO */
+const FIGHT_CALL = 40;
+const FIGHT_GO = 62;
+const ROUND_END_FRAMES = 125;
 
 type Phase = 'intro' | 'fight' | 'finish' | 'calm' | 'roundEnd' | 'matchEnd' | 'flee';
 
@@ -60,8 +65,9 @@ interface Dissolve {
   glow: Phaser.FX.Glow | null;
 }
 
-/** Frames lógicos de cámara lenta tras el KO. */
-const KO_SLOWMO = 26;
+/** Frames lógicos de cámara lenta tras el KO (a 0,4×: ~0,75 s reales). */
+const KO_SLOWMO = 18;
+const KO_SLOWMO_RATE = 0.4;
 
 interface FighterView {
   sprite: Phaser.GameObjects.Sprite;
@@ -215,6 +221,7 @@ export class FightScene extends Phaser.Scene {
     this.buildStage();
     this.buildFighters();
     this.buildUi();
+    this.ensureImpactFx();
 
     this.cameras.main.setBounds(0, 0, ARENA_WIDTH, GAME_HEIGHT);
     this.cameras.main.setRoundPixels(true);
@@ -736,7 +743,7 @@ export class FightScene extends Phaser.Scene {
       return;
     }
     // cámara lenta del KO: la lógica avanza a un tercio
-    this.accumulator += Math.min(delta, 250) * (this.slowFrames > 0 && !this.paused ? 0.33 : 1);
+    this.accumulator += Math.min(delta, 250) * (this.slowFrames > 0 && !this.paused ? KO_SLOWMO_RATE : 1);
     let steps = 0;
     while (this.accumulator >= LOGIC_STEP_MS && steps < 5) {
       this.logicStep();
@@ -813,11 +820,11 @@ export class FightScene extends Phaser.Scene {
         }
         if (this.phaseFrame === chatEnd) this.hideBubble();
         if (this.phaseFrame === delay + 1 && this.roundNumber === 1) this.showMessage('RONDA 1', '');
-        if (this.phaseFrame === delay + 60) {
+        if (this.phaseFrame === delay + FIGHT_CALL) {
           this.showMessage('¡LUCHA!', '');
           sfx.play('confirm');
         }
-        if (this.phaseFrame >= delay + 100) {
+        if (this.phaseFrame >= delay + FIGHT_GO) {
           this.phase = 'fight';
           this.phaseFrame = 0;
           this.hideMessage();
@@ -843,7 +850,7 @@ export class FightScene extends Phaser.Scene {
         this.p1.update(EMPTY_INPUT);
         this.p2.update(EMPTY_INPUT);
         // el mito termina de disolverse antes de pasar al resultado
-        if (this.phaseFrame >= 110 && (!this.dissolve || this.dissolve.frame >= CALM_FRAMES)) this.goToResult();
+        if (this.phaseFrame >= 85 && (!this.dissolve || this.dissolve.frame >= CALM_FRAMES)) this.goToResult();
         break;
     }
     this.hud.update(framesToDisplaySeconds(this.timerFrames, LOGIC_FPS), this.score, this.logicFrame);
@@ -1129,7 +1136,7 @@ export class FightScene extends Phaser.Scene {
     this.p2.update(EMPTY_INPUT);
     const w = this.roundWinner;
     // arcade: tras la fatalidad (o si no remató) el mito vencido también se calma y se disuelve
-    if (this.phaseFrame === 95 && this.matchWinnerSlot) {
+    if (this.phaseFrame === 80 && this.matchWinnerSlot) {
       const loser = this.matchWinnerSlot === 1 ? this.p2 : this.p1;
       if (loser.hp <= 0) this.startDissolve(loser.slot);
     }
@@ -1144,7 +1151,7 @@ export class FightScene extends Phaser.Scene {
       const name = f.stats.name;
       this.showMessage(this.message.text, `${this.settings.mode === 'cpu' && w === 2 ? 'CPU' : 'JUGADOR ' + w}: ${name}`);
     }
-    if (this.phaseFrame >= 170) {
+    if (this.phaseFrame >= ROUND_END_FRAMES) {
       if (this.matchWinnerSlot) {
         this.phase = 'matchEnd';
         this.phaseFrame = 0;
@@ -1375,11 +1382,38 @@ export class FightScene extends Phaser.Scene {
     if (phase === (p.cast ? 'cast' : 'release') && p.voice) sfx.monster(f.stats.id, 'power', f.slot);
   }
 
-  private onHit(e: HitEvent): void {
-    const key = e.result.blocked ? 'fx_block' : e.heavy ? 'fx_heavy' : 'fx_hit';
-    const sp = this.add.sprite(e.x, e.y, key).setDepth(22).setFlipX(e.attacker.facing === -1);
+  /** Efectos de impacto grandes (estrella, guardia, tajo, zarpazo): se generan una vez por partida. */
+  private ensureImpactFx(): void {
+    const sheets = { fx_star: [buildImpactStar, 30], fx_guard: [buildGuardStar, 26], fx_macheteArc: [buildMacheteArc, 26], fx_claw: [buildClawArc, 26] } as const;
+    for (const [key, [build, rate]] of Object.entries(sheets)) {
+      if (this.anims.exists(key)) continue;
+      const sh = build();
+      addSheet(this, key, sh.pixmap, sh.frameWidth, sh.frameHeight, sh.frames);
+      this.anims.create({ key, frames: this.anims.generateFrameNumbers(key, { start: 0, end: sh.frames - 1 }), frameRate: rate, repeat: 0 });
+    }
+  }
+
+  private impactSprite(key: string, x: number, y: number, flip: boolean, scale: number, depth = 22): void {
+    const sp = this.add.sprite(Math.round(x), Math.round(y), key).setDepth(depth).setFlipX(flip).setScale(scale);
     sp.play(key);
     sp.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => sp.destroy());
+  }
+
+  private onHit(e: HitEvent): void {
+    const flip = e.attacker.facing === -1;
+    const kind = e.projectile ? e.projectile.attack.kind : e.attacker.attack?.kind;
+    const damage = e.projectile ? e.projectile.attack.damage : e.attacker.attack?.damage ?? 5;
+    const scale = impactScale(damage, e.result.blocked);
+    if (e.result.blocked) {
+      this.impactSprite('fx_guard', e.x, e.y, flip, scale);
+      this.sparkEmitter.explode(4, e.x, e.y);
+    } else {
+      // estrella de impacto legible y, debajo, la chispa clásica para el color
+      this.impactSprite(e.heavy ? 'fx_heavy' : 'fx_hit', e.x, e.y, flip, 1, 21);
+      this.impactSprite('fx_star', e.x, e.y, flip, scale);
+      const trail = e.projectile ? null : strikeTrail(e.attacker.stats.id, kind);
+      if (trail) this.impactSprite(trail === 'machete' ? 'fx_macheteArc' : 'fx_claw', e.x - e.attacker.facing * 10, e.y, flip, e.heavy ? 1.25 : 1, 23);
+    }
     const machete = !e.projectile && isMacheteAttack(e.attacker.stats.id, e.attacker.attack?.kind);
     if (e.result.blocked) {
       sfx.play(machete ? 'macheteClang' : 'block');
@@ -1388,13 +1422,12 @@ export class FightScene extends Phaser.Scene {
       sfx.monster(e.defender.stats.id, 'hurt', e.defender.slot);
       this.views[e.defender.slot].flash = 4;
       this.bleed(e.x, e.y, e.attacker.facing, bloodDrops(false, e.heavy, e.result.damage), e.heavy ? 3 : 1);
-      this.sparkEmitter.explode(e.heavy ? 10 : 5, e.x, e.y);
+      this.sparkEmitter.explode(e.heavy ? 14 : 6, e.x, e.y);
       if (e.heavy) {
-        this.cameras.main.shake(120, 0.006);
+        this.cameras.main.shake(150, 0.01);
         // destello breve en golpes fuertes: el impacto se siente en toda la pantalla
         if (this.flashRect.alpha < 0.15) this.flashRect.setFillStyle(0xfff4e0).setAlpha(0.15);
       }
-      const kind = e.projectile ? e.projectile.attack.kind : e.attacker.attack?.kind;
       const spec = kind === 'special1' ? e.attacker.stats.special1 : kind === 'special2' ? e.attacker.stats.special2 : null;
       if (spec) this.emitterFor(spec.particle)?.explode(10, e.x, e.y);
       if (spec?.drain) this.views[e.attacker.slot].flash = 0;
@@ -1544,7 +1577,8 @@ export class FightScene extends Phaser.Scene {
       if (v.drawn) {
         const newStep = v.lastRenderLf !== this.logicFrame;
         v.lastRenderLf = this.logicFrame;
-        if (f.anim === 'walk') v.walkDist += Math.abs(f.x - v.lastX);
+        const walking = f.anim === 'walk' || f.anim === 'dash';
+        if (walking) v.walkDist += Math.abs(f.x - v.lastX);
         else v.walkDist = 0;
         v.lastX = f.x;
         if (newStep) {
@@ -1563,7 +1597,7 @@ export class FightScene extends Phaser.Scene {
         const struck = (f.state === 'hitstun' || f.state === 'knockdown') && f.anim !== 'hit' && f.anim !== 'knockdown';
         const input = {
           state: f.state, anim: struck ? 'hit' : f.anim, animFrame: struck ? 1 : f.animFrame, frame: this.logicFrame, vy: f.vy, grounded: f.grounded,
-          backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
+          backward: walking && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
           vxForward: f.vx * f.facing, stateFrame: f.stateFrame, lying: f.knockdownLying, landing,
           stun: struck ? 20 : f.stun, stunStart: struck ? 20 : v.stunStart, hitstop: f.hitstop,
           hpFrac: f.hp / MAX_HP, breathPhase: slot === 1 ? 0 : 37,
@@ -1576,8 +1610,8 @@ export class FightScene extends Phaser.Scene {
         if (animKey && this.textures.exists(animKey)) {
           // un solo fotograma original visible; el movimiento sale del ritmo y de transformar el fotograma entero
           if (v.sprite.texture.key !== animKey || v.sprite.frame.name !== String(df!.index)) v.sprite.setTexture(animKey, df!.index);
-          if (f.anim === 'walk') {
-            const ph = walkPhase(v.walkDist, DRAWN_ANIM[v.id].walk.frames, WALK_STRIDE_PX, input.backward);
+          if (walking) {
+            const ph = walkPhase(v.walkDist, DRAWN_ANIM[v.id].walk.frames, walkStride(v.id), input.backward);
             if (ph.footfall && v.lastFootfallIndex !== ph.index && f.grounded) {
               v.lastFootfallIndex = ph.index;
               this.spawnEffect({ kind: 'dust', x: f.x - f.facing * 6, y: f.y, facing: f.facing, data: { small: true } }, v.id);
@@ -1627,7 +1661,7 @@ export class FightScene extends Phaser.Scene {
         }
       } else {
         const table = ANIM_TABLES[v.key];
-        const frames = table[f.anim] ?? table.idle;
+        const frames = table[f.anim === 'dash' ? 'walk' : f.anim] ?? table.idle;
         const idx = frames[Math.min(f.animFrame, frames.length - 1)] ?? 0;
         v.sprite.setFrame(idx);
         v.sprite.setPosition(Math.round(f.x) + shake, Math.round(f.y));

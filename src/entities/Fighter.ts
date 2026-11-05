@@ -1,4 +1,4 @@
-import { ARENA_MARGIN, ARENA_WIDTH, GRAVITY, GROUND_Y, MAX_FALL_SPEED, MAX_HP } from '../config/game-config';
+import { ARENA_MARGIN, ARENA_WIDTH, GRAVITY, GROUND_Y, JUMP_SCALE, MAX_FALL_SPEED, MAX_HP } from '../config/game-config';
 import type {
   AttackDef, AttackKind, Facing, FighterState, FighterStats, HitResult, InputState, PlayerSlot, WorldBox,
 } from '../combat/CombatTypes';
@@ -43,10 +43,16 @@ export const NULL_BEHAVIOR: FighterBehavior = {
   hitboxOverride: () => null,
 };
 
-const LYING_FRAMES = 34;
-export const GETUP_FRAMES = 14;
-const GETUP_INVULN = 20;
+const LYING_FRAMES = 22;
+export const GETUP_FRAMES = 10;
+const GETUP_INVULN = 16;
 const KNOCKBACK_FRICTION = 0.86;
+/** Golpe recibido: el retroceso empuja un poco más y desliza con polvo. */
+export const HIT_PUSH = 1.2;
+/** Carrerita (doble toque adelante o atrás): duración, impulso y ventana del doble toque. */
+export const DASH_FRAMES = 14;
+export const DASH_BOOST = 2.4;
+export const DASH_TAP_WINDOW = 10;
 
 export class Fighter {
   readonly slot: PlayerSlot;
@@ -82,6 +88,14 @@ export class Fighter {
   cooldowns: Record<AttackKind, number> = {
     light: 0, heavy: 0, lightkick: 0, heavykick: 0, special1: 0, special2: 0, ultimate: 0,
   };
+
+  /** carrerita en curso (frames restantes) y su dirección */
+  dash = 0;
+  dashDir: Facing = 1;
+  /** doble toque: dirección pulsada el frame anterior, la última soltada y hace cuánto */
+  private lastDir: -1 | 0 | 1 = 0;
+  private tapDir: -1 | 0 | 1 = 0;
+  private tapAge = 99;
 
   /** Datos libres para comportamientos (p. ej. objetivo de la erupción). */
   scratch: Record<string, number> = {};
@@ -177,6 +191,10 @@ export class Fighter {
     this.invuln = 0;
     this.knockdownLying = 0;
     this.dead = false;
+    this.dash = 0;
+    this.lastDir = 0;
+    this.tapDir = 0;
+    this.tapAge = 99;
     this.alpha = 1;
     this.scratch = {};
     this.hitsLanded = 0;
@@ -256,11 +274,34 @@ export class Fighter {
       if (this.stun <= 0 && !input.block) this.setState('idle');
       return;
     }
-    if (this.tryStartAttack(input)) return;
+    const dir: -1 | 0 | 1 = input.left === input.right ? 0 : input.right ? 1 : -1;
+    const tapped = dir !== 0 && dir !== this.lastDir && dir === this.tapDir && this.tapAge <= DASH_TAP_WINDOW;
+    if (this.lastDir !== 0 && dir !== this.lastDir) { this.tapDir = this.lastDir; this.tapAge = 0; }
+    else if (this.tapAge < 99) this.tapAge++;
+    this.lastDir = dir;
+    if (this.tryStartAttack(input)) { this.dash = 0; return; }
     if (input.pressed.up) {
+      this.dash = 0;
       this.startJump(input);
       return;
     }
+    if (tapped && !input.block && !input.down) {
+      // doble toque: carrerita hacia delante o paso largo hacia atrás
+      this.dash = DASH_FRAMES;
+      this.dashDir = dir;
+      this.tapAge = 99;
+      this.events.sound('whoosh');
+      this.events.effect({ kind: 'dust', x: this.x - dir * 6, y: this.y, facing: this.facing });
+    }
+    if (this.dash > 0 && !input.block && !input.down) {
+      this.dash--;
+      this.setState('walk');
+      const forward = this.dashDir === this.facing;
+      const speed = forward ? this.stats.walkSpeed : this.stats.backSpeed;
+      this.vx = this.dashDir * speed * (1 + DASH_BOOST * (this.dash / DASH_FRAMES));
+      return;
+    }
+    this.dash = 0;
     if (input.block) {
       this.setState('block');
       this.vx = 0;
@@ -272,9 +313,8 @@ export class Fighter {
       this.vx = 0;
       return;
     }
-    if (input.left !== input.right) {
+    if (dir !== 0) {
       this.setState('walk');
-      const dir: Facing = input.right ? 1 : -1;
       const speed = dir === this.facing ? this.stats.walkSpeed : this.stats.backSpeed;
       this.vx = dir * speed;
       return;
@@ -358,12 +398,14 @@ export class Fighter {
 
   private updateHitstun(): void {
     this.stun--;
+    this.slideDust();
     this.vx *= KNOCKBACK_FRICTION;
     if (this.stun <= 0) this.setState('idle');
   }
 
   private updateKnockdown(): void {
     if (!this.grounded) return;
+    this.slideDust();
     this.vx *= 0.8;
     this.knockdownLying++;
     if (this.knockdownLying >= LYING_FRAMES) {
@@ -373,6 +415,13 @@ export class Fighter {
       }
       this.setState('getup');
       this.invuln = GETUP_INVULN;
+    }
+  }
+
+  /** Polvo de los pies mientras el golpe lo arrastra por el suelo. */
+  private slideDust(): void {
+    if (this.grounded && Math.abs(this.vx) > 1.4 && this.stateFrame % 3 === 1) {
+      this.events.effect({ kind: 'dust', x: this.x, y: this.y, facing: this.facing, data: { small: true } });
     }
   }
 
@@ -426,6 +475,7 @@ export class Fighter {
     this.meter = addMeter(this.meter, result.blocked ? 1 : 3);
     this.hitstop = hitstop;
     if (this.isAttacking() && this.attack) this.behavior.onAttackEnd(this, this.attack);
+    this.dash = 0;
     if (result.blocked) {
       this.setState('block');
       this.stun = result.hitstun;
@@ -436,22 +486,22 @@ export class Fighter {
       this.dead = true;
       this.setState('knockdown');
       this.grounded = false;
-      this.vy = Math.min(-4, result.launch || -4);
-      this.vx = Math.max(2.5, result.knockback) * pushDir;
+      this.vy = Math.min(-4, result.launch || -4) * JUMP_SCALE;
+      this.vx = Math.max(2.5, result.knockback) * HIT_PUSH * pushDir;
       this.y -= 1;
       return;
     }
     if (result.knockdown || this.airborne) {
       this.setState('knockdown');
       this.grounded = false;
-      this.vy = result.launch !== 0 ? result.launch : -3.5;
+      this.vy = (result.launch !== 0 ? result.launch : -3.5) * JUMP_SCALE;
       this.vx = result.knockback * pushDir;
       this.y -= 1;
       return;
     }
     this.setState('hitstun');
     this.stun = result.hitstun;
-    this.vx = result.knockback * pushDir;
+    this.vx = result.knockback * HIT_PUSH * pushDir;
   }
 
   /* ----------------------------- animación ----------------------------- */
@@ -464,7 +514,7 @@ export class Fighter {
         this.animFrame = Math.floor(f / 10) % 4;
         break;
       case 'walk':
-        this.anim = 'walk';
+        this.anim = this.dash > 0 ? 'dash' : 'walk';
         this.animFrame = Math.floor(f / 6) % 6;
         break;
       case 'crouch':
