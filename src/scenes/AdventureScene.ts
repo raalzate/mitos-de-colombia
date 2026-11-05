@@ -11,13 +11,15 @@ import type { FighterId } from '../combat/CombatTypes';
 import { DialogBox } from '../adventure/DialogBox';
 import {
   GUARDIANS, HERO_FIGHTER, LLORONA_EVENT_Y, PESCADOR_REFUGIO, RUSTLE_RATE, SPIRITS,
-  STEP, inRect, walkable, type Cell, type Dir, type Guardian, type Mood, type Npc, type Spirit,
+  STEP, inRect, walkable, BRAIDABLE, pickPrank, type Cell, type Dir, type Guardian, type Mood, type Npc, type Spirit,
 } from '../adventure/World';
+import { firstTime, markTalked, storyAgain, talkKey, villagerLines } from '../adventure/Memory';
+import { isHouse, isSafe, scareAllowed } from '../adventure/Safe';
 import {
   areaIn, soundIn, buildingFootprint, buildingName, campoSpot, cellsOf, doorCell, getMap, interiorOf, moodIn, propFootprint,
   type GameMap, type MapBuilding, type MapProp, type Sound,
 } from '../adventure/Maps';
-import { ABUELA_INTRO, STORIES, STORY_IDS, abuelaNudge, calmedWords, juanAfterCalm, mythTaunt, roundTally } from '../adventure/Stories';
+import { ABUELA_INTRO, STORIES, STORY_IDS, type StoryId, abuelaNudge, calmedWords, juanAfterCalm, mythTaunt, roundTally } from '../adventure/Stories';
 import {
   LAST_HOUR, MS_PER_MINUTE, TRIP_MINUTES, addSighting, allCalmed, applyOutcome, clearAdventure, clockText, nightOver, fightDifficulty, hasEscapulario, hasMachete, homeOf, loadAdventure, newAdventure, reportSightings, saveAdventure,
   escapularioWornOut, giveEscapulario, loseEscapulario, losesEscapularioInFight,
@@ -26,6 +28,7 @@ import {
 import {
   GLIMPSE_MAX, GLIMPSE_MIN, HEAR_RADIUS, ambushChance, dist, popSpot, relocate, spawnHidden, vanishChance, wander, zoneCells, type Hidden, type Zoned,
   AMBUSH_GAP_MS, DISGUISE_STEPS, GLIMPSE_CHANCE, HINT_CHANCE, HINT_GAP_MS, HINT_RADIUS, OMEN_GAP_MS, SOUND_GAP_MS, disguiseChance, hintReady, rested,
+  HOUSE_PRANK_CHANCE, HOUSE_PRANK_MIN_STEPS, SPIRIT_CHANCE, SPIRIT_GAPS, newSpiritPace, spiritReady, spiritShown,
 } from '../adventure/Hunt';
 import { getSettings, setSettings } from '../utils/game';
 import {
@@ -47,7 +50,7 @@ import { ITEM_NAME, currentMission, items, missions, purpose, waypoint, type Ite
 import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { startWithLoading } from '../ui/Loading';
-import { DEMO, DEMO_AMBUSH_GAP_MS, DEMO_HINT_CHANCE, DEMO_HINT_GAP_MS, DEMO_HINT_RADIUS, DEMO_OMEN_GAP_MS, DEMO_WALK_FRAMES } from '../demo/Demo';
+import { DEMO, DEMO_SPIRIT_GAPS, DEMO_AMBUSH_GAP_MS, DEMO_HINT_CHANCE, DEMO_HINT_GAP_MS, DEMO_HINT_RADIUS, DEMO_OMEN_GAP_MS, DEMO_WALK_FRAMES } from '../demo/Demo';
 import { AdventureBot, type BotView } from '../demo/AdventureBot';
 import type { EndingData } from './EndingScene';
 import { NightLights } from '../adventure/Lighting';
@@ -126,7 +129,7 @@ const feetY = (cy: number) => cy * CELL + CELL - 3;
 const key = (x: number, y: number) => `${x},${y}`;
 
 interface NpcView {
-  npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean; talks: number;
+  npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean;
   /** vida propia: escala de base, fase de la respiración, fotogramas hasta la próxima ocurrencia y hasta volver a su postura */
   scale: number; phase: number; beat: number; glancing: number;
   /** lo que tiene en la mano antes de dárselo a Juan */
@@ -148,6 +151,9 @@ interface Stranger { v: HiddenView; n: NpcView; steps: number }
  */
 const pace = { omen: -Infinity, sound: -Infinity, hint: -Infinity };
 const now = () => performance.now();
+/** Cuándo salieron el duende y el pollo maligno: también sobrevive a los cambios de mapa (las visitas sí se cuentan aparte). */
+const spiritPace = newSpiritPace();
+const SPIRIT_RULES = DEMO ? DEMO_SPIRIT_GAPS : SPIRIT_GAPS;
 /** Quienes no hablan con Juan: no dan pistas. */
 const MUTE_NPCS = new Set<string>(['perro', 'caballo']);
 
@@ -190,6 +196,8 @@ export class AdventureScene extends Phaser.Scene {
   private from = { x: 0, y: 0 };
   private progress = 0;
   private steps = 0;
+  /** pasos de Juan en esta visita al mapa */
+  private visitSteps = 0;
   private turnDelay = 0;
   private locked = false;
   private frame = 0;
@@ -255,6 +263,9 @@ export class AdventureScene extends Phaser.Scene {
     this.hidden = [];
     this.spirits = [];
     this.stranger = null;
+    // cada visita a un mapa cuenta aparte: el duende y el pollo salen a lo sumo una vez por visita
+    spiritPace.visit = {};
+    this.visitSteps = 0;
     this.waters = [];
     this.lamps = [];
     this.trains = [];
@@ -673,7 +684,7 @@ export class AdventureScene extends Phaser.Scene {
     const sprite = this.add.sprite(feetX(x), feetY(y), this.npcTexture(npc.key), 0).setOrigin(0.5, 47 / 48);
     if (npc.key === 'perro') sprite.setScale(0.75);
     const view: NpcView = {
-      npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0,
+      npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false,
       scale: sprite.scaleX, phase: this.rnd() * Math.PI * 2, beat: nextBeat(this.rnd, 30), glancing: 0,
     };
     const item = HELD[npc.name];
@@ -857,6 +868,7 @@ export class AdventureScene extends Phaser.Scene {
       if (this.progress >= 1) {
         this.moving = false;
         this.steps++;
+        this.visitSteps++;
         this.setHeroFrame();
         this.arrive();
       }
@@ -958,7 +970,7 @@ export class AdventureScene extends Phaser.Scene {
 
   /** Cerca de un espanto escondido Juan tiembla y a ratos suspira «...». */
   private idleFear(): void {
-    const near = this.hidden.some((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 5);
+    const near = this.hidden.some((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 5 && this.canScare(v.g.id));
     const base = feetX(this.st.x);
     this.hero.x = near && this.frame % 6 < 3 ? base + 1 : base;
     this.syncBelt();
@@ -1082,7 +1094,7 @@ export class AdventureScene extends Phaser.Scene {
   /** El perro gruñe y mira hacia donde ronda un espanto escondido: otra señal para encontrarlo. */
   private dogSenses(): void {
     if (!this.dog) return;
-    const near = this.hidden.find((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 6);
+    const near = this.hidden.find((v) => dist(v.h.x, v.h.y, this.st.x, this.st.y) <= 6 && this.canScare(v.g.id));
     if (!near || this.rnd() > 0.25) return;
     const dx = near.h.x - this.dogAt.x, dy = near.h.y - this.dogAt.y;
     this.faceDog(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : dy > 0 ? 'down' : 'up');
@@ -1396,17 +1408,19 @@ export class AdventureScene extends Phaser.Scene {
         this.syncClues(v);
       }
     }
+    // en zona sin miedo el desconocido no espera a Juan: se pierde entre la gente
+    if (this.stranger && !this.canScare(this.stranger.v.g.id)) void this.strangerLeave();
     if (this.stranger && this.strangerStep()) return;
     // Firulais avisa antes de que un espanto salte encima
     if (this.dogWarnCd > 0) this.dogWarnCd--;
     if (this.dog && this.dogWarnCd <= 0) {
-      const threat = this.hidden.find((v) => v.h.rest === 0 && dist(v.h.x, v.h.y, hero.x, hero.y) <= 4);
+      const threat = this.hidden.find((v) => v.h.rest === 0 && dist(v.h.x, v.h.y, hero.x, hero.y) <= 4 && this.canScare(v.g.id));
       if (threat) { void this.dogWarn(threat); return; }
     }
-    // ¿alguno salta de la nada? Nunca justo después de otro susto o de una pelea
+    // ¿alguno salta de la nada? Nunca justo después de otro susto o de una pelea, ni en zona sin miedo
     const t = now();
     if (rested(t, pace.omen, DEMO ? DEMO_AMBUSH_GAP_MS : AMBUSH_GAP_MS)) for (const v of this.hidden) {
-      if (v === this.stranger?.v || this.rnd() >= ambushChance(dist(v.h.x, v.h.y, hero.x, hero.y), v.h.rest)) continue;
+      if (v === this.stranger?.v || !this.canScare(v.g.id) || this.rnd() >= ambushChance(dist(v.h.x, v.h.y, hero.x, hero.y), v.h.rest)) continue;
       // a veces no salta: se le arrima como una persona cualquiera
       if (!this.stranger && !DEMO && this.rnd() < disguiseChance(!!v.g.disguise, this.st.flags.includes(`disfraz_${v.g.id}`)) && this.disguise(v)) return;
       void this.ambush(v);
@@ -1416,7 +1430,7 @@ export class AdventureScene extends Phaser.Scene {
     // Juan pisa una señal
     for (const v of this.hidden) {
       if (!omen) break;
-      if (!v.h.trail.some(([x, y]) => x === hero.x && y === hero.y) || this.seenClues.has(v.g.id)) continue;
+      if (!v.h.trail.some(([x, y]) => x === hero.x && y === hero.y) || this.seenClues.has(v.g.id) || !this.canScare(v.g.id)) continue;
       this.seenClues.add(v.g.id);
       void this.clueEvent(v);
       return;
@@ -1426,14 +1440,23 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     for (const v of this.hidden) {
-      if (v === this.stranger?.v) continue;
+      if (v === this.stranger?.v || !this.canScare(v.g.id)) continue;
       const d = dist(v.h.x, v.h.y, hero.x, hero.y);
       if (omen && d >= GLIMPSE_MIN && d <= GLIMPSE_MAX && this.rnd() < GLIMPSE_CHANCE) { void this.glimpse(v); break; }
       if (d <= HEAR_RADIUS && rested(t, pace.sound, SOUND_GAP_MS) && this.rnd() < 0.12) { pace.sound = t; sfx.play(MYTH_SOUND[v.g.id]); break; }
     }
     if (this.spiritStep()) return;
-    if (this.map[this.st.y][this.st.x] === '"' && this.rnd() < RUSTLE_RATE) { void this.rustleEvent(); return; }
+    if (this.housePrankStep()) return;
+    if (this.map[this.st.y][this.st.x] === '"' && this.canScare() && this.rnd() < RUSTLE_RATE) { void this.rustleEvent(); return; }
     this.maybeHint();
+  }
+
+  /**
+   * ¿Puede asustar algo donde está Juan? En las zonas sin miedo (fiestas, ciudad, interiores) no; la única excepción
+   * es el mito de la guarida (`who`): el Sombrerón en la Plaza Botero, la Muelona en su cantina de esta noche.
+   */
+  private canScare(who?: FighterId): boolean {
+    return scareAllowed(this.st, this.gm, this.st.x, this.st.y, who);
   }
 
   private showArea(): void {
@@ -1697,8 +1720,10 @@ export class AdventureScene extends Phaser.Scene {
       for (const sv of this.spirits) if (sv.shown) void this.spiritLeave(sv);
       return false;
     }
+    // en zona sin miedo no se arrima ninguno, y el que venía se esfuma
+    const safe = !this.canScare();
     for (const sv of this.spirits) {
-      const inZone = inRect(sv.s.zone, this.st.x, this.st.y);
+      const inZone = inRect(sv.s.zone, this.st.x, this.st.y) && !safe;
       if (sv.shown) {
         sv.steps++;
         const d = dist(sv.x, sv.y, this.st.x, this.st.y);
@@ -1714,17 +1739,20 @@ export class AdventureScene extends Phaser.Scene {
         if (this.map[this.st.y][this.st.x] === 'c' && this.rnd() < (DEMO ? 0.4 : 0.1)) { void this.manoEvent(sv); return true; }
         continue;
       }
-      if (this.rnd() < 0.06) this.spiritAppear(sv);
+      // el duende y el pollo maligno, de vez en cuando: descansan varios minutos y no repiten seguido (Hunt.ts)
+      const kind = sv.s.kind;
+      if (!spiritReady(kind, now(), spiritPace, SPIRIT_RULES) || this.rnd() >= SPIRIT_CHANCE) continue;
+      if (this.spiritAppear(sv)) spiritShown(kind, now(), spiritPace);
     }
     return false;
   }
 
-  private spiritAppear(sv: SpiritView): void {
+  private spiritAppear(sv: SpiritView): boolean {
     const cells = zoneCells(this.map, sv.s.zone).filter(([x, y]) => {
       const d = dist(x, y, this.st.x, this.st.y);
-      return d >= 3 && d <= 4 && !this.occupied(x, y);
+      return d >= 3 && d <= 4 && !this.occupied(x, y) && !isSafe(this.gm, x, y);
     });
-    if (!cells.length) return;
+    if (!cells.length) return false;
     [sv.x, sv.y] = cells[Math.floor(this.rnd() * cells.length)];
     sv.shown = true;
     sv.steps = 0;
@@ -1734,11 +1762,12 @@ export class AdventureScene extends Phaser.Scene {
     sfx.play(SPIRIT_SOUND[sv.s.kind]);
     if (this.dog) { this.lookDog(sv.x, sv.y); this.time.delayedCall(250, () => sfx.play('ladrido')); }
     if (sv.s.kind === 'pollo') this.eyesAt(sv.sprite.x, sv.sprite.y - 30).setData('pollo', true);
+    return true;
   }
 
   private spiritMove(sv: SpiritView, towards: boolean): void {
     const opts = (Object.keys(STEP) as Dir[]).map((d) => [sv.x + STEP[d][0], sv.y + STEP[d][1]] as [number, number])
-      .filter(([x, y]) => walkable(this.map, x, y) && !this.occupied(x, y) && inRect(sv.s.zone, x, y))
+      .filter(([x, y]) => walkable(this.map, x, y) && !this.occupied(x, y) && inRect(sv.s.zone, x, y) && !isSafe(this.gm, x, y))
       .sort((a, b) => (dist(a[0], a[1], this.st.x, this.st.y) - dist(b[0], b[1], this.st.x, this.st.y)) * (towards ? 1 : -1));
     if (!opts.length) return;
     [sv.x, sv.y] = opts[0];
@@ -1797,6 +1826,61 @@ export class AdventureScene extends Phaser.Scene {
     }
     sv.sprite.setCrop();
     await this.spiritMeet(sv);
+  }
+
+  // ---------------------------------------------------------------- el duende en las casas: travesuras, no sustos
+
+  /** En una casa de familia, de vez en cuando el duende hace una travesura. Devuelve true si la escena quedó ocupada. */
+  private housePrankStep(): boolean {
+    if (!isHouse(this.gm.id) || hasEscapulario(this.st) || this.visitSteps < HOUSE_PRANK_MIN_STEPS) return false;
+    if (!spiritReady('duende', now(), spiritPace, SPIRIT_RULES) || this.rnd() >= (DEMO ? 0.3 : HOUSE_PRANK_CHANCE)) return false;
+    spiritShown('duende', now(), spiritPace);
+    void this.housePrank();
+    return true;
+  }
+
+  /** La travesura: algo se mueve o desaparece, el duende se asoma riéndose y se va. Sin screamer, sin temblor de cámara. */
+  private async housePrank(): Promise<void> {
+    this.locked = true;
+    const furniture = this.gm.props.filter((p) => p.set === 'furniture' && !this.taken(p));
+    const braid = this.npcs.find((n) => BRAIDABLE.has(n.npc.key) && n !== this.stranger?.n);
+    const prank = pickPrank(furniture.map((p) => p.kind as FurnitureKind), !!braid, this.rnd);
+    const target = prank.on ? furniture.find((p) => prank.on!.includes(p.kind as FurnitureKind)) : undefined;
+    const img = target ? this.propImgs.get(this.propKey(target)) : undefined;
+    // el duende se asoma a dos o tres pasos, junto al mueble si lo hay
+    const near = target ?? { x: this.st.x, y: this.st.y };
+    const cells = zoneCells(this.map, { x0: near.x - 3, y0: near.y - 3, x1: near.x + 3, y1: near.y + 3 })
+      .filter(([x, y]) => !this.occupied(x, y) && dist(x, y, this.st.x, this.st.y) >= 2);
+    const at = cells.length ? cells[Math.floor(this.rnd() * cells.length)] : null;
+
+    if (img) {
+      const x = img.x;
+      sfx.play('whoosh');
+      await this.tween({ targets: img, x: x + 2, duration: 70, yoyo: true, repeat: 5 });
+      img.x = x;
+    } else if (prank.kind === 'trenza' && braid) {
+      await this.bubble(braid.sprite, 1, 400);
+    }
+    await this.bubble(this.hero, 1, 400);
+    await this.dialog.say([prank.scene.replace('{QUIEN}', braid?.npc.name ?? 'LA SEÑORA')]);
+    if (prank.kind === 'trenza' && braid && prank.npc) await this.dialog.say([prank.npc], { speaker: braid.npc.name });
+    let sp: Phaser.GameObjects.Sprite | null = null;
+    if (at) {
+      sp = this.add.sprite(feetX(at[0]), feetY(at[1]) + 2, 'av_spirit_duende', 0).setOrigin(0.5, 1).setScale(SPIRIT_SCALE.duende)
+        .setAlpha(0).setFlipX(at[0] > this.st.x).setDepth(feetY(at[1]));
+      sfx.play('duende');
+      await this.tween({ targets: sp, alpha: 1, y: sp.y - 4, duration: 300, yoyo: false });
+      this.tweens.add({ targets: sp, y: sp.y + 4, duration: 180, yoyo: true, repeat: 3 });
+    }
+    if (!this.st.flags.includes('espiritu_duende')) this.st.flags.push('espiritu_duende');
+    await this.dialog.say([prank.duende], { speaker: 'EL DUENDE' });
+    if (sp) {
+      const s = sp;
+      await this.tween({ targets: s, alpha: 0, scaleX: SPIRIT_SCALE.duende * 0.3, duration: 260 });
+      s.destroy();
+    }
+    await this.dialog.say([prank.juan], { speaker: 'JUAN MACHETE' });
+    this.locked = false;
   }
 
   // ---------------------------------------------------------------- historia
@@ -1976,39 +2060,66 @@ export class AdventureScene extends Phaser.Scene {
         : '¡UNA AREPA DE CHOCLO CON QUESITO! ¿PA\' USTED O PA\' ALGÚN PERRITO? JA, JA, LLÉVESELA.'], { speaker: npc.name });
       await this.giveFrom(n, 'arepa');
       await this.dialog.say(['JUAN GUARDA LA AREPA EN EL CARRIEL.']);
-      n.talks++;
-    } else if (npc.lines?.length) await this.dialog.say(npc.lines[n.talks % npc.lines.length], { speaker: npc.name });
-    n.talks++;
+    } else {
+      // la gente se acuerda de Juan: lo nuevo una vez; después, un acuse cortico o el recordatorio de la pista
+      const heard = markTalked(this.st, this.npcKey(n));
+      const { lines, fresh } = villagerLines(npc, heard, this.toldBy(n));
+      // al del yipao y a los del baile ya no les hace falta saludar otra vez: van derecho a lo suyo
+      if (fresh || !npc.action) await this.dialog.say(lines, { speaker: npc.name });
+      saveAdventure(this.st);
+    }
     await this.offerStory(n);
     if (npc.action === 'carro') await this.travel();
     else if (npc.action === 'baile') await this.dance();
   }
 
-  /** Si el aldeano tiene una historia, se la ofrece a Juan. */
+  /** Cómo recuerda la partida a cada persona: por mapa y nombre. */
+  private npcKey(n: NpcView): string {
+    return talkKey(this.gm.id, n.npc.name);
+  }
+
+  /** La historia que esta persona ya le contó a Juan, si se la contó. */
+  private toldBy(n: NpcView): StoryId | undefined {
+    const id = n.npc.story;
+    return id && this.st.talked[`cuento:${this.npcKey(n)}`] ? id : undefined;
+  }
+
+  /**
+   * Si el aldeano tiene una historia que Juan no ha oído, se la ofrece. Las 23 historias se cuentan una sola vez:
+   * si ya se la contaron (este u otro), lo dice en una línea la primera vez y no la repite.
+   */
   private async offerStory(n: NpcView): Promise<void> {
     const npc = n.npc;
-    if (npc.story) {
-      const story = STORIES[npc.story];
-      const heard = this.st.stories.includes(npc.story);
-      const i = await this.dialog.ask(heard ? `¿OTRA VEZ ${story.title}?` : `¿LE CUENTO ${story.title}?`, ['¡CUÉNTEME!', 'OTRO DÍA'], { cancel: 1 });
-      if (i === 0) {
-        if (story.mood === 'miedo') sfx.play('whisper');
-        await this.dialog.say(story.pages, { speaker: npc.name });
-        if (!heard) {
-          this.st.stories.push(npc.story);
-          saveAdventure(this.st);
-          sfx.play('confirm');
-          await this.dialog.say([`HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}.`]);
-        }
+    if (!npc.story) return;
+    const story = STORIES[npc.story];
+    if (this.st.stories.includes(npc.story)) {
+      if (firstTime(this.st, `ya_contada:${this.npcKey(n)}`) && !this.toldBy(n)) {
+        await this.dialog.say([storyAgain(npc.story)], { speaker: npc.name });
+        saveAdventure(this.st);
       }
+      return;
     }
+    const i = await this.dialog.ask(`¿LE CUENTO ${story.title}?`, ['¡CUÉNTEME!', 'OTRO DÍA'], { cancel: 1 });
+    if (i !== 0) return;
+    if (story.mood === 'miedo' && this.canScare()) sfx.play('whisper');
+    await this.dialog.say(story.pages, { speaker: npc.name });
+    this.st.stories.push(npc.story);
+    markTalked(this.st, `cuento:${this.npcKey(n)}`);
+    // ya se la contó: no tiene que volver a decir que ya se la contaron
+    firstTime(this.st, `ya_contada:${this.npcKey(n)}`);
+    saveAdventure(this.st);
+    sfx.play('confirm');
+    await this.dialog.say([`HISTORIAS ESCUCHADAS: ${this.st.stories.length} DE ${STORY_IDS.length}.`]);
   }
 
   /** Don Rubén, el arriero: le regala a Lucero, su caballo, si Juan calma al Silbón que espanta las bestias del llano. */
   private async talkRuben(n: NpcView): Promise<void> {
     const S = 'DON RUBÉN';
     if (this.st.flags.includes('caballo')) {
-      await this.dialog.say(['¿CÓMO VA LUCERO, MIJO? CON ESE CABALLO LLEGA A SANTA FE DE ANTIOQUIA EN UN DÍA. ¡TRÁTEMELO BIEN!'], { speaker: S });
+      await this.dialog.say([firstTime(this.st, 'ruben:lucero')
+        ? '¿CÓMO VA LUCERO, MIJO? CON ESE CABALLO LLEGA A SANTA FE DE ANTIOQUIA EN UN DÍA. ¡TRÁTEMELO BIEN!'
+        : '¡QUIUBO, MIJO! ¿Y LUCERO? ¡ME LO TRATA BIEN, COMO QUEDAMOS!'], { speaker: S });
+      saveAdventure(this.st);
       await this.offerStory(n);
       return;
     }
@@ -2023,7 +2134,10 @@ export class AdventureScene extends Phaser.Scene {
       ], { speaker: S });
     }
     if (!this.st.calmed.includes('silbon')) {
-      await this.dialog.say(['EL SILBÓN ANDA EN EL LLANO, AL NORTE. SIGA LOS HUESOS... Y SI LO OYE LEJOS, ¡ES QUE ESTÁ CERQUITA!'], { speaker: S });
+      await this.dialog.say([firstTime(this.st, 'ruben:silbon')
+        ? 'EL SILBÓN ANDA EN EL LLANO, AL NORTE. SIGA LOS HUESOS... Y SI LO OYE LEJOS, ¡ES QUE ESTÁ CERQUITA!'
+        : 'LO QUE QUEDAMOS, MIJO: CALME AL SILBÓN, EN EL LLANO, Y LUCERO ES SUYO. SIGA LOS HUESOS.'], { speaker: S });
+      saveAdventure(this.st);
       await this.offerStory(n);
       return;
     }
@@ -2054,7 +2168,10 @@ export class AdventureScene extends Phaser.Scene {
   private async talkJulio(n: NpcView): Promise<void> {
     const S = 'DON JULIO';
     if (hasMachete(this.st)) {
-      await this.dialog.say(['¿CÓMO LE VA CON EL MACHETE DE SU ABUELO? CUÍDEMELO, QUE ESE MACHETE TIENE HISTORIA.'], { speaker: S });
+      await this.dialog.say([firstTime(this.st, 'julio:machete')
+        ? '¿CÓMO LE VA CON EL MACHETE DE SU ABUELO? CUÍDEMELO, QUE ESE MACHETE TIENE HISTORIA.'
+        : '¡QUIUBO, MIJO! YA SABE: ESE MACHETE SE CUIDA COMO SE CUIDA EL MONTE.'], { speaker: S });
+      saveAdventure(this.st);
       await this.offerStory(n);
       return;
     }
@@ -2086,7 +2203,10 @@ export class AdventureScene extends Phaser.Scene {
       ], { speaker: S });
       return;
     }
-    await this.dialog.say(['¿Y LA LEÑA, MIJO? SALGA DEL PUEBLO POR LA CALLE DEL MEDIO HACIA EL ORIENTE, ENTRE AL MONTE Y SUBA POR LA TROCHA PA\'L NORTE HASTA EL LETRERO DEL MONTE PURO.'], { speaker: S });
+    await this.dialog.say([firstTime(this.st, 'julio:lena')
+      ? '¿Y LA LEÑA, MIJO? SALGA DEL PUEBLO POR LA CALLE DEL MEDIO HACIA EL ORIENTE, ENTRE AL MONTE Y SUBA POR LA TROCHA PA\'L NORTE HASTA EL LETRERO DEL MONTE PURO.'
+      : '¿Y LA LEÑA? YA LE DIJE, MIJO: MONTE PURO, TROCHA PA\'L NORTE. SOLO LEÑA CAÍDA.'], { speaker: S });
+    saveAdventure(this.st);
   }
 
   /** El cabo Ramírez lleva las denuncias de espantos en un mapa del municipio y se lo pasa a Juan. */
@@ -2279,27 +2399,52 @@ export class AdventureScene extends Phaser.Scene {
       await this.dialog.say(['¡GRACIAS A USTED EL PUEBLO DUERME TRANQUILO, JUAN!'], { speaker: 'ABUELA ROSA' });
       return;
     }
-    sfx.play('bloom');
-    await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: 'ABUELA ROSA' });
-    if (!hasMachete(this.st)) await this.dialog.say(['¿YA FUE DONDE DON JULIO, AL TRAPICHE? BAJE POR EL CAMINO DE LA VEREDA HACIA EL RÍO: ES LA CASONA DE LA IZQUIERDA, ANTES DEL PUENTE. SIN EL MACHETE DE SU ABUELO NO SE ARRIME A LOS ESPANTOS.'], { speaker: 'ABUELA ROSA' });
-    else if (!this.st.flags.includes('mapa')) await this.dialog.say(['¿Y EL MAPA DEL CABO RAMÍREZ? ÉL SABE DÓNDE HAN VISTO A CADA ESPANTO. ESTÁ EN LA ENTRADA DEL PUEBLO.'], { speaker: 'ABUELA ROSA' });
-    else if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
-    else if (!this.st.flags.includes('caballo')) await this.dialog.say(['¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.'], { speaker: 'ABUELA ROSA' });
-    n.scared = true;
-    await this.dialog.say([abuelaNudge(this.st.calmed.length, GUARDIANS.length)], { speaker: 'ABUELA ROSA', shake: true });
-    n.scared = false;
+    const S = 'ABUELA ROSA';
+    // la abuela se acuerda: el caldito y cada consejo se dicen una vez; después, un recordatorio cortico
+    if (firstTime(this.st, 'abuela:caldo')) {
+      sfx.play('bloom');
+      await this.dialog.say(['TÓMESE ESTE CALDITO DE GALLINA PARA EL SUSTO, MIJO.'], { speaker: S });
+    } else await this.dialog.say(['¿OTRA VEZ POR AQUÍ, MIJO? YA SE TOMÓ EL CALDITO... ¡ANDE, QUE LA NOCHE NO ESPERA!'], { speaker: S });
+    // el consejo de la abuela según lo que le falte a Juan: [tema, la primera vez, el recordatorio]
+    const tip: [string, string, string] | null = !hasMachete(this.st)
+      ? ['machete', '¿YA FUE DONDE DON JULIO, AL TRAPICHE? BAJE POR EL CAMINO DE LA VEREDA HACIA EL RÍO: ES LA CASONA DE LA IZQUIERDA, ANTES DEL PUENTE. SIN EL MACHETE DE SU ABUELO NO SE ARRIME A LOS ESPANTOS.',
+        'YA LE DIJE, MIJO: DON JULIO, EN EL TRAPICHE, ANTES DEL PUENTE. ¡SIN MACHETE, NI SE ARRIME!']
+      : !this.st.flags.includes('mapa')
+        ? ['mapa', '¿Y EL MAPA DEL CABO RAMÍREZ? ÉL SABE DÓNDE HAN VISTO A CADA ESPANTO. ESTÁ EN LA ENTRADA DEL PUEBLO.', 'ACUÉRDESE DEL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO: ÉL TIENE EL MAPA.']
+        : !this.hasDog
+          ? ['perro', '¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.', 'EL PERRITO DE LA PLAZA, MIJO: COMIDA Y CARIÑO, COMO LE DIJE.']
+          : !this.st.flags.includes('caballo')
+            ? ['caballo', '¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.', 'NO SE LE OLVIDE DON RUBÉN, EL ARRIERO: ÉL NECESITA QUE LE CALMEN EL LLANO.']
+            : null;
+    if (tip) await this.dialog.say([firstTime(this.st, `abuela:paso:${tip[0]}`) ? tip[1] : tip[2]], { speaker: S });
+    // cómo va la ronda: se cuenta una vez por cada mito calmado
+    const left = GUARDIANS.length - this.st.calmed.length;
+    if (firstTime(this.st, `abuela:ronda:${this.st.calmed.length}`)) {
+      n.scared = true;
+      await this.dialog.say([abuelaNudge(this.st.calmed.length, GUARDIANS.length)], { speaker: S, shake: true });
+      n.scared = false;
+    } else await this.dialog.say([`${left === 1 ? 'QUEDA UNO SOLO' : `QUEDAN ${left}`}, MIJO. YA SABE: SIGA LAS SEÑALES Y PARE LA OREJA.`], { speaker: S });
     saveAdventure(this.st);
   }
 
   private async talkTono(n: NpcView): Promise<void> {
+    const S = 'DON TOÑO';
     if (!this.st.flags.includes('tono')) {
-      await this.dialog.say(['AQUÍ PESCANDO BOCACHICOS, MIJO. DICEN QUE DE NOCHE SE OYE LLORAR A UNA MUJER EN EL RÍO... PURO CUENTO, ¿NO?'], { speaker: 'DON TOÑO' });
+      await this.dialog.say([firstTime(this.st, 'tono:pesca')
+        ? 'AQUÍ PESCANDO BOCACHICOS, MIJO. DICEN QUE DE NOCHE SE OYE LLORAR A UNA MUJER EN EL RÍO... PURO CUENTO, ¿NO?'
+        : '¿OTRA VEZ USTED, DON JUAN? AQUÍ SIGO CON LOS BOCACHICOS. ESO DEL LLANTO EN EL RÍO... PURO CUENTO.'], { speaker: S });
     } else if (!this.st.calmed.includes('llorona')) {
-      await this.bubble(n.sprite, 2, 300);
-      await this.dialog.say(['¡NO ME HAGA VOLVER A ESE RÍO! ¡TODAVÍA LA OIGO LLORAR POR LA ORILLA!'], { speaker: 'DON TOÑO', shake: true });
+      if (firstTime(this.st, 'tono:susto')) {
+        await this.bubble(n.sprite, 2, 300);
+        await this.dialog.say(['¡NO ME HAGA VOLVER A ESE RÍO! ¡TODAVÍA LA OIGO LLORAR POR LA ORILLA!'], { speaker: S, shake: true });
+      } else await this.dialog.say(['YA LE DIJE, DON JUAN: AL RÍO NO VUELVO HASTA QUE ALGUIEN CALME A LA LLORONA.'], { speaker: S });
     } else {
-      await this.dialog.say(['¿USTED CALMÓ A LA LLORONA, DON JUAN? ¡QUÉ PAISA TAN BERRACO! MAÑANA VUELVO A PESCAR.'], { speaker: 'DON TOÑO' });
+      await this.dialog.say([firstTime(this.st, 'tono:calma')
+        ? '¿USTED CALMÓ A LA LLORONA, DON JUAN? ¡QUÉ PAISA TAN BERRACO! MAÑANA VUELVO A PESCAR.'
+        : '¡GRACIAS OTRA VEZ, DON JUAN! MAÑANA TEMPRANITO ME VOY A PESCAR.'], { speaker: S });
     }
+    saveAdventure(this.st);
+    await this.offerStory(n);
   }
 
   private async ending(): Promise<void> {

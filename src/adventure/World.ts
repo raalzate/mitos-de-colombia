@@ -2,6 +2,7 @@ import type { FighterId } from '../combat/CombatTypes';
 import type { StageId } from '../art/StageArtist';
 import { CITY_BUILDING_FOOTPRINT, CITY_PROP_FOOTPRINT, type CityBuildingKind, type CityPropKind } from './CityArt';
 import type { StoryId } from './Stories';
+import type { FurnitureKind } from './InteriorArt';
 import { BUILDING_FOOTPRINT, PROP_FOOTPRINT, type BuildingKind, type ClueKind, type PropKind, type SpiritKind, type VillagerKind } from './TownArt';
 
 /** Mapa del modo aventura en baldosas de 16 px. Puro: se puede probar sin Phaser. */
@@ -615,3 +616,56 @@ export const SPIRITS: Spirit[] = [
     '(LA MANO PELUDA SEÑALA UNA TUMBA CON LA CRUZ NUEVA... Y LUEGO A TI. SE HUNDE DESPACIO, COMO SI SE DESPIDIERA)',
   ] },
 ];
+
+/**
+ * El duende también se mete a las casas (FR-032): allá no asusta, hace travesuras. Esconde cosas, mueve los muebles,
+ * trenza el pelo y se ríe escondido. Las casas son zona sin miedo: nada de screamers, solo picardía.
+ */
+export type PrankKind = 'esconde' | 'mueve' | 'trenza' | 'risa';
+export interface Prank {
+  kind: PrankKind;
+  /** muebles con los que la hace; sin esto, cualquier casa sirve */
+  on?: FurnitureKind[];
+  /** le trenza el pelo a alguien de la casa (una señora o una niña) */
+  who?: boolean;
+  /** lo que pasa; «{QUIEN}» es la persona trenzada */
+  scene: string;
+  /** lo que dice la persona de la casa, si la hay */
+  npc?: string;
+  duende: string;
+  juan: string;
+}
+
+export const DUENDE_PRANKS: Prank[] = [
+  { kind: 'esconde', scene: 'JUAN SE TOCA LA CABEZA... ¿Y EL SOMBRERO? ¡LO TENÍA PUESTO HACE UN SEGUNDO!',
+    duende: 'JI, JI, JI... ¿ESTE SOMBRERITO ES SUYO? ¡BÚSQUELO, BÚSQUELO!',
+    juan: '¡AHÍ ESTÁ, DETRÁS DE LA PUERTA, LLENO DE PLUMAS DE GALLINA! ¡QUÉ DUENDE TAN CANSÓN, PUES!' },
+  { kind: 'esconde', on: ['carriel_pared', 'sombrero_pared'], scene: 'EL CARRIEL QUE ESTABA COLGADO EN LA PARED... ¡YA NO ESTÁ! EN EL CLAVO QUEDÓ UNA FLORECITA.',
+    duende: '¡JI, JI! ¡LO COLGUÉ EN LA COCINA, AL LADO DE LAS OLLAS! ¡JI, JI, JI!',
+    juan: 'JA, JA... AHÍ ESTÁ, ENTRE LAS OLLAS. ¡ESE DUENDECITO NO SE CANSA!' },
+  { kind: 'mueve', on: ['mecedora'], scene: 'LA MECEDORA SE MECE SOLITA... ÑEC, ÑEC, ÑEC. NO HAY NADIE SENTADO.',
+    duende: '¡JI, JI! ¡AQUÍ DESCANSA EL DUENDE, QUE ESTÁ RENDIDO DE TANTO ESCONDER COSAS!',
+    juan: '¡SIGA, SIGA, MECÉASE TRANQUILO! ¡PERO NO ME ESCONDA EL MACHETE!' },
+  { kind: 'mueve', on: ['radio', 'tv_vieja'], scene: 'EL RADIO SE PRENDE SOLO Y SUENA UNA CARRILERA A TODO VOLUMEN... ¡Y SE APAGA DE GOLPE!',
+    duende: '¡JI, JI, JI! ¡ESA CANCIÓN ME GUSTA! ¡OTRA, OTRA!',
+    juan: 'JA, JA... ¡HASTA LOS DUENDES SON PAISAS EN ESTA TIERRA!' },
+  { kind: 'mueve', on: ['olla', 'fogon_lena'], scene: 'LA TAPA DE LA OLLA BRINCA SOLITA: TIN, TIN, TIN... ¡Y ALGUIEN SE COMIÓ LA PANELA!',
+    duende: '¡JI, JI! ¡QUÉ RICA LA PANELA DE ESTA CASA!',
+    juan: '¡ESO NO SE HACE, DUENDECITO! ...BUENO, YO TAMBIÉN ME LA HUBIERA COMIDO.' },
+  { kind: 'trenza', who: true, scene: '{QUIEN} SE TOCA EL PELO... ¡TIENE UNA TRENZA QUE NO SE HIZO!',
+    npc: '¡OTRA VEZ ESE DUENDE! ¡ME TRENZA EL PELO CADA VEZ QUE ME DESCUIDO!',
+    duende: 'JI, JI... ¡ASÍ QUEDA MÁS BONITA!',
+    juan: 'JA, JA... ¡Y LE QUEDÓ BIEN HECHA, PA\' QUÉ LE DIGO MENTIRAS!' },
+  { kind: 'risa', scene: 'DETRÁS DE LOS MUEBLES SE OYE UNA RISITA: JI, JI, JI...',
+    duende: '¡JI, JI! ¡NO ME VIO, NO ME VIO! ¡ME VOY PA\' OTRA CASA!',
+    juan: 'TRANQUILO, DUENDECITO, QUE EN ESTA CASA NADIE LE HACE NADA.' },
+];
+
+/** Quiénes se dejan trenzar el pelo por el duende. */
+export const BRAIDABLE = new Set<NpcKey>(['campesina', 'vendedora', 'nina', 'abuela', 'bailarina']);
+
+/** Una travesura que se pueda hacer en esta casa: con sus muebles y con quien esté. */
+export function pickPrank(furniture: FurnitureKind[], braidable: boolean, rnd: () => number): Prank {
+  const ok = DUENDE_PRANKS.filter((p) => (!p.on || p.on.some((k) => furniture.includes(k))) && (!p.who || braidable));
+  return ok[Math.floor(rnd() * ok.length)] ?? DUENDE_PRANKS[DUENDE_PRANKS.length - 1];
+}

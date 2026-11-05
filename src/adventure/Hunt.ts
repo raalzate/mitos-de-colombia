@@ -141,3 +141,54 @@ export const HINT_CHANCE = 0.08;
 export const HINT_RADIUS = 5;
 
 export const hintReady = (idleMinutes: number) => idleMinutes >= HINT_IDLE_MINUTES;
+
+/**
+ * Ritmo de los espíritus (duende y pollo maligno): que no salgan a cada rato.
+ * Cada uno descansa varios minutos de juego tras dejarse ver, entre dos espíritus cualquiera pasa un buen rato,
+ * cada uno sale a lo sumo una vez por visita a un mapa y el mismo no sale dos veces seguidas
+ * (salvo que haya pasado un rato largo, para que el duende no desaparezca del todo si Juan no sube al monte).
+ */
+export const SPIRIT_GAP_MS = 4 * 60_000;
+export const SPIRIT_ANY_GAP_MS = 90_000;
+export const SPIRIT_REPEAT_GAP_MS = 8 * 60_000;
+export const SPIRIT_MAX_PER_VISIT = 1;
+/** Probabilidad por paso de que salga, cuando ya le toca. */
+export const SPIRIT_CHANCE = 0.025;
+/** En una casa hay pocos pasos: la travesura del duende tiene más chance por paso (con el mismo descanso). */
+export const HOUSE_PRANK_CHANCE = 0.08;
+/** Pasos que Juan alcanza a dar en la casa antes de la travesura. */
+export const HOUSE_PRANK_MIN_STEPS = 3;
+
+export type PacedSpirit = 'duende' | 'pollo';
+
+export interface SpiritPace {
+  /** última vez (tiempo de juego, ms) que salió cada uno */
+  last: Partial<Record<PacedSpirit, number>>;
+  /** el último que salió */
+  lastKind: PacedSpirit | null;
+  /** veces que salió cada uno en esta visita al mapa */
+  visit: Partial<Record<PacedSpirit, number>>;
+}
+
+export const newSpiritPace = (): SpiritPace => ({ last: {}, lastKind: null, visit: {} });
+
+export interface SpiritGaps { gap: number; anyGap: number; repeatGap: number; perVisit: number }
+export const SPIRIT_GAPS: SpiritGaps = { gap: SPIRIT_GAP_MS, anyGap: SPIRIT_ANY_GAP_MS, repeatGap: SPIRIT_REPEAT_GAP_MS, perVisit: SPIRIT_MAX_PER_VISIT };
+
+/** ¿Le toca salir a este espíritu? */
+export function spiritReady(kind: PacedSpirit, now: number, p: SpiritPace, g: SpiritGaps = SPIRIT_GAPS): boolean {
+  if ((p.visit[kind] ?? 0) >= g.perVisit) return false;
+  const mine = p.last[kind] ?? -Infinity;
+  const any = Math.max(p.last.duende ?? -Infinity, p.last.pollo ?? -Infinity);
+  if (now - any < g.anyGap) return false;
+  if (now - mine < g.gap) return false;
+  if (p.lastKind === kind && now - mine < g.repeatGap) return false;
+  return true;
+}
+
+/** Anota que salió. */
+export function spiritShown(kind: PacedSpirit, now: number, p: SpiritPace): void {
+  p.last[kind] = now;
+  p.lastKind = kind;
+  p.visit[kind] = (p.visit[kind] ?? 0) + 1;
+}

@@ -37,6 +37,11 @@ export interface AdventureState {
   riding?: boolean;
   /** dónde dejó Juan amarrado a Lucero en el campo; sin esto, Lucero está en la vereda, junto a la mula */
   horseAt?: [number, number];
+  /**
+   * Memoria de la gente: cuántas veces le ha hablado Juan a cada quien («campo:DOÑA GLORIA») y qué temas
+   * ya le contaron («tema:abuela:ronda:3»). Así nadie le repite el discurso entero (ver Memory.ts).
+   */
+  talked: Record<string, number>;
 }
 
 /** La noche entera: de las 6:00 PM a las 12:00 AM. */
@@ -87,7 +92,7 @@ export type FightOutcome = 'win' | 'lose' | 'fled';
 const KEY = DEMO ? 'mitos-aventura-demo' : 'mitos-aventura-v5';
 
 export function newAdventure(rnd: () => number = Math.random): AdventureState {
-  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0, taken: [] };
+  return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0, taken: [], talked: {} };
 }
 
 /** Bandera del cuento de entrada (IntroScene): se narra una sola vez por partida nueva. */
@@ -113,6 +118,7 @@ export function loadAdventure(): AdventureState | null {
     s.homes ??= rollHomes();
     s.minutes ??= 0;
     s.taken ??= [];
+    s.talked ??= {};
     if (hasEscapulario(s)) s.escapularioAt ??= s.minutes;
     // partidas de antes del machete ganado: el que ya calmó mitos ya tenía machete
     if (s.calmed.length && !s.flags.includes('machete')) s.flags.push('machete');
