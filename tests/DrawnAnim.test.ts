@@ -38,9 +38,10 @@ describe('animación dibujada', () => {
         }
       }
       expect(drawnFrame(id, { ...base, anim: 'idle' })).toEqual({ action: 'idle', index: 0 });
-      // reposo = primer fotograma de andar (sin cambio de imagen al arrancar); Patasola salta en el sitio
-      expect(DRAWN_ANIM[id].idle.frames).toBe(id === 'patasola' ? 8 : 1);
-      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(id === 'patasola' ? 1 : 0);
+      // reposo dibujado en ciclo (PixelLab, 4 fotogramas; Patasola salta en el sitio con 8): cicla a su ritmo
+      expect(DRAWN_ANIM[id].idle.frames).toBe(id === 'patasola' ? 8 : 4);
+      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 5 })!.index).toBe(idleIndex(id, 5));
+      expect(drawnFrame(id, { ...base, anim: 'idle', frame: 60 })!.index).toBeGreaterThan(0);
       expect(drawnFrame(id, { ...base, anim: 'special1', animFrame: 1 })!.action).toBe('attack');
       expect(drawnFrame(id, { ...base, anim: 'crouch' })!.action).toBe(id === 'patasola' ? 'attack' : 'hurt');
     }
@@ -138,9 +139,10 @@ describe('animación dibujada', () => {
       }
     }
     // en el juego los golpes ligeros y fuertes impactan con fotogramas distintos (personaje sin tiras de golpe propias)
-    const light = drawnFrame('sombreron', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } })!;
-    const heavy = drawnFrame('sombreron', { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: 10 } })!;
-    expect(light).toEqual({ action: 'attack', index: strikeKeys('sombreron').light });
+    expect(DRAWN_ANIM.patasola.punch ?? DRAWN_ANIM.patasola.kick).toBeUndefined();
+    const light = drawnFrame('patasola', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } })!;
+    const heavy = drawnFrame('patasola', { ...base, state: 'attack', anim: 'heavykick', attackProgress: { ...p, frame: 10 } })!;
+    expect(light).toEqual({ action: 'attack', index: strikeKeys('patasola').light });
     expect(heavy.index).toBeGreaterThan(light.index);
   });
 
@@ -298,7 +300,7 @@ describe('animación dibujada', () => {
     }
     // con golpe dibujado la pose fingida se suaviza
     const drawn = drawnMotion('llorona', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } });
-    const faked = drawnMotion('sombreron', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } });
+    const faked = drawnMotion('patasola', { ...base, state: 'attack', anim: 'light', attackProgress: { ...p, frame: 10 } });
     expect(Math.abs(drawn.dx)).toBeLessThan(Math.abs(faked.dx));
   });
 

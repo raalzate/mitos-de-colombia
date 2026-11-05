@@ -21,9 +21,10 @@
    "h": 74
   },
   "idle": {
-   "frames": 1,
-   "w": 78,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -32,6 +33,18 @@
    "lying": 8,
    "air": 6,
    "airEnd": 7
+  },
+  "punch": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 3
+  },
+  "kick": {
+   "frames": 5,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "patasola": {
@@ -91,9 +104,10 @@
    "h": 74
   },
   "idle": {
-   "frames": 1,
-   "w": 118,
-   "h": 74
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -102,6 +116,18 @@
    "lying": 9,
    "air": 6,
    "airEnd": 7
+  },
+  "punch": {
+   "frames": 7,
+   "w": 96,
+   "h": 94,
+   "hit": 3
+  },
+  "kick": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 4
   }
  },
  "llorona": {
@@ -126,9 +152,10 @@
    "h": 72
   },
   "idle": {
-   "frames": 1,
-   "w": 70,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -173,9 +200,10 @@
    "h": 72
   },
   "idle": {
-   "frames": 1,
-   "w": 68,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -184,6 +212,18 @@
    "lying": 8,
    "air": 5,
    "airEnd": 6
+  },
+  "punch": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 4
+  },
+  "kick": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 3
   }
  },
  "mohan": {
@@ -208,9 +248,10 @@
    "h": 74
   },
   "idle": {
-   "frames": 1,
-   "w": 92,
-   "h": 74
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -219,6 +260,12 @@
    "lying": 9,
    "air": 6,
    "airEnd": 6
+  },
+  "punch": {
+   "frames": 5,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "muelona": {
@@ -243,9 +290,10 @@
    "h": 72
   },
   "idle": {
-   "frames": 1,
-   "w": 78,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -254,6 +302,18 @@
    "lying": 8,
    "air": 6,
    "airEnd": 6
+  },
+  "punch": {
+   "frames": 7,
+   "w": 96,
+   "h": 94,
+   "hit": 4
+  },
+  "kick": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 1
   }
  },
  "silbon": {
@@ -278,9 +338,10 @@
    "h": 72
   },
   "idle": {
-   "frames": 1,
-   "w": 70,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -289,6 +350,18 @@
    "lying": 9,
    "air": 7,
    "airEnd": 7
+  },
+  "punch": {
+   "frames": 5,
+   "w": 96,
+   "h": 94,
+   "hit": 2
+  },
+  "kick": {
+   "frames": 5,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "juanmachete": {
@@ -313,9 +386,10 @@
    "h": 76
   },
   "idle": {
-   "frames": 1,
-   "w": 102,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -324,6 +398,12 @@
    "lying": 9,
    "air": 4,
    "airEnd": 4
+  },
+  "kick": {
+   "frames": 3,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  },
  "bachue": {
@@ -348,9 +428,10 @@
    "h": 76
   },
   "idle": {
-   "frames": 1,
-   "w": 60,
-   "h": 72
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "fps": 6
   },
   "fall": {
    "frames": 13,
@@ -359,6 +440,18 @@
    "lying": 7,
    "air": 4,
    "airEnd": 5
+  },
+  "punch": {
+   "frames": 6,
+   "w": 96,
+   "h": 94,
+   "hit": 3
+  },
+  "kick": {
+   "frames": 4,
+   "w": 96,
+   "h": 94,
+   "hit": 2
   }
  }
 }

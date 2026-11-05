@@ -1,0 +1,19 @@
+{
+ "source": "combo",
+ "keep": [
+  0,
+  2,
+  3,
+  5,
+  6,
+  9
+ ],
+ "hit": 3,
+ "note": "zarpazo de ra\u00edces de la secuencia pu\u00f1o+patada; f01 (igual a la guardia), f04 y f07-f08 (repetidos) descartados; las hojas sueltas las quita la limpieza; strip_fx borra las hojas verde brillante que a\u00f1adi\u00f3 PixelLab",
+ "strip_fx": [
+  100,
+  160,
+  0.75,
+  0.6
+ ]
+}
