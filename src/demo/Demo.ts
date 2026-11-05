@@ -9,6 +9,8 @@ export const DEMO_WALK_FRAMES = 8;
 /** Ritmo de los sustos en la demo: menos espera entre uno y otro. */
 export const DEMO_AMBUSH_GAP_MS = 3_000;
 export const DEMO_OMEN_GAP_MS = 15_000;
+/** Ritmo de los espíritus en la demo: también espaciados, pero se alcanzan a ver en el video. */
+export const DEMO_SPIRIT_GAPS = { gap: 60_000, anyGap: 20_000, repeatGap: 90_000, perVisit: 2 };
 /** En la demo la gente da pistas desde el principio y más seguido, para que se vea. */
 export const DEMO_HINT_GAP_MS = 14_000;
 export const DEMO_HINT_CHANCE = 0.35;
