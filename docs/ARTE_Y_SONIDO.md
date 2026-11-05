@@ -17,7 +17,7 @@ usa el juego en `public/assets`:
 | `splash/` | Cuerpo entero (72 px en combate, 128 px en selección y VS) y 4 poses por personaje | `extract_splash.py`, `fix_splash.py` |
 | `anim/` | Tiras de animación: andar (6–7 fotogramas), golpe (5–6), daño (5–6), entrada a agacharse/bloquear (3) | `build_anim.sh` |
 | `anim/` (`fall`) | Caída y levantarse, 13 fotogramas por personaje, generados con PixelLab | `import_pixellab.py` |
-| `anim/` (`punch`, `kick`, `idle`) | Puño, patada y reposo propios generados con PixelLab (piloto: puño de Juan Machete, puño y patada de la Llorona); si faltan, el golpe sale de la tira `attack` | `gen_pixellab_moves.py`, `import_pixellab_moves.py` |
+| `anim/` (`punch`, `kick`, `idle`) | Puño, patada y reposo propios generados con PixelLab: reposo de 4 fotogramas en todos menos la Patasola (que ya tenía 8); puño y patada en casi todos. Desactivados (`disabled` en `keep.json`, con la razón): puño de Juan (el machete sale como piqueta o con la camisa gris), puño y patada de la Patasola (le pinta dos piernas) y patada del Mohán (solo levanta la rodilla). Si faltan, el golpe sale de la tira `attack` | `gen_pixellab_moves.py`, `import_pixellab_moves.py` |
 | `fx/` | 35 efectos de poderes (proyectil, chorro, invocación, tornado) | `extract_fx.py` |
 | `aventura/` | Juan, la abuela, aldeanos, espíritus, perro, árbol y tileset del mapa (PixelLab) | `import_aventura.py` |
 
@@ -25,7 +25,7 @@ usa el juego en `public/assets`:
 
 1. `python3 -I tools/gen_pixellab_moves.py <id> punch+kick` (una petición de 12 fotogramas, 1 generación) o
    `<id> punch|kick|idle`. Parte de `images/pixellab/<id>_first.png` (a Juan se le quita el aura antes) con
-   `animate-with-text-v3`, primer y último fotograma = guardia; guarda los originales en `images/pixellab/<acción>/<id>/`
+   `animate-with-text-v3`, primer y último fotograma = guardia (12 fotogramas cuestan 2 generaciones; 4-6, 1; la cuenta gratuita admite 1 trabajo a la vez); guarda los originales en `images/pixellab/<acción>/<id>/`
    (o `combo/<id>/`). Con `--dry` solo muestra el texto. Si la API responde 402/429 se detiene.
 2. Revisar cada fotograma ampliado y escribir `images/pixellab/<acción>/<id>/keep.json`
    (`keep`: fotogramas aceptados, `hit`: impacto, `source: "combo"`, `strip_fx`: chispas a borrar por color).
