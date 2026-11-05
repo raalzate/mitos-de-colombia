@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   base: './',
-  server: { port: 5173, open: false },
+  server: { port: 5173, open: false, watch: { ignored: ['**/.claude/**', '**/.playwright-mcp/**', '**/.serena/**'] } },
   build: {
     target: 'es2022',
     assetsInlineLimit: 0,
@@ -16,5 +16,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    exclude: ['**/node_modules/**', '**/.claude/**'],
   },
 });
