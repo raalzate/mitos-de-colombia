@@ -7,7 +7,6 @@ import { MENU_KEYS, MenuInput, getSettings, inputManager, setSettings, toggleFul
 import { touchActive } from '../ui/TouchControls';
 import { ensureStage, portraitKey, text, type StageKeys } from '../utils/textures';
 import { startWithLoading } from '../ui/Loading';
-import { setupView } from '../utils/view';
 
 const CHOICES: StageChoice[] = [...STAGE_IDS, 'random'];
 
@@ -37,7 +36,6 @@ export class StageSelectScene extends Phaser.Scene {
   }
 
   create(): void {
-    setupView(this);
     const s = getSettings(this);
     this.menu = new MenuInput();
     this.frame = 0;

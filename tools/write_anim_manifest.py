@@ -13,11 +13,9 @@ def main():
              "/** Generado por tools/build_anim.sh a partir de images/Retro Folklore Character Sprite Sheet.png. */",
              "export type DrawnAction = 'walk' | 'attack' | 'hurt' | 'idle' | 'trans' | " + opt + ";",
              "export interface DrawnStrip { frames: number; w: number; h: number; interpolated?: boolean; keys?: number; "
-             "lying?: number; air?: number; airEnd?: number; hit?: number; fps?: number; res?: number }", "",
+             "lying?: number; air?: number; airEnd?: number; hit?: number; fps?: number }", "",
              "/** `fall` (caída y levantarse), `punch` y `kick` (golpes de PixelLab) son opcionales por personaje.",
-             " * `hit`: fotograma de impacto de la tira; `fps`: ritmo propio del ciclo (reposo dibujado).",
-             " * `res`: densidad de la tira (2 = alta resolución): `w` y `h` van en píxeles de la imagen; el juego la",
-             " * dibuja a la misma talla lógica (w/res x h/res) con el doble de detalle (ver setTextureRes). */",
+             " * `hit`: fotograma de impacto de la tira; `fps`: ritmo propio del ciclo (reposo dibujado). */",
              "export const DRAWN_ANIM: Record<FighterId, Record<Exclude<DrawnAction, " + opt + ">, DrawnStrip> & "
              "Partial<Record<" + opt + ", DrawnStrip>>> = {"]
     for cid, acts in m.items():
@@ -27,8 +25,7 @@ def main():
             + (f", keys: {v['keys']}" if v.get("keys") else "")
             + (f", lying: {v['lying']}, air: {v['air']}, airEnd: {v['airEnd']}" if "lying" in v else "")
             + (f", hit: {v['hit']}" if "hit" in v else "")
-            + (f", fps: {v['fps']}" if "fps" in v else "")
-            + (f", res: {v['res']}" if v.get("res", 1) != 1 else "") + " }"
+            + (f", fps: {v['fps']}" if "fps" in v else "") + " }"
             for a, v in acts.items())
         lines.append(f"  {cid}: {{ {parts} }},")
     lines.append("};")

@@ -45,7 +45,6 @@ import { addSheet } from '../utils/textures';
 import { startWithLoading } from '../ui/Loading';
 import { StageLifeView } from '../art/StageLifeView';
 import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../demo/Demo';
-import { RENDER_SCALE, setupView } from '../utils/view';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
 const VS_FRAMES = 70;
@@ -220,7 +219,6 @@ export class FightScene extends Phaser.Scene {
   }
 
   create(): void {
-    setupView(this);
     this.settings = getSettings(this);
     this.resetState();
     this.buildStage();
@@ -662,10 +660,9 @@ export class FightScene extends Phaser.Scene {
     let glow: Phaser.FX.Glow | null = null;
     const fx = v.sprite.preFX;
     if (fx) {
-      // los filtros trabajan en píxeles del lienzo: se escalan para medir lo mismo en píxeles lógicos
-      fx.setPadding(12 * RENDER_SCALE);
-      glow = fx.addGlow(color, 0, 0, false, 0.1, 10 * RENDER_SCALE);
-      blur = fx.addBlur(1, RENDER_SCALE, RENDER_SCALE, 0, 0xffffff, 4);
+      fx.setPadding(12);
+      glow = fx.addGlow(color, 0, 0, false, 0.1, 10);
+      blur = fx.addBlur(1, 1, 1, 0, 0xffffff, 4);
     }
     this.softenRect.setFillStyle(color);
     this.dissolve = { slot, frame: 0, color, motes, blur, glow };

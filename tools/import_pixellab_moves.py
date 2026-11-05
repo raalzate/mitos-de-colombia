@@ -13,12 +13,6 @@ Salida: public/assets/anim/<id>_<accion>_{p1,p2}.png (celdas 96x94, pies en la f
 entrada en manifest.json (frames, w, h, hit para golpes, fps para el reposo) y src/art/drawnAnimManifest.ts.
 Después: python3 -I tools/measure_anim.py
 
-Alta resolución (piloto 2x): images/pixellab/hires/<accion>/<id>/fNN.png (lienzo 96*res, pies en la fila
-CELL_H*res - 1; tools/gen_pixellab_hires.py) con keep.json {"keep": [...], "res": 2}. Se limpia igual, la celda
-es (96*res)x(CELL_H*res) y la entrada del manifiesto lleva "res": el juego la dibuja a 1/res (la misma talla
-lógica, el doble de detalle en el lienzo 2x). Reemplaza la tira de esa acción (idle, walk, punch, kick); las
-acciones sin versión en alta se quedan con la de siempre.
-
 Uso: python3 -I tools/import_pixellab_moves.py [id ...]   (desde project/game; sin ids, todos)"""
 import glob, json, os, sys
 import numpy as np
@@ -30,8 +24,6 @@ from fix_sprites import strip_aura, fill_holes, hsv_of  # noqa: E402
 from write_anim_manifest import main as write_manifest  # noqa: E402
 
 SRC = "images/pixellab"
-HIRES = "images/pixellab/hires"
-HIRES_ACTIONS = ("idle", "walk", "punch", "kick")
 OUT = "public/assets/anim"
 ACTIONS = ("idle", "punch", "kick")
 IDLE_FPS = 8
@@ -67,7 +59,7 @@ def strip_fx(a, rule):
     a[(a[:, :, 3] > 0) & (h >= h0) & (h <= h1) & (s >= s0) & (v >= v0), 3] = 0
 
 
-def prepare(cid, path, fx=None, res=1):
+def prepare(cid, path, fx=None):
     a = np.array(clean(Image.open(path)))
     if fx:
         strip_fx(a, fx)
@@ -76,7 +68,7 @@ def prepare(cid, path, fx=None, res=1):
         strip_aura(a)
     a = halo(a, not cid.startswith(WHITE_EDGE))
     fill_holes(a)
-    im = clean(Image.fromarray(a)).crop((0, 0, 96 * res, CELL_H * res))
+    im = clean(Image.fromarray(a)).crop((0, 0, 96, CELL_H))
     return one_leg(im) if cid == "patasola" else im
 
 
@@ -132,40 +124,6 @@ def import_one(man, cid, action):
     return True
 
 
-def import_hires(man, cid, action):
-    """Tira de alta resolución (keep.json con "res"): reemplaza la de esa acción en el manifiesto."""
-    d = f"{HIRES}/{action}/{cid}"
-    if not os.path.exists(f"{d}/keep.json") or cid not in man:
-        return False
-    sel = json.load(open(f"{d}/keep.json"))
-    res = int(sel.get("res", 2))
-    files = sorted(glob.glob(f"{d}/f*.png"))
-    frames = []
-    for k in sel.get("keep", list(range(len(files)))):
-        im = prepare(cid, files[k], sel.get("strip_fx"), res)
-        if frames and same(frames[-1], im):
-            continue
-        frames.append(im)
-    if action in ("punch", "kick") and len(frames) > 1 and same(frames[-1], frames[0]):
-        frames.pop()
-    if len(frames) < 2:
-        return False
-    w, h = 96 * res, CELL_H * res
-    strip = Image.new("RGBA", (w * len(frames), h), (0, 0, 0, 0))
-    for i, f in enumerate(frames):
-        strip.paste(f, (i * w, 0), f)
-    strip.save(f"{OUT}/{cid}_{action}_p1.png")
-    hue_shift(strip, 150).save(f"{OUT}/{cid}_{action}_p2.png")
-    entry = {"frames": len(frames), "w": w, "h": h, "res": res}
-    if action == "idle":
-        entry["fps"] = sel.get("fps", IDLE_FPS)
-    elif action in ("punch", "kick"):
-        entry["hit"] = sel.get("hit", max(range(1, len(frames)), key=lambda i: reach(frames[i])))
-    man[cid][action] = entry
-    print(cid, action, "(alta)", entry)
-    return True
-
-
 def main():
     ids = sys.argv[1:]
     man = json.load(open(f"{OUT}/manifest.json"))
@@ -174,11 +132,6 @@ def main():
             cid = os.path.basename(d)
             if not ids or cid in ids:
                 import_one(man, cid, action)
-    for action in HIRES_ACTIONS:
-        for d in sorted(glob.glob(f"{HIRES}/{action}/*")):
-            cid = os.path.basename(d)
-            if not ids or cid in ids:
-                import_hires(man, cid, action)
     json.dump(man, open(f"{OUT}/manifest.json", "w"), indent=1)
     write_manifest()
 

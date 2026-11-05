@@ -111,7 +111,7 @@ export class NightLights {
     this.lantern.setPosition(lx, ly).setIntensity(lantern ? 0.42 + Math.sin(frame / 7) * 0.03 : 0);
     if (frame % 10 !== 0) return;
     const cam = this.scene.cameras.main;
-    const cx = cam.midPoint.x, cy = cam.midPoint.y;
+    const cx = cam.scrollX + cam.width / 2, cy = cam.scrollY + cam.height / 2;
     const near = lamps
       .filter((l) => l.r >= 34)
       .map((l) => ({ l, d: (l.x - cx) ** 2 + (l.y - cy) ** 2 }))

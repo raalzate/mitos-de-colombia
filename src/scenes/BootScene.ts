@@ -6,13 +6,12 @@ import {
 } from '../art/EffectsArtist';
 import { buildCursor, buildLogo, buildWhite } from '../art/UiArtist';
 import { FIGHTER_IDS } from '../data/fighters';
-import { DRAWN_ANIM, type DrawnAction } from '../art/drawnAnimManifest';
+import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { drawnAnimFile, drawnAnimKey } from '../art/DrawnAnim';
 import { preloadDrawnFx } from '../art/DrawnFx';
-import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage, setTextureRes } from '../utils/textures';
+import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage } from '../utils/textures';
 import { setLoadingProgress } from '../ui/Loading';
 import { preloadNormals } from '../adventure/Lighting';
-import { setupView } from '../utils/view';
 
 /**
  * Genera todos los recursos gráficos de forma procedimental (pixel art en memoria).
@@ -59,17 +58,6 @@ export class BootScene extends Phaser.Scene {
   }
 
   create(): void {
-    setupView(this);
-    // tiras de alta densidad: miden lo mismo que las demás y muestran el doble de detalle
-    for (const id of FIGHTER_IDS) {
-      for (const [action, m] of Object.entries(DRAWN_ANIM[id])) {
-        if (!m?.res) continue;
-        for (const slot of ['p1', 'p2'] as const) {
-          const key = drawnAnimKey(id, slot, action as DrawnAction);
-          if (this.textures.exists(key)) setTextureRes(this.textures.get(key), m.res);
-        }
-      }
-    }
     const g = this.add.graphics();
     g.fillStyle(0x07060d, 1).fillRect(0, 0, 384, 224);
     g.fillStyle(0xf8d048, 1).fillRect(120, 108, 144, 8);

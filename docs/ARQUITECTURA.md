@@ -9,7 +9,7 @@ probarlo en Node; las escenas de Phaser solo dibujan y reproducen sonido.
 ```text
 src/
 ├── main.ts                    Phaser, zoom entero, foco y desbloqueo del audio
-├── config/game-config.ts      Resolución lógica (384 × 224), física, tiempos de partida
+├── config/game-config.ts      Resolución (384 × 224), física, tiempos de partida
 ├── scenes/
 │   ├── BootScene.ts           Carga del arte dibujado y de PixelLab (con respaldo procedimental)
 │   ├── WarningScene.ts        Advertencia de sustos
@@ -39,31 +39,13 @@ src/
 ├── art/                       Pixel art: pintor, fuente 5×7, escenarios, efectos, animación dibujada
 ├── audio/                     Sfx (síntesis + muestras), StageSound (paisajes y música), Samples (voces)
 ├── ui/                        HUD del combate y sustos
-└── utils/                     Texturas, entrada global, ajustes y vista 2x (view.ts)
+└── utils/                     Texturas, entrada global y ajustes
 public/assets/                 Arte dibujado, PixelLab, efectos y audio
 tools/                         Scripts de Python para extraer arte y preparar audio
 tests/                         Vitest
 images/                        Referencias y originales (no se publican en Vercel)
 docs/                          Esta documentación y las capturas
 ```
-
-## Lienzo de doble densidad
-
-El juego piensa en **384 × 224 píxeles lógicos** (reglas, escenarios, HUD, aventura, fuentes), pero dibuja en un
-lienzo de **768 × 448** (`src/utils/view.ts`). Cada escena llama a `setupView(this)` al empezar su `create()`:
-la cámara principal queda con zoom 2 y origen en la esquina, así `scrollX/scrollY` siguen siendo el borde de la
-vista en lógico y los objetos fijos a la pantalla y el paralaje no cambian. El seguimiento, los límites, el paneo y
-el temblor de la cámara se recalculan para la vista lógica (Phaser los supone centrados en el lienzo).
-`installPixelSnap()` lleva la esquina de cada sprite, texto, rectángulo y línea recta a la rejilla lógica (como antes
-al píxel entero), redondea el corrimiento de las texturas que se desplazan y ajusta la luz con relieve (Light2D)
-para que alumbre igual. Las texturas dinámicas (suelo, noche) siguen a tamaño lógico y se amplían al dibujarse.
-
-Así el arte de siempre se ve igual (cada píxel = 2 × 2), y una tira con `res: 2` en el manifiesto de animación
-(dibujada al doble de densidad) muestra el doble de detalle: `setTextureRes` declara sus fotogramas con el tamaño
-lógico, de modo que el juego la posiciona, ancla y escala como cualquier otra. Las métricas (`drawnAnimMetrics.ts`)
-van siempre en píxeles lógicos. Diferencias que quedan frente al lienzo 1x: los sprites con escala no entera (la
-respiración de los luchadores, la neblina con textura ampliada a potencia de dos) y las curvas de `Graphics` se
-muestrean a doble densidad (bordes con medio píxel lógico de diferencia).
 
 ## Decisiones de combate
 
@@ -129,8 +111,7 @@ métricas.
 | `extract_splash.py`, `fix_splash.py`, `extract_fx.py` | Caras, cuerpo entero, poses y efectos desde `images/` |
 | `import_pixellab.py`, `import_aventura.py`, `pixellab_api.py` | Arte generado con PixelLab (caídas y modo aventura) |
 | `build_power_sfx.py` | Recorta y normaliza las grabaciones de poderes y la voz de Juan |
-| `measure_anim.py` | Mide eje, suelo y alto de cada fotograma (en píxeles lógicos) |
-| `gen_pixellab_hires.py`, `import_pixellab_moves.py` | Piloto de luchador en alta resolución (lienzo 192, `res: 2`) |
+| `measure_anim.py` | Mide la fluidez de las animaciones |
 
 ## Despliegue
 

@@ -9,7 +9,6 @@ import { wrap } from '../adventure/text';
 import { MENU_KEYS, MenuInput, inputManager } from '../utils/game';
 import { addSheet, text } from '../utils/textures';
 import { DEMO } from '../demo/Demo';
-import { setupView } from '../utils/view';
 
 /** Lo que el final necesita saber de la partida. */
 export interface EndingData {
@@ -62,7 +61,6 @@ export class EndingScene extends Phaser.Scene {
   }
 
   create(d: EndingData): void {
-    setupView(this);
     this.d = d;
     this.done = false;
     this.menu = new MenuInput();

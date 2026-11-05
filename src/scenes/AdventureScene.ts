@@ -55,7 +55,6 @@ import { AdventureBot, type BotView } from '../demo/AdventureBot';
 import type { EndingData } from './EndingScene';
 import { NightLights } from '../adventure/Lighting';
 import { NOTICE_RADIUS, breath, dogMood, dogRoam, faceToward, glance, nextBeat } from '../adventure/Life';
-import { setupView } from '../utils/view';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
 const CELL = 32;
@@ -247,7 +246,6 @@ export class AdventureScene extends Phaser.Scene {
   }
 
   create(data: { fresh?: boolean; outcome?: FightOutcome; arrive?: 'car' | 'horse' | 'door' }): void {
-    setupView(this);
     this.st = (this.registry.get('adventure') as AdventureState | undefined) ?? (data.fresh ? null : loadAdventure()) ?? newAdventure();
     if (data.fresh) this.st = newAdventure();
     const fight = this.registry.get('adventureFight') as AdventureFight | undefined;

@@ -9,7 +9,6 @@ import { INTRO_PAGES, INTRO_TITLE, type IntroArt } from '../adventure/Stories';
 import { markIntroSeen, needsIntro, newAdventure, saveAdventure, type AdventureState } from '../adventure/State';
 import { wrap } from '../adventure/text';
 import { DEMO } from '../demo/Demo';
-import { setupView } from '../utils/view';
 
 /** renglones del texto narrado: letra de 6 px en un ancho de 384 */
 const TEXT_WIDTH = 58;
@@ -47,7 +46,6 @@ export class IntroScene extends Phaser.Scene {
   }
 
   create(): void {
-    setupView(this);
     this.st = newAdventure();
     this.page = -1;
     this.frame = 0;

@@ -1,5 +1,0 @@
-{
- "keep": [0, 2, 3, 4, 5, 6],
- "res": 2,
- "note": "Generado en un recorte 112x160 de la base (box 40,32,152,192) para costar 2 generaciones; devuelto a su sitio en el lienzo 192x192. f01 = copia de f00 (la API repite el primero); f07 casi igual a f00 (cierra el ciclo, se omite). Pasos visibles bajo el vestido, pelo y vestido se mecen, diseño intacto, sin halos ni alfa intermedio. La parte baja del cuerpo varía de la fila 185 a 189 (paso): alinear pies por métrica."
-}
