@@ -10,8 +10,12 @@ export const STAGE_LAYER_WIDTH = 640;
 
 export type StageId =
   | 'ribera' | 'llanos' | 'laguna' | 'pantano' | 'infierno' | 'pueblo'
-  | 'selva' | 'robledal' | 'cantina' | 'cementerio';
-export const STAGE_IDS: StageId[] = ['ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo', 'selva', 'robledal', 'cantina', 'cementerio'];
+  | 'selva' | 'robledal' | 'cantina' | 'cementerio'
+  | 'puente' | 'cafetal' | 'paramo' | 'botero' | 'comuna13';
+export const STAGE_IDS: StageId[] = [
+  'ribera', 'llanos', 'laguna', 'pantano', 'infierno', 'pueblo', 'selva', 'robledal', 'cantina', 'cementerio',
+  'puente', 'cafetal', 'paramo', 'botero', 'comuna13',
+];
 
 export type AmbientKind = 'fly' | 'ember' | 'leaf' | 'drop' | 'none';
 
@@ -22,16 +26,18 @@ export interface StageTheme {
   /** Bandas de cielo de arriba a abajo (hasta y=150). */
   sky: number[];
   stars: number;
+  /** Vía Láctea: banda diagonal de estrellas (cielos despejados de alta montaña) */
+  milkyWay?: boolean;
   moon: { x: number; y: number; r: number; color: number; light: number } | null;
   sun: { x: number; y: number; r: number; color: number; glow: number } | null;
   /** interior: el "cielo" es la pared del fondo (la luna se ve por la ventana) */
   interior?: boolean;
   clouds: { c1: Rgba; c2: Rgba; line: Rgba };
-  far: { kind: 'mountains' | 'flat' | 'hills' | 'town' | 'hacienda' | 'cordillera' | 'shelves' | 'chapel'; color: number; color2: number; window?: number };
-  water: { kind: 'river' | 'lagoon' | 'swamp' | 'plain' | 'field' | 'street' | 'thicket' | 'bar' | 'vaults'; bands: number[]; glint: number; glintDark: number; reflect: number | null };
-  mid: { kind: 'jungle' | 'palms' | 'frailejones' | 'mangrove' | 'cane' | 'houses' | 'guadual' | 'tavern' | 'graves'; dark: number; mid: number; light: number; soil: number; accent: number };
-  ground: { kind: 'soil' | 'dry' | 'mud' | 'ash' | 'cobble' | 'trail' | 'planks'; soil: number; soilD: number; soilL: number; grass: number; grassL: number; water: number };
-  fore: { kind: 'rocks' | 'grass' | 'reeds' | 'embers' | 'posts' | 'ferns' | 'chairs' | 'crosses'; c1: number; c2: number };
+  far: { kind: 'mountains' | 'flat' | 'hills' | 'town' | 'hacienda' | 'cordillera' | 'shelves' | 'chapel' | 'canyon' | 'coffeehills' | 'peaks' | 'city' | 'barrio'; color: number; color2: number; window?: number };
+  water: { kind: 'river' | 'lagoon' | 'swamp' | 'plain' | 'field' | 'street' | 'thicket' | 'bar' | 'vaults' | 'rapids' | 'coffee' | 'bog' | 'fountain' | 'rooftops'; bands: number[]; glint: number; glintDark: number; reflect: number | null };
+  mid: { kind: 'jungle' | 'palms' | 'frailejones' | 'mangrove' | 'cane' | 'houses' | 'guadual' | 'tavern' | 'graves' | 'bridge' | 'trapiche' | 'paramo' | 'sculptures' | 'graffiti'; dark: number; mid: number; light: number; soil: number; accent: number };
+  ground: { kind: 'soil' | 'dry' | 'mud' | 'ash' | 'cobble' | 'trail' | 'planks' | 'deck' | 'moss' | 'tiles' | 'concrete'; soil: number; soilD: number; soilL: number; grass: number; grassL: number; water: number };
+  fore: { kind: 'rocks' | 'grass' | 'reeds' | 'embers' | 'posts' | 'ferns' | 'chairs' | 'crosses' | 'ropes' | 'plantain' | 'frailejon' | 'benches' | 'railing'; c1: number; c2: number };
   mist: { color: Rgba; color2: Rgba; alpha: number };
   ambient: AmbientKind;
   ambientTint: number;
@@ -235,6 +241,102 @@ export const STAGES: Record<StageId, StageTheme> = {
     ambientTint: 0x9fd0ff,
     lightning: false,
   },
+  puente: {
+    id: 'puente',
+    name: 'Puente Colgante del Cauca',
+    subtitle: 'Cañón del río Cauca - madrugada de crecida',
+    sky: [0x05080e, 0x0a1018, 0x101a24, 0x162430, 0x1e2e3a, 0x283a44, 0x34464c, 0x425250],
+    stars: 46,
+    moon: { x: 238, y: 30, r: 15, color: 0xd8e0d8, light: 0xf6fbf4 },
+    sun: null,
+    clouds: { c1: [56, 74, 84, 170], c2: [86, 104, 112, 140], line: [34, 46, 54, 150] },
+    far: { kind: 'canyon', color: 0x1c262c, color2: 0x223038 },
+    water: { kind: 'rapids', bands: [0x2a4048, 0x22363e, 0x1c2e34, 0x16262a], glint: 0xe8f4f4, glintDark: 0x8ab0b8, reflect: 0xb8c8c0 },
+    mid: { kind: 'bridge', dark: 0x0c1012, mid: 0x3c3a38, light: 0x6e685e, soil: 0x24180e, accent: 0xffc060 },
+    ground: { kind: 'deck', soil: 0x4a3420, soilD: 0x22160c, soilL: 0x6a4c2c, grass: 0x5a4028, grassL: 0x86643a, water: 0x0e161a },
+    fore: { kind: 'ropes', c1: 0x0a0806, c2: 0x3a2a18 },
+    mist: { color: [200, 220, 228, 52], color2: [226, 238, 242, 42], alpha: 0.9 },
+    ambient: 'leaf',
+    ambientTint: 0x8aa878,
+    lightning: false,
+  },
+  cafetal: {
+    id: 'cafetal',
+    name: 'Trapiche del Cafetal',
+    subtitle: 'Eje cafetero - aguacero de medianoche',
+    sky: [0x05070a, 0x090d10, 0x0d1316, 0x11191c, 0x162020, 0x1c2826, 0x23302c, 0x2b3832],
+    stars: 0,
+    moon: null,
+    sun: null,
+    clouds: { c1: [34, 44, 46, 230], c2: [52, 64, 64, 210], line: [18, 24, 26, 210] },
+    far: { kind: 'coffeehills', color: 0x101a14, color2: 0x18261c, window: 0xffc060 },
+    water: { kind: 'coffee', bands: [0x14241a, 0x112016, 0x0d1a12, 0x0a140e], glint: 0xd02828, glintDark: 0x9ab4c4, reflect: null },
+    mid: { kind: 'trapiche', dark: 0x0a100c, mid: 0x223424, light: 0x3e6036, soil: 0x24180e, accent: 0xff7a20 },
+    ground: { kind: 'mud', soil: 0x2e2216, soilD: 0x1c140c, soilL: 0x44321e, grass: 0x24401e, grassL: 0x34582a, water: 0x2a3a40 },
+    fore: { kind: 'plantain', c1: 0x040705, c2: 0x0e1a10 },
+    mist: { color: [150, 170, 172, 52], color2: [180, 198, 200, 40], alpha: 0.9 },
+    ambient: 'drop',
+    ambientTint: 0xa8c4d4,
+    lightning: true,
+  },
+  paramo: {
+    id: 'paramo',
+    name: 'Páramo de Sumapaz',
+    subtitle: 'Cundinamarca - helada bajo la Vía Láctea',
+    sky: [0x03050c, 0x070b18, 0x0b1224, 0x111a30, 0x18233a, 0x212e44, 0x2c3a4e, 0x3a4858],
+    stars: 150,
+    milkyWay: true,
+    moon: { x: 58, y: 28, r: 8, color: 0xd0d8e8, light: 0xf4f8ff },
+    sun: null,
+    clouds: { c1: [90, 104, 130, 110], c2: [130, 144, 170, 90], line: [60, 70, 96, 90] },
+    far: { kind: 'peaks', color: 0x141c28, color2: 0x1e2a38 },
+    water: { kind: 'bog', bands: [0x283226, 0x222c24, 0x1c261f, 0x161f1a], glint: 0xd8e8ff, glintDark: 0x6a84a8, reflect: null },
+    mid: { kind: 'paramo', dark: 0x1c1a14, mid: 0x5a6a5a, light: 0x9eae96, soil: 0x24261e, accent: 0xe8c840 },
+    ground: { kind: 'moss', soil: 0x2c2a20, soilD: 0x1c1c16, soilL: 0x454030, grass: 0x56603e, grassL: 0x8a9470, water: 0x26364a },
+    fore: { kind: 'frailejon', c1: 0x090b09, c2: 0x1c2018 },
+    mist: { color: [196, 212, 236, 64], color2: [226, 236, 250, 50], alpha: 1 },
+    ambient: 'fly',
+    ambientTint: 0xd8ecff,
+    lightning: false,
+  },
+  botero: {
+    id: 'botero',
+    name: 'Plaza de las Esculturas',
+    subtitle: 'Centro de Medellín - domingo a medianoche',
+    sky: [0x060818, 0x0b0e24, 0x111430, 0x191a3c, 0x241e46, 0x36244c, 0x502c4c, 0x703a48],
+    stars: 18,
+    moon: { x: 64, y: 30, r: 10, color: 0xe0d8c8, light: 0xfffaf0 },
+    sun: null,
+    clouds: { c1: [86, 58, 86, 140], c2: [120, 82, 104, 110], line: [56, 38, 64, 120] },
+    far: { kind: 'city', color: 0x10122a, color2: 0x1a1c3a, window: 0xffd070 },
+    water: { kind: 'fountain', bands: [0x4a4452, 0x403a48, 0x36323e, 0x2c2834], glint: 0xc8ecff, glintDark: 0x6aa0c8, reflect: null },
+    mid: { kind: 'sculptures', dark: 0x1a120e, mid: 0x4a3424, light: 0xb08850, soil: 0x3a3640, accent: 0xffd890 },
+    ground: { kind: 'tiles', soil: 0x585260, soilD: 0x3a3644, soilL: 0x6c6676, grass: 0x7a7486, grassL: 0x9a94a6, water: 0x2a2838 },
+    fore: { kind: 'benches', c1: 0x08070c, c2: 0x1e1a26 },
+    mist: { color: [210, 170, 170, 22], color2: [230, 196, 190, 18], alpha: 0.6 },
+    ambient: 'fly',
+    ambientTint: 0xffe2a0,
+    lightning: false,
+  },
+  comuna13: {
+    id: 'comuna13',
+    name: 'Escaleras de la Comuna 13',
+    subtitle: 'San Javier, Medellín - grafitis y luces',
+    sky: [0x07051a, 0x0d0926, 0x150d30, 0x201138, 0x30153e, 0x461b40, 0x622440, 0x80323e],
+    stars: 34,
+    moon: { x: 326, y: 38, r: 12, color: 0xe8d8c8, light: 0xfff8ec },
+    sun: null,
+    clouds: { c1: [80, 46, 80, 140], c2: [116, 70, 100, 110], line: [50, 30, 58, 120] },
+    far: { kind: 'barrio', color: 0x2a1a1c, color2: 0x3a2420, window: 0xffc860 },
+    water: { kind: 'rooftops', bands: [0x5a3026, 0x4a281f, 0x3c201a, 0x2e1814], glint: 0xffd070, glintDark: 0x70a0ff, reflect: null },
+    mid: { kind: 'graffiti', dark: 0x16121a, mid: 0x5a5460, light: 0x7a7480, soil: 0x34303a, accent: 0xff8a20 },
+    ground: { kind: 'concrete', soil: 0x4a4650, soilD: 0x302c36, soilL: 0x5e5a64, grass: 0xe0b020, grassL: 0xf0d060, water: 0x24222a },
+    fore: { kind: 'railing', c1: 0x08070a, c2: 0x26222a },
+    mist: { color: [190, 150, 190, 20], color2: [220, 180, 210, 16], alpha: 0.5 },
+    ambient: 'fly',
+    ambientTint: 0xffc890,
+    lightning: false,
+  },
 };
 
 export interface StageLayers {
@@ -373,16 +475,66 @@ function buildCantinaWall(t: StageTheme): Pixmap {
   return pm;
 }
 
+/** Matriz de Bayer 4x4 para degradados con tramado ordenado (sin bandas planas). */
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+const bayer = (x: number, y: number): number => BAYER4[((y & 3) << 2) | (x & 3)];
+
+/** Degradado vertical tramado entre los colores de la paleta (cada píxel es uno de ellos). */
+function ditherGradient(pm: Pixmap, x0: number, y0: number, w: number, h: number, colors: number[]): void {
+  const pal = colors.map((c) => hexToRgba(c));
+  const n = pal.length - 1;
+  for (let y = 0; y < h; y++) {
+    const p = n <= 0 ? 0 : (y / Math.max(1, h - 1)) * n;
+    const i = Math.min(n, Math.floor(p));
+    const frac = p - i;
+    for (let x = 0; x < w; x++) pm.set(x0 + x, y0 + y, frac > bayer(x0 + x, y0 + y) && i < n ? pal[i + 1] : pal[i]);
+  }
+}
+
+/** Resplandor radial tramado: denso al centro, se deshace hacia el borde. */
+function glow(pm: Pixmap, cx: number, cy: number, r: number, color: number, alpha = 90, squash = 1): void {
+  const [cr, cg, cb] = hexToRgba(color);
+  const ry = r * squash;
+  for (let y = Math.floor(cy - ry); y <= cy + ry; y++) {
+    for (let x = Math.floor(cx - r); x <= cx + r; x++) {
+      const d = Math.hypot((x - cx) / r, (y - cy) / ry);
+      if (d >= 1) continue;
+      const k = (1 - d) * (1 - d);
+      if (k * 1.6 > bayer(x, y)) pm.set(x, y, [cr, cg, cb, Math.round(alpha * (0.35 + 0.65 * k))]);
+    }
+  }
+}
+
+/** Vía Láctea: banda diagonal de polvo de estrellas con una franja oscura. */
+function paintMilkyWay(pm: Pixmap, rnd: () => number): void {
+  const at = (x: number) => 112 - x * 0.24;
+  for (let x = 0; x < GAME_WIDTH; x++) {
+    const c = at(x);
+    for (let y = Math.floor(c - 16); y < c + 16; y++) {
+      const d = Math.abs(y - c) / 16;
+      if ((1 - d) * 0.5 > bayer(x, y)) pm.set(x, y, [120, 130, 180, 26]);
+    }
+  }
+  for (let i = 0; i < 520; i++) {
+    const x = rnd() * GAME_WIDTH;
+    const off = (rnd() + rnd() + rnd() - 1.5) * 14;
+    const y = at(x) + off;
+    pm.set(x, y, rnd() > 0.85 ? [255, 250, 230, 230] : [170, 180, 220, 140]);
+  }
+  for (let x = 0; x < GAME_WIDTH; x += 1) {
+    const y = at(x) + Math.sin(x * 0.05) * 3 + 2;
+    if (rnd() > 0.3) pm.set(x, y, [8, 10, 20, 160]);
+    if (rnd() > 0.5) pm.set(x, y + 1, [8, 10, 20, 110]);
+  }
+}
+
 export function buildSky(t: StageTheme): Pixmap {
   if (t.interior) return buildCantinaWall(t);
   const pm = new Pixmap(GAME_WIDTH, GAME_HEIGHT);
-  const bandH = Math.ceil(150 / t.sky.length);
-  for (let i = 0; i < t.sky.length; i++) {
-    pm.rect(0, i * bandH, GAME_WIDTH, bandH, hexToRgba(t.sky[i]));
-    if (i > 0) pm.dither(0, i * bandH, GAME_WIDTH, 3, hexToRgba(t.sky[i - 1]), i);
-  }
+  ditherGradient(pm, 0, 0, GAME_WIDTH, 150, t.sky);
   pm.rect(0, 150, GAME_WIDTH, GAME_HEIGHT - 150, hexToRgba(t.sky[t.sky.length - 1]));
   const rnd = seededRandom(2024 + t.id.length);
+  if (t.milkyWay) paintMilkyWay(pm, seededRandom(77));
   for (let i = 0; i < t.stars; i++) {
     const x = Math.floor(rnd() * GAME_WIDTH);
     const y = Math.floor(rnd() * 100);
@@ -685,8 +837,353 @@ export function buildFar(t: StageTheme): Pixmap {
       }
       break;
     }
+    case 'canyon':
+      paintCanyon(pm, t, rnd);
+      break;
+    case 'coffeehills':
+      paintCoffeeHills(pm, t, rnd);
+      break;
+    case 'peaks':
+      paintPeaks(pm, t, rnd);
+      break;
+    case 'city':
+      paintCity(pm, t, rnd);
+      break;
+    case 'barrio':
+      paintBarrio(pm, t, rnd);
+      break;
   }
   return pm;
+}
+
+/** Cañón del Cauca: dos paredes de roca con estratos, cascada y filos lejanos entre la bruma. */
+function paintCanyon(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const c1 = hexToRgba(t.far.color);
+  const c2 = hexToRgba(t.far.color2);
+  // filos lejanos, aguas arriba
+  const back: [number, number][] = [[0, h]];
+  for (let x = 0; x <= W; x += 8) back.push([x, 46 + Math.sin(x * 0.02) * 8 + Math.sin(x * 0.07) * 3]);
+  back.push([W, h]);
+  pm.polygon(back, hexToRgba(0x2c3c44));
+  pm.dither(0, 50, W, 30, [150, 170, 175, 40], 0);
+  const mid: [number, number][] = [[0, h]];
+  for (let x = 0; x <= W; x += 6) mid.push([x, 64 + Math.sin(x * 0.03 + 1) * 6 + rnd() * 3]);
+  mid.push([W, h]);
+  pm.polygon(mid, c2);
+  pm.dither(0, 70, W, 12, [150, 170, 175, 34], 1);
+  // paredes del cañón a lado y lado
+  const wall = (x0: number, x1: number, dir: 1 | -1) => {
+    const wp = new Pixmap(W, h);
+    const outer = dir === 1 ? x0 : x1;
+    const inner = dir === 1 ? x1 : x0;
+    const pts: [number, number][] = [[outer, h]];
+    // cresta irregular arriba, de afuera hacia el filo
+    for (let i = 0; i <= 8; i++) {
+      const x = outer + ((inner - outer) * i) / 8;
+      pts.push([x, 2 + rnd() * 10 + (i / 8) * 6]);
+    }
+    const face: [number, number][] = [];
+    const steps = 14;
+    for (let i = 1; i <= steps; i++) {
+      const u = i / steps;
+      face.push([inner + dir * (u * u * 30 + (rnd() - 0.5) * 8 - (i % 3 === 0 ? 6 : 0)), 16 + u * (h - 26)]);
+    }
+    pts.push(...face, [face[face.length - 1][0], h]);
+    wp.polygon(pts, c1);
+    // estratos y grietas, solo sobre la roca
+    for (let y = 8; y < h - 4; y += 4 + Math.floor(rnd() * 4)) {
+      const wave = rnd() * 6;
+      for (let x = Math.min(outer, inner) - 40; x < Math.max(outer, inner) + 40; x++) {
+        const yy = Math.round(y + Math.sin(x * 0.08 + wave) * 1.5);
+        if ((x + yy) % 4 !== 0 && wp.alpha(x, yy) > 0) wp.set(x, yy, [58, 72, 80, 150]);
+      }
+    }
+    for (let k = 0; k < 10; k++) {
+      let cx = outer + (inner - outer) * rnd();
+      let cy = 10 + rnd() * 40;
+      for (let j = 0; j < 20; j++) {
+        if (wp.alpha(cx, cy) > 0) wp.set(cx, cy, [6, 10, 12, 200]);
+        cx += (rnd() - 0.5) * 2;
+        cy += 1;
+      }
+    }
+    // borde iluminado por la luna (filo y cresta)
+    for (let i = 1; i < pts.length - 2; i++) wp.line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], 1, [120, 140, 150, 170]);
+    // matas colgadas en las cornisas
+    for (let k = 0; k < 10; k++) {
+      const [ex, ey] = face[Math.floor(rnd() * (face.length - 1))];
+      wp.ellipse(ex - dir * 4, ey + 2, 4 + rnd() * 4, 2 + rnd() * 2, hexToRgba(0x0e1a14));
+      wp.ellipse(ex - dir * 5, ey + 1, 2, 1, hexToRgba(0x24402c));
+    }
+    for (let x = Math.min(outer, inner); x < Math.max(outer, inner); x += 3) {
+      for (let y = 0; y < 20; y++) {
+        if (wp.alpha(x, y) > 0) {
+          wp.ellipse(x, y + 1, 3, 2, hexToRgba(0x10201a));
+          break;
+        }
+      }
+    }
+    pm.blit(wp, 0, 0);
+  };
+  wall(40, 196, 1);
+  wall(420, 600, -1);
+  // cascada en la pared izquierda
+  for (let y = 18; y < 96; y++) {
+    const x = 150 + Math.sin(y * 0.2) * 0.8;
+    pm.set(x, y, [200, 220, 225, 200]);
+    if (y % 3 === 0) pm.set(x + 1, y, [160, 190, 200, 140]);
+  }
+  pm.dither(144, 92, 14, 6, [220, 235, 240, 110], 0);
+  pm.dither(0, h - 24, W, 24, [10, 16, 20, 120], 0);
+}
+
+/** Lomas cafeteras: surcos de café en curva de nivel, plataneras, palma de cera y la finca con balcón. */
+function paintCoffeeHills(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const c1 = hexToRgba(t.far.color);
+  const c2 = hexToRgba(t.far.color2);
+  const hill = (base: number, amp: number, freq: number, ph: number) => (x: number) => base - amp * Math.abs(Math.sin(x * freq + ph));
+  const back = hill(52, 34, 0.009, 0.4);
+  const front = hill(86, 26, 0.013, 1.9);
+  const poly = (f: (x: number) => number, c: Rgba) => {
+    const pts: [number, number][] = [[0, h]];
+    for (let x = 0; x <= W; x += 4) pts.push([x, f(x)]);
+    pts.push([W, h]);
+    pm.polygon(pts, c);
+  };
+  poly(back, hexToRgba(0x0e1612));
+  // surcos de café siguiendo la loma de atrás
+  for (let row = 4; row < 60; row += 5) {
+    for (let x = 0; x < W; x += 3) {
+      const y = back(x) + row + Math.sin(x * 0.05 + row) * 1.5;
+      if (y < h && (x + row) % 6 !== 0) pm.set(x, y, [36, 56, 40, 200]);
+    }
+  }
+  pm.dither(0, 40, W, 30, [120, 140, 150, 28], 0);
+  poly(front, c1);
+  for (let row = 3; row < 40; row += 4) {
+    for (let x = 0; x < W; x += 2) {
+      const y = front(x) + row + Math.sin(x * 0.04 + row * 0.7) * 2;
+      if (y < h && (x * 7 + row) % 5 !== 0) pm.set(x, y, hexToRgba((x + row) % 4 ? 0x1c3022 : 0x24402a));
+    }
+  }
+  // plataneras y guamos en el filo
+  const plantain = (x: number, y: number, s: number, c: Rgba) => {
+    pm.line(x, y, x, y - 10 * s, 2, c);
+    for (const [dx, dy] of [[-7, -2], [7, -3], [-5, 4], [6, 3], [0, -6]] as const) {
+      pm.line(x, y - 10 * s, x + dx * s, y - 10 * s + dy * s, 2, c);
+      pm.line(x + dx * s, y - 10 * s + dy * s, x + dx * s * 1.2, y - 10 * s + dy * s + 3 * s, 1, c);
+    }
+  };
+  for (let i = 0; i < 16; i++) {
+    const x = rnd() * W;
+    plantain(x, front(x) + 2, 0.8 + rnd() * 0.5, c2);
+  }
+  for (let i = 0; i < 6; i++) {
+    const x = rnd() * W;
+    const y = front(x);
+    pm.ellipse(x, y - 8, 12 + rnd() * 6, 5, c2);
+    pm.vline(x, y - 6, y + 2, c2);
+  }
+  // palma de cera solitaria
+  const px = 470;
+  const pb = back(px);
+  pm.vline(px, pb - 36, pb + 4, hexToRgba(0x2a3830));
+  for (let a = -3; a <= 3; a++) pm.line(px, pb - 36, px + a * 4, pb - 40 + Math.abs(a) * 3, 1, hexToRgba(0x2a3830));
+  // la finca: paredes encaladas, techo de teja y balcón con chambrana de colores
+  const fx = 300;
+  const fy = front(fx) + 4;
+  const win = hexToRgba(t.far.window ?? 0xffc060);
+  pm.rect(fx - 26, fy - 18, 52, 18, hexToRgba(0x6e6e62));
+  pm.polygon([[fx - 32, fy - 17], [fx - 20, fy - 27], [fx + 20, fy - 27], [fx + 32, fy - 17]], hexToRgba(0x4a1c12));
+  for (let x = fx - 28; x < fx + 30; x += 3) pm.vline(x, fy - 25, fy - 18, [30, 10, 6, 140]);
+  pm.hline(fx - 30, fx + 30, fy - 10, hexToRgba(0x9a2420));
+  for (let x = fx - 28; x <= fx + 28; x += 3) pm.vline(x, fy - 9, fy - 6, hexToRgba(x % 2 ? 0x1e6a3a : 0x9a2420));
+  pm.hline(fx - 30, fx + 30, fy - 6, hexToRgba(0x1e6a3a));
+  for (const wx of [fx - 18, fx - 4, fx + 12]) {
+    pm.rect(wx, fy - 16, 5, 5, win);
+    glow(pm, wx + 2, fy - 13, 9, t.far.window ?? 0xffc060, 50);
+  }
+  pm.rect(fx - 2, fy - 5, 5, 5, hexToRgba(0x2a1a10));
+  // cortinas de aguacero sobre las lomas
+  for (let i = 0; i < 260; i++) {
+    const x = rnd() * W;
+    const y = rnd() * (h - 20);
+    pm.line(x, y, x - 2, y + 6, 1, [150, 170, 180, 34]);
+  }
+}
+
+/** Páramo: crestas de roca con escarcha y una laguna glaciar que refleja las estrellas. */
+function paintPeaks(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const c1 = hexToRgba(t.far.color);
+  const c2 = hexToRgba(t.far.color2);
+  const frost = hexToRgba(0x8a9cb4);
+  const ridgePts = (base: number, jag: number): [number, number][] => {
+    const pts: [number, number][] = [[0, h]];
+    let y = base;
+    for (let x = 0; x <= W; x += 5) {
+      y = Math.max(base - jag, Math.min(base + jag * 0.4, y + (rnd() - 0.5) * jag * 0.6));
+      pts.push([x, y]);
+    }
+    pts.push([W, h]);
+    return pts;
+  };
+  // cordillera de atrás: picos afilados, cara iluminada hacia la luna y escarcha arriba
+  const peaks = Array.from({ length: 11 }, (_, i) => ({ x: i * 64 + rnd() * 40, hgt: 18 + rnd() * 26, slope: 0.6 + rnd() * 0.5 }));
+  const ridge = new Float32Array(W + 1);
+  for (let x = 0; x <= W; x++) {
+    let top = 50;
+    for (const p of peaks) top = Math.min(top, 50 - p.hgt + Math.abs(x - p.x) * p.slope);
+    ridge[x] = top + Math.sin(x * 0.7) * 0.8 + Math.sin(x * 0.23) * 1.5;
+  }
+  const lit = hexToRgba(0x2c3a4e);
+  const snow = hexToRgba(0x6a7c96);
+  const snowL = hexToRgba(0xa8b8d0);
+  for (let x = 0; x < W; x++) {
+    const r = Math.round(ridge[x]);
+    const facing = ridge[x + 1] > ridge[x];
+    for (let y = r; y < h; y++) {
+      const depth = y - r;
+      let c = facing ? lit : c2;
+      if (depth < 14 && y < 40 && (14 - depth) / 14 > bayer(x, y) * (facing ? 0.9 : 1.6)) c = facing && depth < 3 ? snowL : snow;
+      pm.set(x, y, c);
+    }
+    // canaletas de nieve bajando por la cara
+    if (x % 7 === 0 && facing) for (let k = 0; k < 8; k++) pm.set(x + (k >> 2), r + 4 + k, snow);
+  }
+  pm.dither(0, 46, W, 18, [150, 170, 200, 30], 0);
+  const front = ridgePts(66, 14);
+  pm.polygon(front, c1);
+  for (let i = 1; i < front.length - 2; i += 2) pm.set(front[i][0], front[i][1], hexToRgba(0x4a5a70));
+  // laguna glaciar con estrellas reflejadas
+  const lx = 330;
+  pm.ellipse(lx, 92, 70, 6, hexToRgba(0x1a2638));
+  pm.ellipse(lx, 91, 66, 4, hexToRgba(0x24344c));
+  for (let i = 0; i < 30; i++) pm.set(lx - 60 + rnd() * 120, 89 + rnd() * 5, [200, 214, 240, 200]);
+  pm.hline(lx - 64, lx + 64, 87, [150, 170, 200, 120]);
+  // morrenas y piedras sueltas
+  for (let i = 0; i < 26; i++) {
+    const x = rnd() * W;
+    const y = 80 + rnd() * 30;
+    pm.ellipse(x, y, 3 + rnd() * 4, 1.5 + rnd() * 2, c2);
+    pm.set(x - 1, y - 1, frost);
+  }
+}
+
+/** Valle de Medellín de noche: montañas llenas de luces, torres, palacio ajedrezado y el metro elevado. */
+function paintCity(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const c1 = hexToRgba(t.far.color);
+  const c2 = hexToRgba(t.far.color2);
+  const win = t.far.window ?? 0xffd070;
+  // laderas del valle, encendidas de casitas
+  const slope = (x: number) => 26 + Math.sin(x * 0.011 + 0.6) * 14 + Math.sin(x * 0.043) * 4;
+  const pts: [number, number][] = [[0, h]];
+  for (let x = 0; x <= W; x += 4) pts.push([x, slope(x)]);
+  pts.push([W, h]);
+  pm.polygon(pts, hexToRgba(0x0c0e22));
+  const lights = [0xffc060, 0xffe4a0, 0xff9a50, 0xf0f0ff].map((c) => hexToRgba(c));
+  for (let i = 0; i < 900; i++) {
+    const x = rnd() * W;
+    const top = slope(x) + 2;
+    const y = top + Math.pow(rnd(), 0.6) * (80 - top);
+    pm.set(x, y, lights[i % 7 === 0 ? 3 : i % 5 === 0 ? 2 : i % 2]);
+  }
+  pm.dither(0, 50, W, 30, [255, 170, 110, 18], 0);
+  // torres del centro
+  let x = 0;
+  while (x < W) {
+    const w = 10 + Math.floor(rnd() * 16);
+    const top = 44 + Math.floor(rnd() * 34);
+    pm.rect(x, top, w, h - top, rnd() > 0.5 ? c1 : c2);
+    for (let wy = top + 3; wy < 100; wy += 4) {
+      for (let wx = x + 2; wx < x + w - 2; wx += 3) if (rnd() > 0.72) pm.rect(wx, wy, 1, 2, hexToRgba(rnd() > 0.15 ? win : 0xb0d0ff));
+    }
+    x += w + 1 + Math.floor(rnd() * 6);
+  }
+  // la aguja: torre alta de remate en punta con baliza roja
+  const nx = 400;
+  pm.rect(nx - 7, 16, 14, h - 16, c2);
+  pm.polygon([[nx - 7, 17], [nx, -4], [nx + 7, 17]], c2);
+  pm.vline(nx - 6, 16, h, [70, 76, 120, 160]);
+  for (let wy = 20; wy < 100; wy += 3) for (let wx = nx - 5; wx < nx + 6; wx += 2) if (rnd() > 0.6) pm.set(wx, wy, hexToRgba(win));
+  pm.set(nx, -2, hexToRgba(0xff3030));
+  glow(pm, nx, 0, 4, 0xff3030, 120);
+  // palacio gótico de franjas blancas y negras (genérico)
+  const gx = 210;
+  for (let y = 40; y < h; y++) {
+    for (let px = gx - 34; px < gx + 34; px++) {
+      const check = (Math.floor((px - gx) / 3) + Math.floor(y / 3)) % 2 === 0;
+      pm.set(px, y, hexToRgba(check ? 0x5a5872 : 0x14142a));
+    }
+  }
+  for (const tx of [gx - 34, gx - 6, gx + 28]) {
+    pm.rect(tx, 28, 6, 14, hexToRgba(0x3a3854));
+    pm.polygon([[tx - 1, 29], [tx + 3, 18], [tx + 7, 29]], hexToRgba(0x3a3854));
+  }
+  pm.polygon([[gx - 12, 41], [gx, 22], [gx + 12, 41]], hexToRgba(0x2a2844));
+  for (const wx of [gx - 24, gx - 12, gx + 8, gx + 20]) {
+    pm.rect(wx, 54, 4, 9, hexToRgba(0x0a0a18));
+    pm.set(wx + 1, 55, hexToRgba(win));
+  }
+  // metro elevado con el tren pasando
+  pm.rect(0, 86, W, 4, hexToRgba(0x2e3048));
+  pm.hline(0, W, 86, hexToRgba(0x5a5c78));
+  for (let px = 12; px < W; px += 44) pm.rect(px, 90, 4, h - 90, hexToRgba(0x22243a));
+  const tx = 440;
+  pm.rect(tx, 78, 96, 8, hexToRgba(0x8a8ea8));
+  pm.hline(tx, tx + 95, 78, hexToRgba(0xc8ccdc));
+  for (let k = tx + 3; k < tx + 92; k += 6) pm.rect(k, 80, 4, 3, hexToRgba(0xfff0b0));
+  for (const cut of [tx + 31, tx + 63]) pm.vline(cut, 78, 85, hexToRgba(0x2e3048));
+  glow(pm, tx + 48, 82, 40, 0xfff0b0, 26, 0.3);
+}
+
+/** Ladera de la Comuna 13: casas de ladrillo apiladas loma arriba, ventanas encendidas y tanques en las terrazas. */
+function paintBarrio(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const win = hexToRgba(t.far.window ?? 0xffc860);
+  const tv = hexToRgba(0x7aa8ff);
+  const walls = [0x3a2420, 0x452a22, 0x32201e, 0x2c2a36, 0x3c3220, 0x2a3638, 0x4a2a2e].map((c) => hexToRgba(c));
+  const top = (x: number) => 6 + 26 * (0.5 + 0.5 * Math.sin(x * 0.008 - 0.7)) + Math.sin(x * 0.05) * 3;
+  // lomo de la montaña detrás
+  const pts: [number, number][] = [[0, h]];
+  for (let x = 0; x <= W; x += 4) pts.push([x, top(x) - 8]);
+  pts.push([W, h]);
+  pm.polygon(pts, hexToRgba(0x0e0c1a));
+  for (let row = 0; row < 16; row++) {
+    let x = -Math.floor(rnd() * 10);
+    while (x < W) {
+      const w = 8 + Math.floor(rnd() * 12);
+      const hh = 7 + Math.floor(rnd() * 4);
+      const base = top(x + w / 2) + row * 7;
+      if (base < h) {
+        const c = walls[Math.floor(rnd() * walls.length)];
+        const shade = Math.min(1, 0.55 + row * 0.04);
+        const wc: Rgba = [Math.round(c[0] * shade), Math.round(c[1] * shade), Math.round(c[2] * shade), 255];
+        pm.rect(x, base - hh, w, hh + 2, wc);
+        pm.hline(x, x + w - 1, base - hh, [wc[0] + 24, wc[1] + 18, wc[2] + 16, 255]);
+        for (let wx = x + 2; wx < x + w - 2; wx += 4) {
+          const r = rnd();
+          if (r > 0.62) pm.rect(wx, base - hh + 3, 2, 2, r > 0.95 ? tv : win);
+        }
+        if (rnd() > 0.8) pm.rect(x + w - 4, base - hh - 3, 3, 3, hexToRgba(0x1a2a50));
+      }
+      x += w + (rnd() > 0.8 ? 2 : 0);
+    }
+  }
+  // cables de luz cruzando la ladera
+  for (let k = 0; k < 4; k++) {
+    const y0 = 20 + k * 18;
+    for (let x = 0; x < W; x++) pm.set(x, sag(x % 160, 0, 160, y0, 6), [10, 8, 14, 160]);
+  }
+  pm.dither(0, 0, W, 24, [160, 100, 140, 24], 0);
 }
 
 /* ------------------------------------------------------------------ */
@@ -758,6 +1255,8 @@ function buildBand(t: StageTheme): Pixmap[] {
         const x = (i * 97 + f * 3) % W;
         pm.hline(x, x + 3, 36, hexToRgba((i + f) % 2 ? t.water.glint : t.water.glintDark));
       }
+    } else if (t.water.kind !== 'vaults') {
+      paintBandExtra(pm, t, f);
     } else {
       // muro de bóvedas encalado con lápidas, flores y velas
       pm.rect(0, 0, W, h, b[1]);
@@ -805,8 +1304,171 @@ function buildBand(t: StageTheme): Pixmap[] {
   return frames;
 }
 
+/** Franjas animadas de los escenarios nuevos (fotograma f de 3). */
+function paintBandExtra(pm: Pixmap, t: StageTheme, f: number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const rnd = seededRandom(909);
+  const b = t.water.bands;
+  const glint = hexToRgba(t.water.glint);
+  const glintD = hexToRgba(t.water.glintDark);
+  switch (t.water.kind) {
+    case 'rapids': {
+      // río crecido allá abajo: corriente rápida, piedras y espuma que avanza
+      ditherGradient(pm, 0, 0, W, h, b);
+      if (t.water.reflect !== null && t.moon) {
+        for (let y = 2; y < h; y += 2) pm.dither(t.moon.x + 40 - 6 + Math.sin(y + f * 2) * 3, y, 12, 1, rgba(t.water.reflect, 120), y + f);
+      }
+      for (let i = 0; i < 150; i++) {
+        const y = 2 + rnd() * (h - 4);
+        const speed = 3 + (y / h) * 5;
+        const x = (rnd() * W + f * speed) % W;
+        const w = 2 + rnd() * 7;
+        pm.hline(x, x + w, y, i % 3 === 0 ? glint : glintD);
+        if (i % 4 === 0) pm.set(x + w + 1, y - 1, glintD);
+      }
+      for (let i = 0; i < 12; i++) {
+        const x = 20 + i * 53 + rnd() * 20;
+        const y = 10 + rnd() * 26;
+        const r = 4 + rnd() * 5;
+        pm.ellipse(x, y, r, r * 0.55, hexToRgba(0x10181a));
+        pm.hline(x - r + 2, x + r - 3, y - r * 0.55, hexToRgba(0x4a5a5c));
+        // espuma que revienta contra la piedra
+        for (let k = 0; k < 7; k++) {
+          const a = ((k + f * 2) / 7) * Math.PI - Math.PI / 2;
+          pm.set(x - r - 1 + Math.cos(a) * 2, y + Math.sin(a) * r * 0.6, glint);
+        }
+        for (let k = 0; k < 4; k++) pm.hline(x + r + k * 3 + f, x + r + k * 3 + f + 2, y + ((k + f) % 3) - 1, glintD);
+      }
+      pm.dither(0, 0, W, 3, [200, 220, 225, 50], f);
+      break;
+    }
+    case 'coffee': {
+      // surcos de café con granos rojos y amarillos, y el aguacero cayendo
+      ditherGradient(pm, 0, 0, W, h, b);
+      const leaf = [0x0e1e12, 0x16301a, 0x1e3e22].map((c) => hexToRgba(c));
+      for (const [ry, s] of [[8, 0.7], [20, 0.85], [33, 1]] as const) {
+        for (let x = -6; x < W + 6; x += 9 * s) {
+          const bx = x + rnd() * 3;
+          pm.ellipse(bx, ry, 6 * s, 5 * s, leaf[0]);
+          pm.ellipse(bx - 1, ry - 1, 4.5 * s, 3.5 * s, leaf[1]);
+          pm.ellipse(bx - 2, ry - 2, 2 * s, 1.5 * s, leaf[2]);
+          for (let k = 0; k < 3; k++) {
+            if (rnd() > 0.55) pm.set(bx - 3 + rnd() * 6, ry - 1 + rnd() * 4, hexToRgba(rnd() > 0.25 ? t.water.glint : 0xe0b020));
+          }
+        }
+      }
+      for (let i = 0; i < 170; i++) {
+        const x = rnd() * W;
+        const y = (rnd() * (h + 10) + f * 5) % (h + 6) - 6;
+        pm.line(x, y, x - 1, y + 4, 1, [170, 196, 210, 130]);
+      }
+      for (let i = 0; i < 18; i++) {
+        const x = rnd() * W;
+        const r = 1 + ((i + f) % 3);
+        pm.ellipse(x, h - 2, r * 1.6, r * 0.5, [150, 180, 200, 90]);
+      }
+      break;
+    }
+    case 'bog': {
+      // turbera: charquitos que reflejan estrellas, cojines de musgo y escarcha que brilla
+      ditherGradient(pm, 0, 0, W, h, b);
+      for (let i = 0; i < 26; i++) {
+        const x = rnd() * W;
+        const y = 6 + rnd() * (h - 12);
+        const rx = 6 + rnd() * 12;
+        pm.ellipse(x, y, rx, rx * 0.22 + 1, hexToRgba(0x121c2c));
+        pm.hline(x - rx + 2, x + rx - 2, y - rx * 0.22, hexToRgba(0x3a4c6a));
+        for (let k = 0; k < 3; k++) {
+          const gx = x - rx * 0.6 + rnd() * rx * 1.2;
+          if ((i + k + f) % 3 !== 0) pm.set(gx, y, glint);
+        }
+      }
+      for (let i = 0; i < 60; i++) {
+        const x = rnd() * W;
+        const y = 4 + rnd() * (h - 6);
+        pm.ellipse(x, y, 3 + rnd() * 3, 1.5 + rnd(), hexToRgba(i % 2 ? 0x3a4a30 : 0x2e3c28));
+        pm.set(x - 1, y - 1, hexToRgba(0x6a7a58));
+      }
+      // frailejoncitos lejanos
+      for (let i = 0; i < 30; i++) {
+        const x = rnd() * W;
+        const y = 4 + rnd() * 20;
+        pm.vline(x, y, y + 4, hexToRgba(0x1c1a14));
+        pm.hline(x - 1, x + 1, y - 1, hexToRgba(0x7a8a74));
+      }
+      for (let i = 0; i < 70; i++) {
+        const sx = rnd() * W;
+        const sy = rnd() * h;
+        if ((i + f) % 3 !== 0) pm.set(sx, sy, (i + f) % 3 === 1 ? glint : glintD);
+      }
+      break;
+    }
+    case 'fountain': {
+      // la plaza al fondo: baldosas, la pila con chorros que suben y caen, y charcos de luz de las farolas
+      ditherGradient(pm, 0, 0, W, h, b);
+      for (let y = 4; y < h; y += 6) pm.hline(0, W, y, hexToRgba(0x2a2632));
+      for (let x = 0; x < W; x += 14) pm.vline(x, 0, h, [36, 32, 44, 120]);
+      for (const lx of [60, 180, 470, 590]) glow(pm, lx, 30, 26, 0xffd890, 46, 0.4);
+      for (const fx of [320]) {
+        pm.ellipse(fx, 34, 46, 8, hexToRgba(0x6a6676));
+        pm.ellipse(fx, 33, 42, 6, hexToRgba(0x1a3a52));
+        pm.hline(fx - 44, fx + 44, 27, hexToRgba(0x8a8696));
+        for (let k = 0; k < 20; k++) pm.set(fx - 38 + ((k * 13 + f * 5) % 76), 32 + ((k + f) % 3), glint);
+        // pilar central con plato
+        pm.rect(fx - 3, 14, 6, 18, hexToRgba(0x5a5666));
+        pm.ellipse(fx, 14, 12, 2, hexToRgba(0x7a7686));
+        // chorros en arco (avanzan con el fotograma)
+        for (const dir of [-1, 1]) {
+          for (let k = 0; k < 14; k++) {
+            const u = ((k + f * 0.33) / 14) % 1;
+            const x = fx + dir * (4 + u * 32);
+            const y = 10 - Math.sin(u * Math.PI) * 9 + u * 20;
+            pm.set(x, y, k % 2 ? glint : glintD);
+            pm.set(x, y + 1, [200, 230, 255, 90]);
+          }
+        }
+        for (let k = 0; k < 8; k++) pm.set(fx + ((k * 3 + f) % 5) - 2, 2 + ((k * 5 + f * 3) % 12), glint);
+      }
+      break;
+    }
+    case 'rooftops': {
+      // terrazas de más abajo: losas con varillas, ropa colgada y ventanas que titilan (televisores)
+      ditherGradient(pm, 0, 0, W, h, b);
+      let x = 0;
+      let k = 0;
+      while (x < W) {
+        const w = 18 + Math.floor(rnd() * 26);
+        const top = 2 + Math.floor(rnd() * 14);
+        const wall = hexToRgba([0x5a3026, 0x4a2e2a, 0x62402a, 0x3a3a46][k % 4]);
+        pm.rect(x, top, w, h - top, wall);
+        pm.hline(x, x + w - 1, top, hexToRgba(0x7a4a36));
+        for (let r = top + 4; r < h; r += 3) pm.hline(x, x + w - 1, r, [20, 10, 8, 50]);
+        for (let v = 0; v < 3; v++) pm.vline(x + 3 + v * 6, top - 4, top, hexToRgba(0x2a1e1a));
+        for (let wx = x + 4; wx < x + w - 5; wx += 9) {
+          const lit = (Math.floor(wx * 0.37) + f * (k % 3)) % 4;
+          const c = k % 5 === 2 ? (lit < 2 ? glintD : hexToRgba(0x3a5aa0)) : lit === 0 ? hexToRgba(0x1a1014) : glint;
+          pm.rect(wx, top + 7, 4, 5, c);
+          if (lit !== 0) pm.dither(wx - 2, top + 5, 8, 9, [c[0], c[1], c[2], 50], f);
+        }
+        if (k % 3 === 0) {
+          // tendedero con ropa de colores
+          for (let cx = x + 2; cx < x + w - 2; cx++) pm.set(cx, top - 3 + Math.round(sag(cx, x + 2, x + w - 2, 0, 2)), hexToRgba(0x2a2420));
+          const clothes = [0xe04040, 0x40a0e0, 0xf0d040, 0xf0f0f0];
+          for (let cx = x + 5, n = 0; cx < x + w - 5; cx += 5, n++) pm.rect(cx + (f === 1 ? 1 : 0), top - 2, 3, 4, hexToRgba(clothes[(n + k) % 4]));
+        }
+        x += w + 1;
+        k++;
+      }
+      break;
+    }
+  }
+}
+
+const BAND_KINDS = new Set<StageTheme['water']['kind']>(['thicket', 'bar', 'vaults', 'rapids', 'coffee', 'bog', 'fountain', 'rooftops']);
+
 export function buildRiver(t: StageTheme): Pixmap[] {
-  if (t.water.kind === 'thicket' || t.water.kind === 'bar' || t.water.kind === 'vaults') return buildBand(t);
+  if (BAND_KINDS.has(t.water.kind)) return buildBand(t);
   const frames: Pixmap[] = [];
   const h = 44;
   const rnd = seededRandom(404);
@@ -1053,7 +1715,17 @@ export function buildMid(t: StageTheme): Pixmap {
         const top = 18 + rnd() * 14;
         const wall = [hexToRgba(0x6a5a58), hexToRgba(0x5a4a60), hexToRgba(0x6a5848), hexToRgba(0x4e4a5a)][k % 4];
         pm.rect(x, top, w, h - 10 - top, wall);
+        // pañete viejo: sombra del alero, manchas de humedad y desconchones
+        pm.dither(x, top + 2, w, 4, [10, 8, 16, 90], 0);
+        for (let y = h - 40; y < h - 24; y++) if ((y - h + 40) / 16 > bayer(x, y)) pm.dither(x, y, w, 1, [20, 16, 24, 60], y);
+        for (let s = 0; s < 3; s++) {
+          const sx = x + rnd() * (w - 8);
+          const sy = top + 8 + rnd() * 30;
+          pm.ellipse(sx, sy, 3 + rnd() * 3, 2, [0, 0, 0, 40]);
+          pm.set(sx + 1, sy - 1, [255, 255, 255, 30]);
+        }
         pm.rect(x - 3, top - 6, w + 6, 8, dark); // alero
+        for (let tx = x - 3; tx < x + w + 3; tx += 2) pm.set(tx, top + 1, [0, 0, 0, 120]);
         for (let tx = x - 3; tx < x + w + 3; tx += 4) pm.set(tx, top - 6, mid); // tejas
         pm.rect(x, h - 24, w, 14, mid); // zócalo
         // puerta
@@ -1090,8 +1762,484 @@ export function buildMid(t: StageTheme): Pixmap {
     case 'graves':
       paintGraves(pm, t, rnd);
       break;
+    case 'bridge':
+      paintBridge(pm, t, rnd);
+      break;
+    case 'trapiche':
+      paintTrapiche(pm, t, rnd);
+      break;
+    case 'paramo':
+      paintParamo(pm, t, rnd);
+      break;
+    case 'sculptures':
+      paintSculptures(pm, t, rnd);
+      break;
+    case 'graffiti':
+      paintGraffiti(pm, t, rnd);
+      break;
   }
   return pm;
+}
+
+/** Puente colgante: torres de piedra con arco, cables maestros, péndolas, faroles y la baranda de enfrente. */
+function paintBridge(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const dark = hexToRgba(t.mid.dark);
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const wood = hexToRgba(t.mid.soil);
+  const rope = hexToRgba(0x2a2420);
+  // el tablero se ve desde adentro: la franja de abajo se borra para que asome el río por las rendijas
+  for (let i = (h - 10) * W * 4; i < pm.data.length; i++) pm.data[i] = 0;
+  const towers = [96, 548];
+  const deckY = h - 14;
+  // barrancos con monte a lado y lado (detrás de las torres)
+  for (const [x0, x1] of [[0, 130], [516, W]] as const) {
+    const pts: [number, number][] = [[x0, h]];
+    for (let x = x0; x <= x1; x += 6) pts.push([x, 40 + rnd() * 10 + (x0 === 0 ? (x / 130) * 30 : ((W - x) / 124) * 30)]);
+    pts.push([x1, h]);
+    pm.polygon(pts, hexToRgba(0x10181a));
+    for (let k = 0; k < 14; k++) {
+      const x = x0 + rnd() * (x1 - x0);
+      pm.ellipse(x, 44 + rnd() * 40, 8 + rnd() * 8, 5 + rnd() * 4, hexToRgba(k % 2 ? 0x14261c : 0x1c3424));
+    }
+  }
+  // cables maestros (dos, el de atrás más oscuro) y péndolas
+  for (const [off, c] of [[-3, dark], [0, rope]] as const) {
+    for (let x = towers[0]; x <= towers[1]; x++) pm.set(x, sag(x, towers[0], towers[1], 10 + off, 62), c);
+    for (let x = 0; x < towers[0]; x++) pm.set(x, 10 + off + (towers[0] - x) * 0.5, c);
+    for (let x = towers[1]; x < W; x++) pm.set(x, 10 + off + (x - towers[1]) * 0.5, c);
+  }
+  for (let x = towers[0] + 8; x < towers[1]; x += 8) {
+    const y = sag(x, towers[0], towers[1], 10, 62);
+    pm.vline(x, y, deckY, [30, 26, 24, 220]);
+  }
+  // tablero lejano: viga y baranda
+  pm.rect(0, deckY, W, 4, wood);
+  pm.hline(0, W, deckY, hexToRgba(0x5a4028));
+  for (let x = 0; x < W; x += 6) pm.vline(x, deckY - 8, deckY, rope);
+  pm.hline(0, W, deckY - 8, rope);
+  pm.hline(0, W, deckY - 4, [42, 36, 30, 200]);
+  // faroles colgados de las péndolas
+  for (const lx of [176, 264, 380, 468]) {
+    const y = sag(lx, towers[0], towers[1], 10, 62) + 6;
+    pm.vline(lx, y - 6, y, rope);
+    pm.rect(lx - 2, y, 5, 6, hexToRgba(0x1a1410));
+    pm.rect(lx - 1, y + 1, 3, 4, hexToRgba(t.mid.accent));
+    glow(pm, lx, y + 3, 16, t.mid.accent, 70);
+  }
+  // torres de piedra con arco de paso
+  for (const tx of towers) {
+    pm.rect(tx - 16, 4, 32, h - 4, mid);
+    pm.rect(tx - 18, 2, 36, 5, light);
+    pm.rect(tx - 14, -2, 28, 4, mid);
+    for (let y = 8; y < h; y += 5) {
+      pm.hline(tx - 16, tx + 15, y, dark);
+      for (let x = tx - 16 + ((y / 5) % 2) * 4; x < tx + 16; x += 8) pm.vline(x, y, y + 4, dark);
+    }
+    for (let y = 30; y < h; y++) {
+      const half = y < 40 ? Math.sqrt(Math.max(0, 81 - (40 - y) * (40 - y))) : 9;
+      for (let x = Math.floor(tx - half); x < tx + half; x++) {
+        const i = (y * W + x) * 4;
+        pm.data[i + 3] = 0;
+      }
+    }
+    pm.vline(tx - 16, 4, h, light);
+    pm.vline(tx + 15, 4, h, dark);
+    pm.set(tx - 4, 14, hexToRgba(0x0a0a0a));
+    pm.set(tx + 3, 14, hexToRgba(0x0a0a0a));
+  }
+  // cuerdas de la baranda cercana se ven entre las torres
+  for (let x = 0; x < W; x += 3) if (rnd() > 0.5) pm.set(x, deckY + 3, hexToRgba(0x7a5a34));
+}
+
+/** Trapiche bajo el aguacero: ramada de guadua con teja, hornilla encendida, paila humeante y molino. */
+function paintTrapiche(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const dark = hexToRgba(t.mid.dark);
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const fire = t.mid.accent;
+  const guadua = hexToRgba(0x6a6a34);
+  const guaduaD = hexToRgba(0x3a3a1c);
+  // guamos de sombrío detrás
+  for (const [gx, gy] of [[40, 12], [200, 6], [520, 10], [620, 16]] as const) {
+    pm.line(gx, h - 9, gx + 4, gy + 16, 4, dark);
+    for (let k = 0; k < 6; k++) pm.ellipse(gx + (k - 2.5) * 12 + rnd() * 6, gy + rnd() * 10, 16 + rnd() * 6, 7, k % 2 ? dark : mid);
+    pm.ellipse(gx - 6, gy - 2, 8, 2, light);
+  }
+  // plataneras con hojas grandes y rasgadas
+  const plantain = (x: number, top: number) => {
+    pm.line(x, h - 9, x + 1, top, 4, hexToRgba(0x2a3a1e));
+    pm.vline(x + 2, top + 4, h - 10, light);
+    for (const [dx, dy, len] of [[-1, -0.4, 22], [1, -0.5, 24], [-1, 0.5, 18], [1, 0.6, 20], [0.2, -1, 14]] as const) {
+      let px = x;
+      let py = top;
+      for (let i = 1; i <= 8; i++) {
+        const u = i / 8;
+        const nx = x + dx * len * u;
+        const ny = top + dy * len * u + u * u * 10;
+        pm.line(px, py, nx, ny, 3, i % 3 === 0 ? light : mid);
+        if (i % 2 === 0) pm.line(nx, ny, nx + dx * 2, ny + 4, 1, mid);
+        px = nx;
+        py = ny;
+      }
+    }
+    pm.ellipse(x + 3, top + 14, 3, 5, hexToRgba(0x5a2440));
+  };
+  for (const [x, top] of [[90, 30], [150, 40], [490, 34], [590, 28]] as const) plantain(x, top);
+  // la ramada
+  const r0 = 236;
+  const r1 = 440;
+  const roofY = 24;
+  for (const px of [r0 + 6, 300, 372, r1 - 6]) {
+    pm.rect(px - 2, roofY + 6, 4, h - 9 - roofY - 6, guadua);
+    for (let y = roofY + 12; y < h - 9; y += 10) pm.hline(px - 2, px + 1, y, guaduaD);
+    pm.vline(px - 2, roofY + 6, h - 10, guaduaD);
+  }
+  // luz de la hornilla debajo de la ramada
+  glow(pm, 330, 90, 70, fire, 54, 0.6);
+  pm.polygon([[r0 - 12, roofY + 10], [r0 + 10, roofY - 6], [r1 - 10, roofY - 6], [r1 + 12, roofY + 10]], hexToRgba(0x4a1a10));
+  for (let y = roofY - 4; y < roofY + 10; y += 3) {
+    for (let x = r0 - 10; x < r1 + 10; x += 4) pm.set(x + (y % 2) * 2, y, hexToRgba(0x6a2a18));
+    pm.hline(r0 - 10, r1 + 10, y + 1, [20, 6, 4, 120]);
+  }
+  pm.hline(r0 - 12, r1 + 12, roofY + 10, hexToRgba(0x1a0a06));
+  // goteras del alero
+  for (let x = r0 - 10; x < r1 + 12; x += 7) pm.vline(x, roofY + 11, roofY + 13 + (x % 3), [160, 190, 210, 150]);
+  // hornilla de ladrillo con la boca encendida
+  const hx = 330;
+  pm.rect(hx - 34, h - 36, 68, 27, hexToRgba(0x5a2a1a));
+  for (let y = h - 36; y < h - 9; y += 4) {
+    pm.hline(hx - 34, hx + 33, y, hexToRgba(0x3a1a10));
+    for (let x = hx - 34 + ((y / 4) % 2) * 4; x < hx + 34; x += 8) pm.vline(x, y, y + 3, hexToRgba(0x3a1a10));
+  }
+  pm.ellipse(hx - 14, h - 18, 8, 8, hexToRgba(0x1a0804));
+  pm.rect(hx - 22, h - 18, 17, 9, hexToRgba(0x1a0804));
+  pm.ellipse(hx - 14, h - 15, 6, 5, hexToRgba(0xff5a10));
+  pm.ellipse(hx - 14, h - 13, 4, 3, hexToRgba(0xffc040));
+  pm.hline(hx - 18, hx - 10, h - 11, hexToRgba(0xfff0a0));
+  glow(pm, hx - 14, h - 14, 20, 0xff8a30, 80);
+  // pailas con melao y el vapor que se mete por la teja
+  for (const px of [hx + 2, hx + 22]) {
+    pm.ellipse(px, h - 37, 9, 3, hexToRgba(0x2a2a2a));
+    pm.ellipse(px, h - 38, 7, 2, hexToRgba(0xa05a18));
+  }
+  for (let i = 0; i < 40; i++) {
+    const y = h - 42 - rnd() * 40;
+    const x = hx + 12 + Math.sin(y * 0.15) * 6 + (rnd() - 0.5) * 10;
+    pm.ellipse(x, y, 3 + rnd() * 3, 2, [220, 220, 210, 40]);
+  }
+  // chimenea y humo
+  pm.rect(hx + 26, 0, 8, h - 36, hexToRgba(0x4a2216));
+  for (let y = 2; y < h - 36; y += 4) pm.hline(hx + 26, hx + 33, y, hexToRgba(0x2e140c));
+  for (let i = 0; i < 6; i++) pm.ellipse(hx + 30 + i * 3, -2 - i, 5, 3, [80, 80, 86, 80]);
+  // el molino: rodillos, bastidor y el mayal
+  const mx = 262;
+  pm.rect(mx - 9, h - 40, 18, 31, hexToRgba(0x2a2420));
+  for (const rx of [mx - 5, mx + 3]) {
+    pm.rect(rx, h - 38, 4, 22, hexToRgba(0x4a4a4e));
+    pm.vline(rx + 1, h - 38, h - 17, hexToRgba(0x7a7a80));
+  }
+  pm.line(mx, h - 42, mx - 40, h - 52, 2, hexToRgba(0x3a2a18));
+  pm.rect(mx - 2, h - 46, 4, 6, hexToRgba(0x2a2420));
+  // atados de caña y bultos de café
+  for (let k = 0; k < 16; k++) pm.line(404 + k, h - 9, 398 + k * 1.4, h - 34, 1, k % 3 ? hexToRgba(0x6a7a30) : hexToRgba(0x8a8a40));
+  for (const [sx, sy] of [[420, h - 16], [432, h - 16], [426, h - 24]] as const) {
+    pm.ellipse(sx, sy, 6, 5, hexToRgba(0x8a7a5a));
+    pm.hline(sx - 4, sx + 4, sy - 1, hexToRgba(0x5a4a34));
+  }
+  // farol de caperuza bajo la ramada
+  pm.vline(300, roofY + 10, roofY + 22, hexToRgba(0x1a1410));
+  pm.rect(298, roofY + 22, 5, 6, hexToRgba(0xffd080));
+  glow(pm, 300, roofY + 26, 22, 0xffd080, 60);
+  // matas de café al frente de la ramada
+  for (let i = 0; i < 28; i++) {
+    const x = rnd() * W;
+    if (x > r0 && x < r1) continue;
+    pm.ellipse(x, h - 14, 7 + rnd() * 4, 6, dark);
+    pm.ellipse(x - 1, h - 16, 5, 4, mid);
+    if (rnd() > 0.4) pm.set(x + 2, h - 14, hexToRgba(0xc02020));
+  }
+}
+
+/** Páramo: frailejones grandes con su falda de hojas secas, puyas en flor, piedras con líquenes y pajonal. */
+function paintParamo(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const mid = hexToRgba(t.mid.mid);
+  const light = hexToRgba(t.mid.light);
+  const flower = hexToRgba(t.mid.accent);
+  const skirt = [0x2a2418, 0x3a3020, 0x221c14].map((c) => hexToRgba(c));
+  // piedras grandes con líquenes
+  for (const [rx, rw, rh] of [[150, 30, 22], [420, 40, 30], [610, 26, 18]] as const) {
+    pm.polygon([[rx - rw, h - 9], [rx - rw * 0.7, h - 9 - rh * 0.8], [rx - rw * 0.1, h - 9 - rh], [rx + rw * 0.6, h - 9 - rh * 0.7], [rx + rw, h - 9]], hexToRgba(0x2e343a));
+    pm.line(rx - rw * 0.7, h - 9 - rh * 0.8, rx - rw * 0.1, h - 9 - rh, 1, hexToRgba(0x7a8696));
+    pm.line(rx - rw * 0.1, h - 9 - rh, rx + rw * 0.6, h - 9 - rh * 0.7, 1, hexToRgba(0x5a6676));
+    for (let k = 0; k < 14; k++) pm.set(rx + (rnd() - 0.5) * rw * 1.4, h - 9 - rnd() * rh * 0.8, hexToRgba(k % 3 ? 0xc8a050 : 0xa0b0a0));
+  }
+  // pajonal dorado
+  for (let i = 0; i < 160; i++) {
+    const x = rnd() * W;
+    const gh = 6 + rnd() * 12;
+    pm.line(x, h - 9, x + (rnd() - 0.5) * 6, h - 9 - gh, 1, hexToRgba(i % 3 ? 0x6a6a44 : 0x8a8656));
+  }
+  // frailejones: el más alto, más cerca
+  const frailejon = (x: number, sh: number) => {
+    const top = h - 9 - sh;
+    for (let y = top + 4; y < h - 9; y++) {
+      const w = 4 + Math.sin(y * 0.7) * 0.6;
+      pm.hline(x - w, x + w, y, skirt[Math.floor(y + x) % 3]);
+    }
+    for (let y = top + 6; y < h - 10; y += 3) pm.set(x - 3, y, hexToRgba(0x4a3e2a));
+    // roseta de hojas lanudas plateadas
+    for (let a = 0; a < 14; a++) {
+      const ang = Math.PI + (a / 13) * Math.PI;
+      const len = 7 + (a % 3) * 2;
+      pm.line(x, top + 3, x + Math.cos(ang) * len, top + 3 + Math.sin(ang) * len * 0.7, 2, a % 2 ? mid : light);
+    }
+    for (const d of [-1, 1]) pm.line(x, top + 4, x + d * 9, top + 7, 2, mid);
+    pm.ellipse(x, top + 1, 4, 2.5, light);
+    pm.set(x - 1, top - 1, hexToRgba(0xe8f0f8));
+    if (rnd() > 0.45) {
+      for (const d of [-1, 0, 1]) {
+        pm.line(x + d * 2, top, x + d * 6, top - 10, 1, hexToRgba(0x6a7a50));
+        pm.circle(x + d * 6, top - 11, 1.5, flower);
+      }
+    }
+  };
+  // dos hileras: los de atrás bajitos, los de adelante viejos y altos (un frailejón crece 1 cm al año)
+  for (let i = 0; i < 22; i++) frailejon(rnd() * W, 14 + rnd() * 16);
+  for (let i = 0; i < 14; i++) frailejon(10 + i * 46 + rnd() * 30, 34 + rnd() * 50);
+  // puyas con su espiga
+  for (const px of [70, 330, 520]) {
+    for (let a = 0; a < 9; a++) pm.line(px, h - 10, px + (a - 4) * 3, h - 22 + Math.abs(a - 4) * 2, 1, hexToRgba(0x4a6a5a));
+    pm.line(px, h - 14, px, h - 56, 2, hexToRgba(0x3a4a3a));
+    for (let y = h - 54; y < h - 24; y += 3) pm.set(px + (y % 2 ? 1 : -1) * 2, y, hexToRgba(0x5ab0a0));
+  }
+  // escarcha en los bordes
+  for (let i = 0; i < 300; i++) {
+    const x = rnd() * W;
+    const y = rnd() * (h - 10);
+    if (pm.alpha(x, y) > 0 && pm.alpha(x, y - 1) === 0) pm.set(x, y, [220, 230, 245, 200]);
+  }
+  pm.dither(0, h - 18, W, 8, rgba(t.mid.dark, 80), 0);
+}
+
+/** Plaza de Medellín: esculturas voluminosas (siluetas genéricas) en pedestal, palmas y farolas. */
+function paintSculptures(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const bronzeD = hexToRgba(t.mid.dark);
+  const bronze = hexToRgba(t.mid.mid);
+  const rim = hexToRgba(t.mid.light);
+  const lamp = t.mid.accent;
+  const stone = hexToRgba(0x5a5666);
+  const stoneL = hexToRgba(0x7a7686);
+  // palmas reales
+  for (const px of [30, 300, 610]) {
+    const top = 4 + rnd() * 6;
+    pm.line(px, h - 9, px + 2, top + 8, 4, hexToRgba(0x5a5660));
+    pm.vline(px - 1, top + 10, h - 10, hexToRgba(0x7a7680));
+    for (let a = -4; a <= 4; a++) {
+      const ex = px + 2 + a * 6;
+      const ey = top + 2 + Math.abs(a) * 3;
+      pm.line(px + 2, top + 8, ex, ey, 2, hexToRgba(0x14201a));
+      pm.line(ex, ey, ex + Math.sign(a || 1) * 4, ey + 8, 1, hexToRgba(0x1e3024));
+    }
+  }
+  // farolas con su halo
+  const lamps = [124, 246, 424, 548];
+  for (const lx of lamps) glow(pm, lx, 34, 34, lamp, 60);
+  for (const lx of lamps) {
+    pm.rect(lx - 1, 34, 3, h - 43, hexToRgba(0x14121a));
+    pm.rect(lx - 3, h - 14, 7, 5, hexToRgba(0x14121a));
+    pm.circle(lx, 31, 4, hexToRgba(0xfff0c0));
+    pm.circle(lx, 31, 2, hexToRgba(0xffffff));
+    pm.rect(lx - 3, 35, 7, 2, hexToRgba(0x14121a));
+  }
+  const pedestal = (x: number, w: number, ph: number) => {
+    pm.rect(x - w / 2, h - 9 - ph, w, ph, stone);
+    pm.hline(x - w / 2 - 1, x + w / 2, h - 9 - ph, stoneL);
+    pm.vline(x + w / 2 - 1, h - 9 - ph, h - 10, hexToRgba(0x3a3644));
+    return h - 9 - ph;
+  };
+  /** cuerpo de bronce: relleno, sombra y borde iluminado del lado de la farola */
+  const blob = (cx: number, cy: number, rx: number, ry: number, side: number) => {
+    pm.ellipse(cx, cy, rx, ry, bronze);
+    pm.ellipse(cx - side * rx * 0.25, cy + ry * 0.2, rx * 0.8, ry * 0.8, bronzeD);
+    for (let a = 0; a < 40; a++) {
+      const ang = (a / 40) * Math.PI - Math.PI / 2;
+      pm.set(cx + side * Math.cos(ang) * (rx - 0.5), cy + Math.sin(ang) * (ry - 0.5), rim);
+    }
+  };
+  // figura recostada, redonda
+  {
+    const top = pedestal(190, 50, 12);
+    blob(184, top - 8, 20, 8, 1);
+    blob(206, top - 13, 6, 6, 1);
+    blob(168, top - 6, 9, 6, 1);
+    blob(196, top - 4, 10, 4, 1);
+  }
+  // caballo rollizo
+  {
+    const top = pedestal(368, 44, 14);
+    for (const lx of [354, 362, 376, 384]) pm.rect(lx - 2, top - 10, 5, 10, bronzeD);
+    blob(370, top - 16, 19, 10, -1);
+    pm.polygon([[352, top - 18], [346, top - 32], [354, top - 34], [360, top - 20]], bronze);
+    blob(346, top - 34, 6, 4, -1);
+    pm.line(388, top - 18, 393, top - 6, 2, bronzeD);
+    pm.line(347, top - 34, 352, top - 30, 1, rim);
+  }
+  // figura de pie, voluminosa
+  {
+    const top = pedestal(486, 22, 18);
+    pm.rect(480, top - 10, 4, 10, bronzeD);
+    pm.rect(489, top - 10, 4, 10, bronzeD);
+    blob(486, top - 20, 11, 13, -1);
+    blob(486, top - 37, 5, 5, -1);
+    blob(475, top - 22, 3, 7, -1);
+    blob(497, top - 22, 3, 7, -1);
+  }
+  // pájaro gordo
+  {
+    const top = pedestal(76, 26, 16);
+    blob(76, top - 10, 12, 9, 1);
+    blob(88, top - 18, 5, 5, 1);
+    pm.polygon([[92, top - 19], [98, top - 17], [92, top - 16]], rim);
+    pm.vline(72, top - 2, top, bronzeD);
+    pm.vline(80, top - 2, top, bronzeD);
+  }
+  // gato redondo
+  {
+    const top = pedestal(590, 26, 10);
+    blob(590, top - 10, 11, 10, -1);
+    blob(590, top - 24, 7, 6, -1);
+    pm.polygon([[584, top - 28], [585, top - 34], [588, top - 29]], bronze);
+    pm.polygon([[592, top - 29], [595, top - 34], [596, top - 28]], bronze);
+  }
+  // palomas dormidas al pie
+  for (let i = 0; i < 9; i++) {
+    const x = rnd() * W;
+    pm.ellipse(x, h - 11, 2.5, 1.5, hexToRgba(0x4a4656));
+    pm.set(x + 2, h - 12, hexToRgba(0x6a6676));
+  }
+}
+
+/** Comuna 13: muros de grafiti, la escalera eléctrica con su techo naranja, casas arriba y bombillos. */
+function paintGraffiti(pm: Pixmap, t: StageTheme, rnd: () => number): void {
+  const h = pm.height;
+  const W = pm.width;
+  const dark = hexToRgba(t.mid.dark);
+  const concrete = hexToRgba(t.mid.mid);
+  const concreteL = hexToRgba(t.mid.light);
+  const orange = hexToRgba(t.mid.accent);
+  // casitas de ladrillo encima del muro
+  let x = 0;
+  while (x < W) {
+    const w = 22 + Math.floor(rnd() * 20);
+    const top = 6 + Math.floor(rnd() * 16);
+    pm.rect(x, top, w, 46 - top, hexToRgba([0x5a3024, 0x6a3a28, 0x4a2a24][Math.floor(rnd() * 3)]));
+    for (let y = top + 2; y < 46; y += 3) for (let bx = x + ((y / 3) % 2) * 2; bx < x + w; bx += 5) pm.set(bx, y, [30, 14, 10, 120]);
+    pm.hline(x, x + w - 1, top, hexToRgba(0x8a5a40));
+    for (let wx = x + 4; wx < x + w - 6; wx += 10) {
+      const lit = rnd() > 0.4;
+      pm.rect(wx, top + 6, 5, 6, hexToRgba(lit ? 0xffc860 : 0x1a1418));
+      if (lit) glow(pm, wx + 2, top + 9, 9, 0xffc860, 40);
+      pm.hline(wx - 1, wx + 5, top + 12, hexToRgba(0x8a8a8a));
+    }
+    x += w + 2;
+  }
+  // muros de grafiti (con huecos para ver la ladera)
+  const palettes = [
+    [0x2a6a8a, 0xf0c040, 0xe04070, 0xffffff],
+    [0x8a2a4a, 0x40d0a0, 0xffd040, 0x1a1020],
+    [0xc8801a, 0x3a2a8a, 0x40c0f0, 0xffffff],
+    [0x3a8a4a, 0xf05a30, 0xf0e0a0, 0x1a1020],
+    [0x6a3a9a, 0xff9a30, 0x60e070, 0xffffff],
+  ];
+  const segments: [number, number][] = [[0, 168], [214, 352], [520, W]];
+  let p = 0;
+  for (const [a, b] of segments) {
+    const wallTop = 44;
+    pm.rect(a, wallTop, b - a, h - 9 - wallTop, concrete);
+    pm.hline(a, b - 1, wallTop, concreteL);
+    for (let mx = a + 2; mx < b - 10; mx += 46) {
+      const pal = palettes[p++ % palettes.length].map((c) => hexToRgba(c));
+      const mw = Math.min(44, b - 2 - mx);
+      pm.rect(mx, wallTop + 4, mw, h - 9 - wallTop - 8, pal[0]);
+      const cx = mx + mw / 2;
+      const cy = wallTop + 4 + (h - 9 - wallTop - 8) / 2;
+      switch (p % 5) {
+        case 0: // sol con rayos
+          for (let r = 0; r < 12; r++) pm.line(cx, cy, cx + Math.cos(r * 0.52) * 18, cy + Math.sin(r * 0.52) * 18, 1, pal[1]);
+          pm.circle(cx, cy, 9, pal[2]);
+          pm.circle(cx, cy, 5, pal[1]);
+          break;
+        case 1: // ojo grande
+          pm.ellipse(cx, cy, 16, 9, pal[3]);
+          pm.circle(cx, cy, 6, pal[1]);
+          pm.circle(cx, cy, 3, hexToRgba(0x0a0810));
+          pm.set(cx + 1, cy - 2, hexToRgba(0xffffff));
+          break;
+        case 2: // olas y zigzag
+          for (let k = 0; k < 4; k++) for (let u = 0; u < mw - 2; u++) pm.set(mx + 1 + u, cy - 12 + k * 7 + Math.sin(u * 0.4 + k) * 2, pal[1 + (k % 3)]);
+          break;
+        case 3: // pájaro de alas abiertas, geométrico
+          pm.polygon([[cx - 18, cy - 6], [cx, cy + 2], [cx + 18, cy - 6], [cx, cy + 8]], pal[1]);
+          pm.polygon([[cx - 3, cy], [cx + 3, cy], [cx, cy - 8]], pal[2]);
+          pm.circle(cx, cy - 9, 2, pal[3]);
+          break;
+        default: // letras de bombas (manchas redondas con borde)
+          for (let k = 0; k < 4; k++) {
+            const bx = mx + 6 + k * 10;
+            pm.ellipse(bx, cy, 6, 9, pal[3]);
+            pm.ellipse(bx, cy, 5, 8, pal[1 + (k % 2)]);
+            pm.set(bx - 2, cy - 4, hexToRgba(0xffffff));
+          }
+      }
+      // goteos de pintura y mugre
+      for (let k = 0; k < 4; k++) pm.vline(mx + rnd() * mw, wallTop + 4 + (h - 9 - wallTop - 8), h - 12 + rnd() * 2, pal[1]);
+    }
+    pm.dither(a, h - 22, b - a, 13, [20, 16, 24, 90], 0);
+  }
+  // escalera eléctrica cubierta subiendo loma arriba
+  const s0: [number, number] = [358, h - 9];
+  const s1: [number, number] = [520, 28];
+  const along = (u: number): [number, number] => [s0[0] + (s1[0] - s0[0]) * u, s0[1] + (s1[1] - s0[1]) * u];
+  for (let i = 0; i <= 40; i++) {
+    const [sx, sy] = along(i / 40);
+    pm.rect(sx - 1, sy - 2, 5, 3, hexToRgba(0x3a3a44));
+    pm.hline(sx - 1, sx + 3, sy - 2, hexToRgba(0x9a9aa4));
+  }
+  for (let i = 0; i <= 120; i++) {
+    const [sx, sy] = along(i / 120);
+    pm.vline(sx, sy - 22, sy - 3, [120, 160, 190, 36]);
+    pm.set(sx, sy - 6, hexToRgba(0xc8c8d0));
+    pm.set(sx, sy - 22, orange);
+    pm.set(sx, sy - 23, orange);
+    pm.set(sx, sy - 24, hexToRgba(0xb05a10));
+  }
+  for (let i = 0; i <= 6; i++) {
+    const [sx, sy] = along(i / 6);
+    pm.vline(sx, sy - 24, Math.min(h - 9, sy + 14), hexToRgba(0x8a8a94));
+  }
+  // bombillos en guirnalda sobre el callejón
+  const bulbs = [0xffd060, 0xff6080, 0x60d0ff, 0x80ff80];
+  for (let span = 0; span < W; span += 110) {
+    for (let bx = span; bx < span + 110; bx++) pm.set(bx, sag(bx, span, span + 110, 30, 12), dark);
+    for (let bx = span + 8, k = 0; bx < span + 104; bx += 12, k++) {
+      const by = Math.round(sag(bx, span, span + 110, 30, 12)) + 1;
+      pm.rect(bx, by, 2, 2, hexToRgba(bulbs[k % 4]));
+      glow(pm, bx, by, 6, bulbs[k % 4], 50);
+    }
+  }
+  // poste de luz amarilla
+  glow(pm, 190, 40, 30, 0xffa040, 55);
+  pm.rect(189, 40, 2, h - 49, hexToRgba(0x1a1a20));
+  pm.rect(186, 38, 8, 3, hexToRgba(0xffd080));
 }
 
 /** Monte antioqueño: guaduales, una ceiba, yarumos plateados, helechos de palo y bejucos. */
@@ -1349,6 +2497,19 @@ function paintGraves(pm: Pixmap, t: StageTheme, rnd: () => number): void {
 /* ------------------------------------------------------------------ */
 
 export function buildGround(t: StageTheme): Pixmap {
+  const pm = paintGround(t);
+  // profundidad: el suelo se oscurece hacia el borde de abajo (tramado, no plano)
+  const top = 40;
+  for (let y = top + 10; y < pm.height; y++) {
+    const k = (y - top - 10) / (pm.height - top - 10);
+    for (let x = 0; x < pm.width; x++) if (k * 0.9 > bayer(x, y)) pm.set(x, y, [6, 4, 10, 70]);
+  }
+  // sombra de contacto bajo el borde
+  pm.dither(0, top + 1, pm.width, 2, [0, 0, 0, 60], 1);
+  return pm;
+}
+
+function paintGround(t: StageTheme): Pixmap {
   const h = GAME_HEIGHT - GROUND_Y + 40;
   const pm = new Pixmap(STAGE_LAYER_WIDTH, h);
   const rnd = seededRandom(91);
@@ -1391,6 +2552,10 @@ export function buildGround(t: StageTheme): Pixmap {
     for (let i = 0; i < 10; i++) pm.ellipse(rnd() * STAGE_LAYER_WIDTH, top + 8 + rnd() * 20, 5 + rnd() * 8, 1.5 + rnd(), [20, 10, 4, 70]);
     pm.rect(0, top - 3, STAGE_LAYER_WIDTH, 3, grassL);
     pm.hline(0, STAGE_LAYER_WIDTH, top - 3, soilD);
+    return pm;
+  }
+  if (g.kind === 'deck' || g.kind === 'moss' || g.kind === 'tiles' || g.kind === 'concrete') {
+    paintGroundExtra(pm, t, top, rnd);
     return pm;
   }
   pm.rect(0, top - 2, STAGE_LAYER_WIDTH, 4, grass);
@@ -1453,6 +2618,110 @@ export function buildGround(t: StageTheme): Pixmap {
     }
   }
   return pm;
+}
+
+/** Suelos de los escenarios nuevos: tablero del puente, musgo del páramo, baldosas de la plaza y cemento. */
+function paintGroundExtra(pm: Pixmap, t: StageTheme, top: number, rnd: () => number): void {
+  const W = pm.width;
+  const h = pm.height;
+  const g = t.ground;
+  const soil = hexToRgba(g.soil);
+  const soilD = hexToRgba(g.soilD);
+  const soilL = hexToRgba(g.soilL);
+  const grass = hexToRgba(g.grass);
+  const grassL = hexToRgba(g.grassL);
+  const water = hexToRgba(g.water);
+  switch (g.kind) {
+    case 'deck': {
+      // tablas atravesadas con rendijas por donde se ve el río, viga de borde con pernos y el vacío abajo
+      const deckEnd = top + 18;
+      pm.rect(0, top, W, h - top, water);
+      for (let y = deckEnd + 5; y < h; y += 3) for (let x = (y * 7) % 11; x < W; x += 9 + (y % 5)) pm.hline(x, x + 2, y, [140, 170, 176, 110]);
+      let x = 0;
+      while (x < W) {
+        const w = 5 + Math.floor(rnd() * 3);
+        const c = rnd() > 0.5 ? soil : soilL;
+        pm.rect(x, top, w, deckEnd - top, c);
+        pm.vline(x, top, deckEnd - 1, soilD);
+        for (let k = 0; k < 2; k++) pm.vline(x + 2 + Math.floor(rnd() * (w - 2)), top + 2 + rnd() * 8, top + 6 + rnd() * 10, [20, 10, 4, 60]);
+        if (rnd() > 0.93) pm.rect(x + 1, top + 2, w - 1, deckEnd - top - 2, water);
+        x += w + (rnd() > 0.85 ? 2 : 1);
+      }
+      pm.rect(0, deckEnd, W, 5, soilD);
+      pm.hline(0, W, deckEnd, hexToRgba(0x3a2614));
+      for (let bx = 8; bx < W; bx += 24) pm.set(bx, deckEnd + 2, hexToRgba(0x8a8a8a));
+      pm.rect(0, top - 2, W, 2, grassL);
+      pm.hline(0, W, top - 3, soilD);
+      break;
+    }
+    case 'moss': {
+      // pajonal con macollas, cojines de musgo y escarcha
+      for (let i = 0; i < 500; i++) pm.set(rnd() * W, top + 2 + rnd() * (h - top - 2), rnd() > 0.5 ? soilD : soilL);
+      for (let i = 0; i < 22; i++) pm.ellipse(rnd() * W, top + 6 + rnd() * 18, 6 + rnd() * 10, 2 + rnd() * 2, hexToRgba(i % 2 ? 0x3a4a2a : 0x2e3c24));
+      for (let i = 0; i < 6; i++) {
+        const x = rnd() * W;
+        pm.ellipse(x, top + 10 + rnd() * 10, 8 + rnd() * 8, 1.5, water);
+        pm.hline(x - 4, x + 2, top + 9, hexToRgba(0x8aa0c0));
+      }
+      pm.rect(0, top - 2, W, 4, grass);
+      for (let x = 0; x < W; x += 3) {
+        const gh = 3 + rnd() * 6;
+        pm.line(x, top, x + (rnd() - 0.5) * 3, top - gh, 1, rnd() > 0.5 ? grassL : grass);
+        if (rnd() > 0.6) pm.set(x, top - gh, [230, 238, 250, 220]);
+      }
+      for (let i = 0; i < 160; i++) pm.set(rnd() * W, top + rnd() * 20, [210, 222, 240, 120]);
+      break;
+    }
+    case 'tiles': {
+      // baldosas grandes de la plaza, más anchas al frente; charcos de luz de las farolas
+      let y = top;
+      let rh = 4;
+      let row = 0;
+      while (y < h) {
+        const tw = rh * 4;
+        for (let x = -((row * tw) / 2) % tw; x < W; x += tw) {
+          pm.rect(x, y, tw - 1, rh - 1, (Math.floor(x / tw) + row) % 3 === 0 ? soilL : soil);
+          pm.hline(x, x + tw - 2, y, [255, 255, 255, 18]);
+        }
+        pm.hline(0, W, y + rh - 1, soilD);
+        y += rh;
+        rh += 1;
+        row++;
+      }
+      for (const lx of [84, 206, 384, 508]) glow(pm, lx, top + 12, 40, 0xffd890, 40, 0.35);
+      pm.rect(0, top - 3, W, 3, grassL);
+      pm.hline(0, W, top, soilD);
+      for (let x = 0; x < W; x += 16) pm.vline(x, top - 3, top - 1, grass);
+      break;
+    }
+    case 'concrete': {
+      // losas de cemento con juntas, grietas, manchas y el borde del andén pintado de amarillo
+      pm.dither(0, top, W, h - top, soilL, 0);
+      for (let x = 0; x < W; x += 36) pm.vline(x + ((x / 36) % 2) * 6, top, h, soilD);
+      pm.hline(0, W, top + 14, soilD);
+      for (let i = 0; i < 12; i++) {
+        let cx = rnd() * W;
+        let cy = top + 2 + rnd() * 20;
+        for (let k = 0; k < 12; k++) {
+          pm.set(cx, cy, soilD);
+          cx += rnd() > 0.5 ? 1 : 0;
+          cy += rnd() > 0.4 ? 1 : 0;
+        }
+      }
+      for (let i = 0; i < 10; i++) pm.ellipse(rnd() * W, top + 6 + rnd() * 18, 4 + rnd() * 8, 1.5 + rnd(), [16, 14, 20, 70]);
+      for (const sx of [120, 430]) {
+        pm.rect(sx, top + 4, 18, 6, hexToRgba(0x1a181e));
+        for (let k = sx + 2; k < sx + 18; k += 3) pm.vline(k, top + 5, top + 9, hexToRgba(0x3a3640));
+      }
+      // tag pintado en el piso
+      pm.ellipse(300, top + 18, 10, 3, [255, 80, 140, 120]);
+      pm.ellipse(318, top + 18, 6, 2, [80, 200, 255, 120]);
+      pm.rect(0, top - 3, W, 3, grass);
+      for (let x = 0; x < W; x += 12) pm.rect(x, top - 3, 6, 3, soilD);
+      pm.hline(0, W, top - 3, grassL);
+      break;
+    }
+  }
 }
 
 export function buildForeground(t: StageTheme): Pixmap {
@@ -1582,6 +2851,103 @@ export function buildForeground(t: StageTheme): Pixmap {
         const x = rnd() * STAGE_LAYER_WIDTH;
         pm.ellipse(x, h - 6, 8, 7, c1);
         pm.ellipse(x, h - 12, 7, 3, c2);
+      }
+      break;
+    }
+    case 'ropes': {
+      // baranda de cuerda del puente con sus postes y nudos
+      const posts = [20, 150, 280, 410, 540];
+      for (const x of posts) {
+        pm.rect(x - 3, h - 40, 6, 40, c1);
+        pm.vline(x + 2, h - 40, h, c2);
+        pm.rect(x - 4, h - 42, 8, 3, c2);
+      }
+      for (let i = 0; i < posts.length; i++) {
+        const a = posts[i];
+        const b = posts[(i + 1) % posts.length] + (i === posts.length - 1 ? STAGE_LAYER_WIDTH : 0);
+        for (const [y0, d] of [[h - 38, 8], [h - 24, 6]] as const) {
+          for (let x = a; x < b; x++) {
+            const y = sag(x, a, b, y0, d);
+            pm.set(x % STAGE_LAYER_WIDTH, y, c1);
+            pm.set(x % STAGE_LAYER_WIDTH, y + 1, c1);
+            if (x % 4 === 0) pm.set(x % STAGE_LAYER_WIDTH, y, c2);
+          }
+        }
+        for (let x = a + 8; x < b - 4; x += 10) pm.vline(x % STAGE_LAYER_WIDTH, sag(x, a, b, h - 38, 8), sag(x, a, b, h - 24, 6), c1);
+      }
+      break;
+    }
+    case 'plantain': {
+      // hojas de plátano y matas de café a contraluz, chorreando agua
+      for (const x of [40, 250, 470, 610]) {
+        for (const [dx, dy] of [[-1, -1], [1, -1.2], [0.3, -1.6]] as const) {
+          let px = x;
+          let py = h;
+          for (let i = 1; i <= 10; i++) {
+            const u = i / 10;
+            const nx = x + dx * 40 * u;
+            const ny = h + dy * 44 * u + u * u * 30;
+            pm.line(px, py, nx, ny, 6 - Math.round(u * 3), c1);
+            if (i % 3 === 0) pm.line(nx, ny, nx + dx * 3, ny + 6, 1, c2);
+            px = nx;
+            py = ny;
+          }
+          pm.vline(px, py, py + 5, [150, 180, 200, 140]);
+        }
+      }
+      for (let i = 0; i < 9; i++) {
+        const x = rnd() * STAGE_LAYER_WIDTH;
+        pm.ellipse(x, h - 4, 14, 10, c1);
+        pm.ellipse(x - 3, h - 9, 8, 4, c2);
+        pm.set(x + 4, h - 6, hexToRgba(0x5a1010));
+      }
+      break;
+    }
+    case 'frailejon': {
+      // frailejones cercanos fuera de foco y pajonal
+      for (let i = 0; i < 120; i++) {
+        const x = rnd() * STAGE_LAYER_WIDTH;
+        pm.line(x, h, x + (rnd() - 0.5) * 6, h - 6 - rnd() * 12, 1, i % 3 === 0 ? c2 : c1);
+      }
+      for (const x of [60, 330, 560]) {
+        pm.rect(x - 5, h - 30, 10, 30, c1);
+        for (let a = 0; a < 12; a++) {
+          const ang = Math.PI + (a / 11) * Math.PI;
+          pm.line(x, h - 30, x + Math.cos(ang) * 18, h - 30 + Math.sin(ang) * 12, 3, a % 2 ? c1 : c2);
+        }
+        pm.ellipse(x, h - 32, 8, 4, c2);
+      }
+      break;
+    }
+    case 'benches': {
+      // banca de hierro, caneca y palomas
+      for (const x of [90, 400]) {
+        pm.rect(x - 22, h - 20, 44, 3, c2);
+        pm.rect(x - 22, h - 30, 44, 2, c1);
+        pm.rect(x - 22, h - 26, 44, 2, c1);
+        for (const lx of [x - 20, x + 18]) pm.rect(lx, h - 30, 3, 30, c1);
+      }
+      pm.rect(250, h - 22, 14, 22, c1);
+      pm.rect(249, h - 24, 16, 3, c2);
+      for (const x of [170, 196, 540, 300]) {
+        pm.ellipse(x, h - 4, 5, 3, c1);
+        pm.circle(x + 4, h - 8, 2, c1);
+        pm.set(x + 6, h - 8, c2);
+      }
+      break;
+    }
+    case 'railing': {
+      // pasamanos de tubo de la escalera y una matera
+      for (let x = 0; x < STAGE_LAYER_WIDTH; x += 64) {
+        pm.rect(x, h - 34, 3, 34, c1);
+        pm.vline(x + 2, h - 34, h, c2);
+      }
+      pm.rect(0, h - 36, STAGE_LAYER_WIDTH, 3, c1);
+      pm.hline(0, STAGE_LAYER_WIDTH, h - 36, c2);
+      pm.rect(0, h - 20, STAGE_LAYER_WIDTH, 2, c1);
+      for (const x of [150, 470]) {
+        pm.polygon([[x - 10, h - 14], [x + 10, h - 14], [x + 7, h], [x - 7, h]], c1);
+        for (let a = 0; a < 7; a++) pm.line(x, h - 14, x + (a - 3) * 4, h - 26 + Math.abs(a - 3) * 2, 2, c2);
       }
       break;
     }

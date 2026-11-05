@@ -2,11 +2,15 @@ import { describe, expect, it } from 'vitest';
 import { STAGES, STAGE_IDS, STAGE_LAYER_WIDTH, buildStage } from '../src/art/StageArtist';
 import { GAME_HEIGHT, GAME_WIDTH } from '../src/config/game-config';
 import { splashPose } from '../src/art/SplashPose';
+import { STAGE_SOUND } from '../src/audio/StageSound';
+import { STAGE_LURKS } from '../src/combat/Lurk';
 
 describe('escenarios', () => {
-  it('hay diez escenarios con nombre y subtítulo, con dos montes distintos', () => {
-    expect(STAGE_IDS.length).toBe(10);
+  it('hay quince escenarios con nombre y subtítulo, con dos montes distintos', () => {
+    expect(STAGE_IDS.length).toBe(15);
+    expect(new Set(STAGE_IDS).size).toBe(STAGE_IDS.length);
     expect(STAGE_IDS).toEqual(expect.arrayContaining(['selva', 'robledal', 'cantina', 'cementerio']));
+    expect(STAGE_IDS).toEqual(expect.arrayContaining(['puente', 'cafetal', 'paramo', 'botero', 'comuna13']));
     for (const id of STAGE_IDS) {
       expect(STAGES[id].id).toBe(id);
       expect(STAGES[id].name.length).toBeGreaterThan(3);
@@ -49,6 +53,48 @@ describe('escenarios', () => {
     let diff = 0;
     for (let x = 0; x < a.width; x++) for (let y = 0; y < a.height; y++) if (a.get(x, y)[1] !== b.get(x, y)[1]) diff++;
     expect(diff).toBeGreaterThan(20);
+  });
+
+  it('cada escenario tiene sonido ambiente y escenas de acecho propias', () => {
+    for (const id of STAGE_IDS) {
+      expect(STAGE_SOUND[id]).toBeDefined();
+      expect(STAGE_LURKS[id].length).toBeGreaterThan(0);
+    }
+  });
+
+  it('cada escenario se genera rápido (capas listas al elegirlo)', () => {
+    for (const id of STAGE_IDS) {
+      const t0 = performance.now();
+      buildStage(STAGES[id]);
+      // holgura para máquinas de integración lentas; en un portátil van en 5-30 ms
+      expect(performance.now() - t0).toBeLessThan(400);
+    }
+  });
+
+  it('la franja animada cambia entre fotogramas en los escenarios nuevos', () => {
+    for (const id of ['puente', 'cafetal', 'paramo', 'botero', 'comuna13'] as const) {
+      const [a, b] = buildStage(STAGES[id]).river;
+      let diff = 0;
+      for (let x = 0; x < a.width; x++) for (let y = 0; y < a.height; y++) if (a.get(x, y).join() !== b.get(x, y).join()) diff++;
+      expect(diff, id).toBeGreaterThan(20);
+    }
+  });
+
+  it('el cielo es un degradado tramado: varias filas mezclan dos colores', () => {
+    const sky = buildStage(STAGES.ribera).sky;
+    let mixed = 0;
+    for (let y = 0; y < 150; y++) {
+      const row = new Set<string>();
+      for (let x = 0; x < 40; x++) row.add(sky.get(x, y).join());
+      if (row.size >= 2) mixed++;
+    }
+    expect(mixed).toBeGreaterThan(60);
+  });
+
+  it('el aguacero del cafetal trae relámpagos y lluvia; el páramo tiene Vía Láctea', () => {
+    expect(STAGES.cafetal.lightning).toBe(true);
+    expect(STAGES.cafetal.ambient).toBe('drop');
+    expect(STAGES.paramo.milkyWay).toBe(true);
   });
 
   it('los escenarios se distinguen por su cielo', () => {

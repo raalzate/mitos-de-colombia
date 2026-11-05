@@ -26,6 +26,10 @@ export class StageSelectScene extends Phaser.Scene {
   private dots!: Phaser.GameObjects.Graphics;
   private banner!: Phaser.GameObjects.BitmapText;
   private startTimer = -1;
+  /** relámpago y aguacero de muestra en los escenarios que los tienen */
+  private flash!: Phaser.GameObjects.Rectangle;
+  private flashFrames = 0;
+  private rain!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor() {
     super('StageSelectScene');
@@ -51,6 +55,12 @@ export class StageSelectScene extends Phaser.Scene {
     this.mist = this.add.tileSprite(0, 152, GAME_WIDTH, 40, k.mist).setOrigin(0).setDepth(5);
     this.layers.push(this.add.image(-40, GROUND_Y - 40, k.ground).setOrigin(0).setDepth(6));
     this.layers.push(this.add.image(-60, GAME_HEIGHT - 38, k.fore).setOrigin(0).setDepth(7));
+    this.flash = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xfff0ff, 1).setOrigin(0).setDepth(2.5).setAlpha(0);
+    this.flashFrames = 0;
+    this.rain = this.add.particles(0, 0, 'p_drop', {
+      x: { min: 0, max: GAME_WIDTH + 40 }, y: -6, lifespan: { min: 700, max: 1000 }, speedX: -20, speedY: 260,
+      frequency: 30, quantity: 1, maxParticles: 50, tint: 0xa8c4d4, alpha: { start: 0.9, end: 0.3 }, emitting: false,
+    }).setDepth(8);
 
     // marco superior e inferior
     this.add.rectangle(0, 0, GAME_WIDTH, 44, 0x07060d, 0.75).setOrigin(0).setDepth(10);
@@ -91,6 +101,10 @@ export class StageSelectScene extends Phaser.Scene {
       this.clouds.setTexture(k.clouds);
       this.mist.setTexture(k.mist).setAlpha(t.mist.alpha);
       this.river.setTexture(k.river(0));
+      if (t.ambient === 'drop') this.rain.start();
+      else this.rain.stop();
+      this.flashFrames = 0;
+      this.flash.setAlpha(0);
     }
     const g = this.dots;
     g.clear();
@@ -136,6 +150,15 @@ export class StageSelectScene extends Phaser.Scene {
     // en "aleatorio" se rotan los escenarios como vista previa
     if (CHOICES[this.index] === 'random' && this.frame % 45 === 0 && this.startTimer < 0) this.applyChoice();
     this.river.setTexture(this.keys.river(Math.floor(this.frame / 9) % 3));
+    if (this.shown && STAGES[this.shown].lightning) {
+      if (this.flashFrames > 0) {
+        this.flashFrames--;
+        this.flash.setAlpha(this.flashFrames > 6 ? 0.45 : this.flashFrames % 2 === 0 ? 0.25 : 0.05);
+      } else {
+        this.flash.setAlpha(0);
+        if (Math.random() < 0.006) this.flashFrames = 10;
+      }
+    }
     this.clouds.tilePositionX = this.frame * 0.06;
     this.mist.tilePositionX = this.frame * 0.25;
     const sway = Math.sin(this.frame / 90) * 10;

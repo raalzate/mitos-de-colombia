@@ -447,7 +447,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA MADREMONTE SE VUELVE HOJAS Y EL VIENTO SE LA LLEVA.',
   },
   {
-    id: 'mohan', haunts: [{ map: 'campo', zone: R(20, 48, 118, 51), place: 'EL RÍO GRANDE' }], stage: 'ribera', clue: 'oro',
+    id: 'mohan', haunts: [{ map: 'campo', zone: R(20, 48, 118, 51), place: 'EL RÍO GRANDE' }], stage: 'puente', clue: 'oro', // el río grande de los tres puentes
     clueText: '¡PEPITAS DE ORO EN LA ORILLA! ...UY, NO. EL ABUELO DECÍA QUE ASÍ ENGAÑA EL MOHÁN A LA GENTE.',
     fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!',
     taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?',

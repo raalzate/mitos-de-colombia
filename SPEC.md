@@ -96,7 +96,7 @@ Controles para niños: flechas y solo **dos botones**. Lo fuerte, los poderes y 
 
 ### 4.5 Escenarios
 
-Cada uno es un `StageTheme` con cielo, lejanía, franja de agua o llanura (3 fotogramas), capa media, suelo, primer plano, bruma y partículas; parallax; sonido ambiente propio. Capas generadas al elegir el escenario.
+Cada uno es un `StageTheme` con cielo (degradado tramado con matriz de Bayer, sin bandas planas), lejanía, franja de agua o llanura (3 fotogramas animados), capa media, suelo (oscurecido hacia abajo para dar profundidad), primer plano, bruma y partículas; parallax; sonido ambiente propio. Capas generadas al elegir el escenario (5–40 ms cada uno). En la selección se ve el escenario completo con su lluvia y sus relámpagos.
 
 | Escenario | Ambientación |
 |---|---|
@@ -106,6 +106,15 @@ Cada uno es un `StageTheme` con cielo, lejanía, franja de agua o llanura (3 fot
 | Ciénaga del Caimán | Noche, árboles muertos, nenúfares, luna verde |
 | Cañaduzal en Llamas | Hacienda de Juan Machete ardiendo, ascuas y ceniza |
 | Callejón del Sombrerón | Pueblo colonial antioqueño, balcones, faroles, iglesia |
+| Monte de la Patasola | Selva antioqueña, guaduales, ceiba, yarumos, cocuyos, niebla |
+| Monte Puro | Robledal de niebla montaña arriba, hojas que caen |
+| Cantina La Última Copa | Interior: contrabarra con licorera, rockola, bombillos de colores, banderines |
+| Cementerio de las Ánimas | Capilla en la loma, bóvedas con velas, ángel, mausoleo, cipreses |
+| Puente Colgante del Cauca | Cañón con cascada, torres de piedra, cables y faroles; tablero con rendijas sobre el río crecido (espuma animada) |
+| Trapiche del Cafetal | Eje cafetero bajo el aguacero: finca con balcón, ramada de guadua, hornilla encendida, paila humeante; lluvia y relámpagos |
+| Páramo de Sumapaz | Helada bajo la Vía Láctea: picos con escarcha, laguna glaciar, frailejones, puyas, turbera con estrellas reflejadas |
+| Plaza de las Esculturas | Medellín de noche: laderas llenas de luces, torres, metro elevado, fuente con chorros, esculturas voluminosas (siluetas genéricas), farolas |
+| Escaleras de la Comuna 13 | Casas de ladrillo loma arriba, murales de grafiti, escalera eléctrica con techo naranja, bombillos, ventanas que titilan |
 
 ### 4.6 Arte y animación
 
@@ -126,7 +135,7 @@ Cada uno es un `StageTheme` con cielo, lejanía, franja de agua o llanura (3 fot
 - **FR-031** Al aparecer, un mito puede esfumarse sin pelear; en la pelea, con poca vida, puede volarse (como un salvaje que huye). Cada huida baja la probabilidad de la siguiente. Huir no calma al mito.
 - **FR-032** Personajes secundarios que no pelean: el Duende, el Pollo Maligno y la Mano Peluda. Aparecen, asustan, dan pistas y se esfuman. Aldeanos con diálogos que dan pistas de dónde buscar.
 - **FR-033** Sonidos grabados reales (CC0, `public/assets/audio/CREDITS.md`): machete al cortar, al golpear y al chocar; voces de monstruo por mito al atacar y al recibir golpes.
-- **FR-034** Cada mito pelea donde ocurre su leyenda: Patasola y Madremonte en la selva del monte, la Muelona en la cantina, el Silbón en el llano, el Mohán y la Llorona en la ribera, el Hombre Caimán en la ciénaga, Bachué en la laguna, el Sombrerón en el pueblo. Escenario extra: cementerio.
+- **FR-034** Cada mito pelea donde ocurre su leyenda: Patasola y Madremonte en la selva del monte, la Muelona en la cantina, el Silbón en el llano, la Llorona en la ribera, el Mohán en el puente colgante sobre el río grande, el Hombre Caimán en la ciénaga, Bachué en la laguna, el Sombrerón en el pueblo. Escenario extra: cementerio.
 - **FR-035** Mapas: el campo de San Agustín (120×72, con fiestas y terminal de jeeps), Medellín (80×60: Plaza Botero, Parque Berrío, metro elevado, Pueblito Paisa, Comuna 13, Feria de las Flores) y 28 interiores (casas, cantinas, tienda, iglesia, capilla, alcaldía, fondas, teatro…). Se entra por la puerta y se sale por el tapete.
 - **FR-036** Un jeep (yipao) lleva entre el campo y Medellín con escena de carretera de montaña.
 - **FR-037** Firulais, el perro de Juan, lo sigue a todas partes y gruñe cuando un mito escondido anda cerca.
