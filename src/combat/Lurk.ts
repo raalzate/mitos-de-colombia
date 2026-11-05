@@ -221,6 +221,11 @@ export const STAGE_LURKS: Record<StageId, string[]> = {
   robledal: ['acercarse', 'saltos'],
   cantina: ['bombillo', 'calle'],
   cementerio: ['tumba', 'acercarse'],
+  puente: ['hundirse', 'saltos'],
+  cafetal: ['acercarse', 'arrastrarse'],
+  paramo: ['flotar', 'acercarse'],
+  botero: ['calle', 'acercarse'],
+  comuna13: ['calle', 'saltos'],
 };
 
 /** Lo propio de cada mito: el Sombrerón tiene caballo, la Patasola se acuesta, el Silbón se acerca sin moverse. */

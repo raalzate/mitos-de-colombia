@@ -366,7 +366,7 @@ export interface Disguise {
 export const GUARDIANS: Guardian[] = [
   {
     // se bajó a Medellín: ronda la Plaza Botero, entre las esculturas, esperando a los que salen tarde
-    id: 'sombreron', haunts: [{ map: 'medellin', zone: R(14, 12, 40, 29), place: 'LA PLAZA BOTERO, EN MEDELLÍN' }], stage: 'pueblo', clue: 'sombrero',
+    id: 'sombreron', haunts: [{ map: 'medellin', zone: R(14, 12, 40, 29), place: 'LA PLAZA BOTERO, EN MEDELLÍN', stage: 'botero' }], stage: 'pueblo', clue: 'sombrero',
     clueText: 'UN SOMBRERO NEGRO ENORME TIRADO ENTRE LAS ESCULTURAS... ¿DE QUIÉN SERÁ? MEJOR NO LO TOCO.',
     fright: 'ESE SOMBRERO TAN GRANDE EN PLENA PLAZA BOTERO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!',
     taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.',
@@ -447,7 +447,7 @@ export const GUARDIANS: Guardian[] = [
     flee: 'LA MADREMONTE SE VUELVE HOJAS Y EL VIENTO SE LA LLEVA.',
   },
   {
-    id: 'mohan', haunts: [{ map: 'campo', zone: R(20, 48, 118, 51), place: 'EL RÍO GRANDE' }], stage: 'ribera', clue: 'oro',
+    id: 'mohan', haunts: [{ map: 'campo', zone: R(20, 48, 118, 51), place: 'EL RÍO GRANDE' }], stage: 'puente', clue: 'oro', // el río grande de los tres puentes
     clueText: '¡PEPITAS DE ORO EN LA ORILLA! ...UY, NO. EL ABUELO DECÍA QUE ASÍ ENGAÑA EL MOHÁN A LA GENTE.',
     fright: '¡EL RÍO SE ESTÁ MOVIENDO SOLO! ¡AHÍ HAY ALGUIEN, PUES!',
     taunt: 'JE, JE, JE... ¿UN PAISA POR ACÁ? ¿VIENES A ROBARME EL ORO DEL RÍO?',

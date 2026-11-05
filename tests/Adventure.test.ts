@@ -48,7 +48,7 @@ describe('combates del modo aventura', () => {
     expect(ids).toEqual(FIGHTER_IDS.filter((id) => id !== HERO_FIGHTER).sort());
     const stage = Object.fromEntries(GUARDIANS.map((g) => [g.id, g.stage]));
     expect(stage).toMatchObject({
-      silbon: 'llanos', llorona: 'ribera', mohan: 'ribera', hombrecaiman: 'pantano', bachue: 'laguna', sombreron: 'pueblo', muelona: 'cantina', patasola: 'selva', madremonte: 'selva',
+      silbon: 'llanos', llorona: 'ribera', mohan: 'puente', hombrecaiman: 'pantano', bachue: 'laguna', sombreron: 'pueblo', muelona: 'cantina', patasola: 'selva', madremonte: 'selva',
     });
   });
 });
