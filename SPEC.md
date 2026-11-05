@@ -98,6 +98,8 @@ Controles para niños: flechas y solo **dos botones**. Lo fuerte, los poderes y 
 
 Cada uno es un `StageTheme` con cielo (degradado tramado con matriz de Bayer, sin bandas planas), lejanía, franja de agua o llanura (3 fotogramas animados), capa media, suelo (oscurecido hacia abajo para dar profundidad), primer plano, bruma y partículas; parallax; sonido ambiente propio. Capas generadas al elegir el escenario (5–40 ms cada uno). En la selección se ve el escenario completo con su lluvia y sus relámpagos.
 
+Vida del fondo: cada escenario tiene de 3 a 7 clases de figuritas dibujadas por código (garzas, canoa del pescador, ganado, jinete llanero, cóndor, venados, caimán, micos, gente que pasa, cantinero, pareja bailando, palomas, pasajeros de la escalera eléctrica, cometas…) que entran por fuera de cuadro a ritmo aleatorio y viven en la capa de cielo, lejanía, agua o media con su mismo parallax, más pequeñas y apagadas mientras más lejos. Pool de máximo 36 sprites, tiras generadas una vez por escenario. Un golpe fuerte espanta a los pájaros y bichos asustadizos; el KO o el golpe final hacen huir o encogerse a la gente.
+
 | Escenario | Ambientación |
 |---|---|
 | Ribera de los Antiguos | Río Magdalena, medianoche, luna, luciérnagas, bruma |

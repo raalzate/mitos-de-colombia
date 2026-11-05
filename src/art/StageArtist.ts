@@ -1537,6 +1537,12 @@ export function buildRiver(t: StageTheme): Pixmap[] {
 /* Capa media                                                          */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Dónde quedaron las ventanas y los aleros de las fachadas del pueblo (coordenadas de la capa media),
+ * para que la vida del fondo (gente asomada, gatos en el tejado) caiga justo encima. Se llena al pintar.
+ */
+export const HOUSE_ANCHORS: { windows: [number, number][]; roofs: [number, number, number][] } = { windows: [], roofs: [] };
+
 export function buildMid(t: StageTheme): Pixmap {
   const h = 110;
   const pm = new Pixmap(STAGE_LAYER_WIDTH, h);
@@ -1708,6 +1714,8 @@ export function buildMid(t: StageTheme): Pixmap {
     }
     case 'houses': {
       // fachadas coloniales con balcones, puertas y faroles
+      HOUSE_ANCHORS.windows.length = 0;
+      HOUSE_ANCHORS.roofs.length = 0;
       let x = -10;
       let k = 0;
       while (x < STAGE_LAYER_WIDTH + 20) {
@@ -1725,6 +1733,7 @@ export function buildMid(t: StageTheme): Pixmap {
           pm.set(sx + 1, sy - 1, [255, 255, 255, 30]);
         }
         pm.rect(x - 3, top - 6, w + 6, 8, dark); // alero
+        HOUSE_ANCHORS.roofs.push([x, x + w, top - 6]);
         for (let tx = x - 3; tx < x + w + 3; tx += 2) pm.set(tx, top + 1, [0, 0, 0, 120]);
         for (let tx = x - 3; tx < x + w + 3; tx += 4) pm.set(tx, top - 6, mid); // tejas
         pm.rect(x, h - 24, w, 14, mid); // zócalo
@@ -1737,6 +1746,7 @@ export function buildMid(t: StageTheme): Pixmap {
         for (let wx = x + 8; wx < x + w - 16; wx += 26) {
           if (Math.abs(wx - dx) < 16) continue;
           pm.rect(wx, top + 10, 12, 14, dark);
+          HOUSE_ANCHORS.windows.push([wx, top + 10]);
           if (rnd() > 0.5) pm.rect(wx + 2, top + 12, 8, 10, accent);
           pm.rect(wx - 2, top + 22, 16, 3, mid);
           for (let b = 0; b < 16; b += 3) pm.vline(wx - 2 + b, top + 14, top + 22, dark);
