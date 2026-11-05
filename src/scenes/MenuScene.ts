@@ -212,6 +212,8 @@ export class MenuScene extends Phaser.Scene {
       const label = this.items[this.index].text;
       if (label === 'VOLVER') { this.showPage('main'); return; }
       this.registry.remove('adventure');
+      // partida nueva: primero el cuento de la promesa del abuelo (IntroScene arma la partida y sigue a la vereda)
+      if (label === 'NUEVA PARTIDA') { this.scene.start('IntroScene'); return; }
       startWithLoading(this, 'AdventureScene', { fresh: label === 'NUEVA PARTIDA' }, label === 'NUEVA PARTIDA' ? 'SAN AGUSTÍN' : 'CONTINUANDO LA AVENTURA');
     } else if (this.page === 'difficulty') {
       if (this.index === DIFF_ITEMS.length) {

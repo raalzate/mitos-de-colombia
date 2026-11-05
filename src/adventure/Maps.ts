@@ -166,7 +166,7 @@ function monte(): GameMap {
   const tp = (kind: PropKind, x: number, y: number): MapProp => ({ set: 'town', kind, x, y });
   const props: MapProp[] = [tp('tronco', 22, 4), tp('tronco', 29, 6), tp('tronco', 23, 6), tp('roca', 31, 4), tp('roca', 20, 6), tp('roca', 14, 22)];
   const signs: Sign[] = [
-    { x: 21, y: 29, lines: ['MONTE PURO.', 'AQUÍ NO ENTRA NI EL SOL. LO QUE SE CAE SE PUEDE LLEVAR; LO QUE ESTÁ VIVO, NO SE TOCA.'] },
+    { x: 21, y: 29, lines: ['MONTE PURO.', 'AQUÍ NO ENTRA NI EL SOL. LO QUE SE CAE SE PUEDE LLEVAR. LO QUE ESTÁ VIVO, NO SE TOCA.'] },
     { x: 11, y: 15, lines: ['QUEBRADA LA FRÍA.', 'EL AGUA BAJA DEL PÁRAMO. DICEN QUE AQUÍ SE BAÑA LA MADREMONTE.'] },
   ];
   stamp(g, [], props, signs, '.');
@@ -338,7 +338,7 @@ function medellin(): GameMap {
     { key: 'rapero', name: 'KEVIN', x: 9, y: 41, facing: 'right', wander: 2, story: 'comuna13', lines: [['¡QUÉ MÁS, PARCE! ¿VINO A VER LOS GRAFITIS? CADA COLOR ES UNA HISTORIA DEL BARRIO.']] },
     { key: 'bailarina', name: 'YURANI', x: 50, y: 38, facing: 'down', wander: 2, action: 'baile', story: 'cumbia', lines: [['¡ESTA NOCHE HAY TABLADO! ¿SE ANIMA A UNA SALSITA, PAISA?']] },
     { key: 'acordeonero', name: 'EL CHOLO', x: 54, y: 37, facing: 'down', action: 'baile', story: 'vallenato', lines: [['¡ESTE ACORDEÓN LO TRAJE DESDE VALLEDUPAR! ¡AY HOMBE!']] },
-    { key: 'policia', name: 'PATRULLERO GÓMEZ', x: 27, y: 20, facing: 'down', story: 'botero', lines: [['TRANQUILO, CIUDADANO: AQUÍ EN LA PLAZA BOTERO ESTÁ SEGURO. ¡NO SE VAYA SIN SOBARLE LA BARRIGA A LA GORDA!']] },
+    { key: 'policia', name: 'PATRULLERO GÓMEZ', x: 27, y: 20, facing: 'down', story: 'botero', lines: [['TRANQUILO, CIUDADANO: AQUÍ EN LA PLAZA BOTERO ESTÁ SEGURO. ¡NO SE VAYA SIN SOBARLE LA BARRIGA A LA GORDA!'], ['ENTRE NOS: ESTAS NOCHES ANDA POR LA PLAZA UN SEÑOR DE NEGRO CON UN SOMBRERO ENORME, A CABALLO. A LOS BORRACHOS PELEONES LES TIRA EL SOMBRERO... Y AMANECEN SIN SABER NI CÓMO SE LLAMAN.']] },
     { key: 'cafetero', name: 'DON TULIO', x: 74, y: 16, facing: 'left', story: 'pueblito', lines: [['DESDE ESTE CERRO SE VE TODO MEDELLÍN. ¡QUÉ BELLEZA DE VALLE!']] },
     { key: 'nina', name: 'SARITA', x: 60, y: 26, facing: 'up', wander: 3, story: 'metro', lines: [['¡YO ME MONTÉ EN EL METROCABLE! ¡SE VE LA CIUDAD DESDE EL CIELO!']] },
     { key: 'vendedora', name: 'DOÑA LUCERO', x: 48, y: 24, facing: 'down', story: 'navidad', lines: [['¡MANGO BICHE CON SAL Y LIMÓN! ¡OBLEAS CON AREQUIPE!']] },
@@ -462,8 +462,9 @@ interface InteriorDef {
   npcs: Npc[];
 }
 
-const N = (key: Npc['key'], name: string, x: number, y: number, story?: Npc['story'], line?: string, facing: Dir = 'down', wander = 0): Npc =>
-  ({ key, name, x, y, facing, story, wander, lines: line ? [[line]] : undefined });
+/** Un aldeano de interior; si trae varias frases, las va turnando cada vez que Juan le habla. */
+const N = (key: Npc['key'], name: string, x: number, y: number, story?: Npc['story'], line?: string | string[], facing: Dir = 'down', wander = 0): Npc =>
+  ({ key, name, x, y, facing, story, wander, lines: line ? (Array.isArray(line) ? line : [line]).map((l) => [l]) : undefined });
 
 const CASA_FURNI: [FurnitureKind, number, number][] = [
   ['sagrado_corazon', 3, 1], ['ventana', 6, 1], ['reloj', 8, 1], ['fogon_lena', 2, 3], ['olla', 4, 3],
@@ -475,19 +476,24 @@ export const INTERIORS: Record<string, InteriorDef> = {
   casa_blanca0: {
     name: 'CASA DE LA ABUELA ROSA', w: 11, h: 9, floor: 'baldosa', wall: 'bahareque', sound: 'hogar',
     furniture: [...CASA_FURNI, ['carriel_pared', 5, 1], ['sombrero_pared', 4, 1], ['gallina', 7, 7]],
-    npcs: [N('campesina', 'TÍA CARMEN', 3, 4, 'patasola', 'SIÉNTESE, MIJO, QUE YA ESTÁ LA AGUAPANELA. ¿LE CUENTO UNA HISTORIA DE MI JUVENTUD?')],
+    npcs: [N('campesina', 'TÍA CARMEN', 3, 4, 'patasola', ['SIÉNTESE, MIJO, QUE YA ESTÁ LA AGUAPANELA. ¿LE CUENTO UNA HISTORIA DE MI JUVENTUD?',
+      'SU ABUELO SE SENTABA AHÍ MISMO, EN ESA MECEDORA, A AFILAR EL MACHETE ANTES DE LA RONDA. NUNCA DECÍA A DÓNDE IBA.',
+      '¿SABE QUÉ ES LO RARO, MIJO? QUE ESTA AGUAPANELA YA LA HICE. LA HICE ANOCHE... Y ANOCHE ERA HOY.'])],
   },
   casa_blanca1: {
     name: 'CASA DE LOS MONTOYA', w: 10, h: 8, floor: 'madera', wall: 'bahareque', sound: 'hogar',
     furniture: [['cuadro_paisaje', 3, 1], ['ventana', 6, 1], ['tv_vieja', 2, 3], ['mecedora', 4, 4], ['cama', 8, 3], ['matera', 2, 6]],
-    npcs: [N('cafetero', 'DON GILDARDO', 4, 5, 'dorado', 'MI ABUELO ERA GUAQUERO: BUSCABA ORO DE LOS INDIOS EN LAS TUMBAS. NUNCA ENCONTRÓ NADA, ¡PERO QUÉ CUENTOS ECHABA!', 'right')],
+    npcs: [N('cafetero', 'DON GILDARDO', 4, 5, 'dorado', ['MI ABUELO ERA GUAQUERO: BUSCABA ORO DE LOS INDIOS EN LAS TUMBAS. NUNCA ENCONTRÓ NADA, ¡PERO QUÉ CUENTOS ECHABA!',
+      'DON JOAQUÍN, SU ABUELO, LE DECÍA AL MÍO: "EL ORO QUE ESTÁ ENTERRADO, ENTERRADO SE QUEDA". MI ABUELO NO LE HIZO CASO... Y LE FUE COMO LE FUE.'], 'right')],
   },
   cantina0: {
     name: 'CANTINA LA ÚLTIMA LÁGRIMA', w: 13, h: 9, floor: 'madera', wall: 'madera', sound: 'cantina',
     furniture: [['estante_botellas', 3, 1], ['estante_botellas', 5, 1], ['bombillos_pared', 8, 1], ['bombillos_pared', 10, 1], ['barra', 4, 3], ['rockola', 11, 3],
       ['mesa_billar', 9, 5], ['mesa_cantina', 3, 6], ['silla', 2, 6], ['silla', 4, 6], ['mesa_cantina', 8, 7], ['canasta_cerveza', 11, 7]],
     npcs: [
-      N('cantinero', 'DOÑA ROCÍO', 4, 2, 'muelona', '¿AGUARDIENTE O CERVECITA? AQUÍ LA RONDA LA PAGA EL QUE PIERDA AL BILLAR.'),
+      N('cantinero', 'DOÑA ROCÍO', 4, 2, 'muelona', ['¿AGUARDIENTE O CERVECITA? AQUÍ LA RONDA LA PAGA EL QUE PIERDA AL BILLAR.',
+        '¿VE ESA MESA DEL RINCÓN? AHÍ DON JOAQUÍN DEJABA UN AGUARDIENTE SERVIDO. "PA\' LA SEÑORA", DECÍA. YO NUNCA VI A NINGUNA SEÑORA... HASTA ESTE AÑO.',
+        'DESDE QUE ENTERRARON A SU ABUELO, AQUÍ SE PELEAN TODAS LAS NOCHES. Y SIEMPRE ENTRA UNA SEÑORA BONITA... QUE NUNCA SE RÍE.']),
       N('borracho', 'EL TUERTO', 7, 5, 'tiple', '¡ESA ROCKOLA TIENE LAS MEJORES CANCIONES DE DESPECHO DEL DEPARTAMENTO!', 'left'),
       N('arriero', 'DON PACHO', 3, 7, 'arrieros', 'BRINDEMOS POR LAS MULAS, QUE SIN ELLAS NO HUBIERA PUEBLO.', 'up'),
     ],
@@ -495,23 +501,28 @@ export const INTERIORS: Record<string, InteriorDef> = {
   cantina1: {
     name: 'CANTINA EL REMOLINO', w: 11, h: 8, floor: 'madera', wall: 'madera', sound: 'cantina',
     furniture: [['estante_botellas', 3, 1], ['bombillos_pared', 7, 1], ['barra', 3, 3], ['rockola', 9, 3], ['mesa_cantina', 6, 5], ['silla', 5, 5], ['silla', 7, 5], ['canasta_cerveza', 2, 6]],
-    npcs: [N('cantinero', 'DON PEPE', 3, 2, 'mohan', 'ESTA CANTINA QUEDA AL LADO DEL RÍO. DE NOCHE SE OYE TOCAR UN TIPLE DESDE EL AGUA...'),
+    npcs: [N('cantinero', 'DON PEPE', 3, 2, 'mohan', ['ESTA CANTINA QUEDA AL LADO DEL RÍO. DE NOCHE SE OYE TOCAR UN TIPLE DESDE EL AGUA...',
+      'DON JOAQUÍN COMPRABA AQUÍ UN TABACO Y UN PUÑADO DE SAL CADA AÑO. NUNCA SE LOS FUMABA. ¿PA\' QUIÉN SERÍAN, ME PREGUNTO YO?']),
       N('pescador', 'EL BOGA', 7, 6, 'caiman', 'YO REMÉ EN EL MAGDALENA TREINTA AÑOS. ¡LO QUE HE VISTO EN ESE RÍO!', 'left')],
   },
   tienda0: {
     name: 'TIENDA DOÑA TERE', w: 10, h: 8, floor: 'baldosa_ajedrez', wall: 'azul', sound: 'hogar',
     furniture: [['estante_tienda', 3, 1], ['estante_tienda', 6, 1], ['mostrador', 4, 3], ['costales', 8, 3], ['racimo_platano', 2, 4], ['nevera', 8, 6], ['radio', 6, 3]],
-    npcs: [N('vendedora', 'DOÑA TERE', 4, 2, 'bandeja', '¿QUÉ SE LE OFRECE, VECINO? HAY PANELA, VELAS, AGUARDIENTE Y CHISMES FRESQUITOS.')],
+    npcs: [N('vendedora', 'DOÑA TERE', 4, 2, 'bandeja', ['¿QUÉ SE LE OFRECE, VECINO? HAY PANELA, VELAS, AGUARDIENTE Y CHISMES FRESQUITOS.',
+      'CHISME FRESCO: DICEN QUE ESTA NOCHE SE REPITE. YO NO SÉ, PERO AYER VENDÍ LAS MISMAS VELAS A LA MISMA GENTE. ¡QUÉ COSA TAN MALUCA!',
+      'SU ABUELO ME COMPRABA UNA VELA BLANCA TODOS LOS AÑOS, Y SE IBA PA\'L RÍO CON ELLA. ¡QUÉ HOMBRE TAN RARO Y TAN BUENO!'])],
   },
   iglesia0: {
     name: 'IGLESIA DE SAN AGUSTÍN', w: 13, h: 11, floor: 'baldosa_ajedrez', wall: 'iglesia', sound: 'iglesia',
     furniture: [['virgen', 3, 1], ['altar', 6, 3], ['virgen', 9, 1], ['velas', 3, 3], ['velas', 9, 3], ['pulpito', 10, 4],
       ['banca_iglesia', 4, 6], ['banca_iglesia', 8, 6], ['banca_iglesia', 4, 8], ['banca_iglesia', 8, 8]],
     npcs: [
-      N('campesina', 'DOÑA BERTA', 6, 7, 'llorona', 'ESTOY REZANDO PA\' QUE SE CALMEN LOS ESPANTOS. ¿USTED TAMBIÉN VINO A PEDIR PROTECCIÓN?', 'up'),
+      N('campesina', 'DOÑA BERTA', 6, 7, 'llorona', ['ESTOY REZANDO PA\' QUE SE CALMEN LOS ESPANTOS. ¿USTED TAMBIÉN VINO A PEDIR PROTECCIÓN?',
+        'RECÉ EL ROSARIO POR SU ABUELO LOS NUEVE DÍAS, MIJO. HOY ES EL ÚLTIMO. DICEN QUE MIENTRAS NO SE CUMPLA LO SUYO, EL ALMA NO DESCANSA.'], 'up'),
       // el padre Anselmo está adentro, frente al altar: ahí bendice los escapularios
       { key: 'cura', name: 'PADRE ANSELMO', story: 'navidad', x: 6, y: 4, facing: 'down', lines: [
         ['QUE DIOS LO ACOMPAÑE, HIJO. ESOS ESPANTOS NO SE VEN A SIMPLE VISTA: HAY QUE BUSCAR LAS SEÑALES QUE DEJAN.'],
+        ['YO NO APRUEBO ESO DE LA RONDA DE SU ABUELO, HIJO... PERO TAMPOCO LO DESAPRUEBO. DON JOAQUÍN VENÍA A MISA AL OTRO DÍA, MUY TRANQUILO, Y DORMÍAMOS TODOS EN PAZ.'],
         ['¿LO MOLESTAN EL DUENDE, EL POLLO MALIGNO O ESA MANO PELUDA? CON UN ESCAPULARIO BENDITO NO SE LE ARRIMAN.'],
         ['HUESOS EN EL LLANO, LÁGRIMAS EN EL RÍO, HUELLAS DE UNA SOLA PATA EN EL MONTE... DONDE HAY SEÑAL, HAY ESPANTO.'],
       ] },
@@ -520,12 +531,15 @@ export const INTERIORS: Record<string, InteriorDef> = {
   capilla0: {
     name: 'CAPILLA DEL CEMENTERIO', w: 9, h: 8, floor: 'ladrillo', wall: 'iglesia', sound: 'iglesia',
     furniture: [['altar', 4, 3], ['velas', 2, 3], ['velas', 6, 3], ['banca_iglesia', 3, 5], ['banca_iglesia', 6, 5]],
-    npcs: [N('cura', 'EL SACRISTÁN', 2, 6, 'madremonte', 'AQUÍ VELAMOS A LOS MUERTOS... Y A VECES LOS MUERTOS NOS VELAN A NOSOTROS.', 'right')],
+    npcs: [N('cura', 'EL SACRISTÁN', 2, 6, 'madremonte', ['AQUÍ VELAMOS A LOS MUERTOS... Y A VECES LOS MUERTOS NOS VELAN A NOSOTROS.',
+      'LA TUMBA DE DON JOAQUÍN ESTÁ AQUÍ AFUERITA, LA DE LA CRUZ NUEVA. TODAS LAS NOCHES LE AMANECE UNA FLOR DE MONTE ENCIMA. NADIE SABE QUIÉN LA PONE.'], 'right')],
   },
   alcaldia0: {
     name: 'ALCALDÍA MUNICIPAL', w: 12, h: 8, floor: 'baldosa', wall: 'verde', sound: 'hogar',
     furniture: [['cuadro_paisaje', 3, 1], ['ventana', 6, 1], ['cuadro_paisaje', 9, 1], ['mesa_comedor', 6, 3], ['silla', 4, 3], ['matera', 2, 6], ['matera', 10, 6]],
-    npcs: [N('policia', 'EL ALCALDE', 6, 2, 'sombreron', '¡BIENVENIDO! SI CALMA A LOS ESPANTOS, LE HACEMOS UNA ESTATUA EN LA PLAZA... BUENO, UN BUSTO.')],
+    npcs: [N('policia', 'EL ALCALDE', 6, 2, 'sombreron', ['¡BIENVENIDO! SI CALMA A LOS ESPANTOS, LE HACEMOS UNA ESTATUA EN LA PLAZA... BUENO, UN BUSTO.',
+      'ESO DEL MONTE DE ARRIBA Y LA MINA DEL RÍO... ESO TIENE PERMISOS, JOVEN. CREO. BUENO, LOS VOY A REVISAR, ¿SÍ?',
+      'SI ESTA NOCHE SE ACABA, LE PROMETO UNA PLACA. DE LATA, PERO PLACA.'])],
   },
   casa_azul0: {
     name: 'CASA DE LOS RESTREPO', w: 10, h: 8, floor: 'madera', wall: 'azul', sound: 'hogar',
@@ -541,12 +555,14 @@ export const INTERIORS: Record<string, InteriorDef> = {
   casa_verde0: {
     name: 'CASA DE LOS GIRALDO', w: 10, h: 8, floor: 'tierra', wall: 'verde', sound: 'hogar',
     furniture: CASA_FURNI.slice(0, 7),
-    npcs: [N('nino', 'TOMASITO', 6, 6, 'silbon', 'MI ABUELO ME CONTÓ DEL SILBÓN. ¡YO NO DUERMO SIN EL PERRO EN LA CAMA!', 'up', 2)],
+    npcs: [N('nino', 'TOMASITO', 6, 6, 'silbon', ['MI ABUELO ME CONTÓ DEL SILBÓN. ¡YO NO DUERMO SIN EL PERRO EN LA CAMA!',
+      'ANOCHE OÍ UN SILBIDO Y ALGUIEN LE SILBÓ DE VUELTA DESDE LA VEREDA. ¡ERA DON JOAQUÍN! ...PERO DON JOAQUÍN SE MURIÓ, ¿CIERTO?'], 'up', 2)],
   },
   casa_verde1: {
     name: 'CASA DE DOÑA ELVIRA', w: 9, h: 8, floor: 'tierra', wall: 'verde', sound: 'hogar',
     furniture: [['fogon_lena', 2, 3], ['olla', 4, 3], ['gallina', 6, 6], ['escoba', 7, 3], ['virgen', 4, 1]],
-    npcs: [N('nina', 'LA NIETA', 5, 5, 'llorona', '¡MI ABUELA DICE QUE NO ME BAÑE EN EL RÍO DE NOCHE!', 'down', 2)],
+    npcs: [N('nina', 'LA NIETA', 5, 5, 'llorona', ['¡MI ABUELA DICE QUE NO ME BAÑE EN EL RÍO DE NOCHE!',
+      'UNA SEÑORA DE BLANCO ME LLAMÓ DESDE LA ORILLA: "VEN, MIJITO". YO NO FUI. ¡NO SOY BOBA!'], 'down', 2)],
   },
   casa_roja0: {
     name: 'CASA DE LOS OSORIO', w: 9, h: 8, floor: 'madera', wall: 'bahareque', sound: 'hogar',
@@ -576,12 +592,14 @@ export const INTERIORS: Record<string, InteriorDef> = {
   trapiche0: {
     name: 'TRAPICHE DE DON JULIO', w: 11, h: 8, floor: 'tierra', wall: 'madera', sound: 'hogar',
     furniture: [['fogon_lena', 3, 3], ['olla', 5, 3], ['olla', 6, 3], ['costales', 9, 3], ['escoba', 2, 6]],
-    npcs: [N('arriero', 'DON JULIO', 7, 5, 'arrieros', 'AQUÍ SE MUELE LA CAÑA Y SE HACE LA PANELA. ¡PRUEBE ESTE MELAO, CALIENTICO!', 'left')],
+    npcs: [N('arriero', 'DON JULIO', 7, 5, 'arrieros', ['AQUÍ SE MUELE LA CAÑA Y SE HACE LA PANELA. ¡PRUEBE ESTE MELAO, CALIENTICO!',
+      'SU ABUELO Y YO MOLIMOS CAÑA CUARENTA AÑOS. ÉL DECÍA QUE EL MACHETE ES COMO LA PALABRA: SE USA PA\' TRABAJAR, NO PA\' HERIR.'], 'left')],
   },
   fonda_campo: {
     name: 'FONDA EL ARRIERO', w: 12, h: 9, floor: 'madera', wall: 'madera', sound: 'fiesta',
     furniture: [['estante_botellas', 3, 1], ['bombillos_pared', 6, 1], ['bombillos_pared', 9, 1], ['barra', 4, 3], ['guitarra', 7, 1], ['mesa_cantina', 8, 5], ['silla', 7, 5], ['silla', 9, 5], ['mesa_cantina', 3, 6]],
-    npcs: [N('cantinero', 'DOÑA NUBIA', 4, 2, 'bandeja', '¡AQUÍ SE VIENE A GOZAR, MIJO! LA TRISTEZA SE QUEDA EN LA PUERTA.'),
+    npcs: [N('cantinero', 'DOÑA NUBIA', 4, 2, 'bandeja', ['¡AQUÍ SE VIENE A GOZAR, MIJO! LA TRISTEZA SE QUEDA EN LA PUERTA.',
+      '¡ÉCHESE UN BAILECITO, JUAN! SU ABUELO BAILABA PASILLO COMO UN TROMPO, Y ESO QUE YA ESTABA VIEJITO.']),
       N('bailarina', 'LA MONA', 6, 7, 'cumbia', '¡ESTA NOCHE BAILAMOS HASTA QUE SALGA EL SOL!', 'up', 2)],
   },
   terminal_campo: {
