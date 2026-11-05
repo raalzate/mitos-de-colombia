@@ -23,7 +23,9 @@ import { sfx, type SfxName } from '../audio/Sfx';
 import { isMacheteAttack } from '../audio/Samples';
 import { SCARE_COOLDOWN, shouldRandomScare, tension } from '../combat/Fear';
 import { playScreamer } from '../ui/Screamer';
-import { FINISH_FRAMES, bloodDrops, cpuWantsFatality, finishPrompt, isFatalityInput } from '../combat/Finish';
+import {
+  CALM_COLOR, CALM_FRAMES, FINISH_FRAMES, bloodDrops, calmAt, cpuWantsFatality, dissolvesOnDefeat, finishPrompt, finishStyle, isFatalityInput, steppedAlpha,
+} from '../combat/Finish';
 import { LOOKS } from '../art/CharacterArtist';
 import { MENU_KEYS, MenuInput, getSettings, inputManager, toggleFullscreen } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
@@ -46,7 +48,20 @@ import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../de
 const VS_FRAMES = 90;
 const DUEL_STEP = 110;
 
-type Phase = 'intro' | 'fight' | 'finish' | 'roundEnd' | 'matchEnd' | 'flee';
+type Phase = 'intro' | 'fight' | 'finish' | 'calm' | 'roundEnd' | 'matchEnd' | 'flee';
+
+/** Mito vencido que se calma y se disuelve en luz. */
+interface Dissolve {
+  slot: PlayerSlot;
+  frame: number;
+  color: number;
+  motes: Phaser.GameObjects.Particles.ParticleEmitter;
+  blur: Phaser.FX.Blur | null;
+  glow: Phaser.FX.Glow | null;
+}
+
+/** Frames lógicos de cámara lenta tras el KO. */
+const KO_SLOWMO = 26;
 
 interface FighterView {
   sprite: Phaser.GameObjects.Sprite;
@@ -181,6 +196,13 @@ export class FightScene extends Phaser.Scene {
   private lurksRound = 0;
   private framesSinceLurk = 0;
 
+  /** disolución del mito vencido (se calma) */
+  private dissolve: Dissolve | null = null;
+  /** velo de luz suave sobre el escenario mientras el mito se calma */
+  private softenRect!: Phaser.GameObjects.Rectangle;
+  /** frames lógicos restantes de cámara lenta (KO) */
+  private slowFrames = 0;
+
   private onBlur = () => this.setPaused(true);
 
   constructor() {
@@ -208,6 +230,7 @@ export class FightScene extends Phaser.Scene {
       this.timedFx = [];
       this.drawnFx = [];
       this.cinematic = null;
+      this.dissolve = null;
     });
 
     this.startRound();
@@ -237,6 +260,8 @@ export class FightScene extends Phaser.Scene {
     this.finalScareDone = false;
     this.lurk = null;
     this.framesSinceLurk = 0;
+    this.dissolve = null;
+    this.slowFrames = 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -379,7 +404,10 @@ export class FightScene extends Phaser.Scene {
 
     const mk = (slot: PlayerSlot): FighterView => {
       const key = this.spriteKey(slot);
-      const shadow = this.add.image(0, GROUND_Y, 'white').setOrigin(0.5).setTint(0x000000).setAlpha(0.35).setDepth(8).setScale(14, 2);
+      // sombra de contacto: elipse en escalones; sin la textura, el rectángulo de antes
+      const shadow = this.textures.exists('p_shadow')
+        ? this.add.image(0, GROUND_Y, 'p_shadow').setOrigin(0.5).setDepth(8)
+        : this.add.image(0, GROUND_Y, 'white').setOrigin(0.5).setTint(0x000000).setAlpha(0.35).setDepth(8).setScale(14, 2);
       const id = slot === 1 ? this.settings.p1 : this.settings.p2;
       const pal = slot === 2 && mirror ? 'p2' : 'p1';
       const splash = this.settings.art === 'drawn' ? splashKey(this, id, pal, 72) : null;
@@ -404,6 +432,9 @@ export class FightScene extends Phaser.Scene {
 
     this.overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05030a, 1).setOrigin(0).setScrollFactor(0).setDepth(15).setAlpha(0);
     this.flashRect = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 1).setOrigin(0).setScrollFactor(0).setDepth(90).setAlpha(0);
+    // entre el escenario y los luchadores: el fondo se aclara y se suaviza, los luchadores siguen nítidos
+    this.softenRect = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0xffffff, 1).setOrigin(0).setScrollFactor(0).setDepth(9.5).setAlpha(0)
+      .setBlendMode(Phaser.BlendModes.SCREEN);
     this.message = text(this, GAME_WIDTH / 2, 96, '', 2, 0xf8d048).setScrollFactor(0).setDepth(110);
     this.subMessage = text(this, GAME_WIDTH / 2, 120, '', 1, 0xf8f0c8).setScrollFactor(0).setDepth(110);
     this.pauseText = text(this, GAME_WIDTH / 2, 110, touchActive() ? 'PAUSA\n\nSTART: CONTINUAR\nMENÚ: SALIR' : 'PAUSA\n\nENTER: CONTINUAR\nESC: MENÚ', 1, 0xf8f0c8)
@@ -482,6 +513,8 @@ export class FightScene extends Phaser.Scene {
     this.p2.resetForRound(START_X[2], -1);
     this.views[1].flash = 0;
     this.views[2].flash = 0;
+    this.endDissolve();
+    this.slowFrames = 0;
     this.hud.resetDelayed();
     if (this.roundNumber > 1) this.showMessage(this.roundNumber >= 3 ? 'RONDA FINAL' : `RONDA ${this.roundNumber}`, '');
     sfx.play('round');
@@ -510,6 +543,9 @@ export class FightScene extends Phaser.Scene {
     if (ko) {
       sfx.play('ko');
       this.cameras.main.shake(300, 0.01);
+      // cámara lenta y destello: el golpe final pesa
+      this.slowFrames = KO_SLOWMO;
+      this.flashRect.setFillStyle(0xffffff).setAlpha(0.55);
       this.showMessage('K.O.', '');
     } else if (winner === 'draw') {
       this.showMessage('TIEMPO', 'EMPATE');
@@ -524,7 +560,9 @@ export class FightScene extends Phaser.Scene {
     if (this.heroAi) this.matchWinnerSlot = winner === 1 ? 1 : null;
     // KO que decide el combate: ventana de remate al estilo Mortal Kombat
     if (ko && this.matchWinnerSlot && (this.matchWinnerSlot === 1 ? this.p2 : this.p1).hp <= 0) {
-      this.phase = 'finish';
+      const loser = this.matchWinnerSlot === 1 ? this.p2 : this.p1;
+      // en la aventura, ganarle a un mito es calmarlo: sin fatalidad, se apacigua y se disuelve
+      this.phase = finishStyle(!!this.registry.get('adventureFight'), loser.stats.id) === 'calm' ? 'calm' : 'finish';
       this.phaseFrame = 0;
       this.cpuFatality = null;
     }
@@ -569,6 +607,96 @@ export class FightScene extends Phaser.Scene {
     }
   }
 
+  /** Aventura: el mito vencido queda tendido, se calma y se disuelve en luz. Se puede saltar. */
+  private stepCalm(): void {
+    this.p1.update(EMPTY_INPUT);
+    this.p2.update(EMPTY_INPUT);
+    const slot = this.matchWinnerSlot!;
+    const winner = slot === 1 ? this.p1 : this.p2;
+    const loser = slot === 1 ? this.p2 : this.p1;
+    this.finalScareDone = true; // no hay susto: el mito ya está en paz
+    if (!this.dissolve && (loser.state === 'defeat' || this.phaseFrame >= 100)) {
+      this.startDissolve(loser.slot);
+      this.showMessage(LOOKS[loser.stats.id].female ? '¡CALMADA!' : '¡CALMADO!', loser.stats.name);
+      sfx.play('mist');
+      if (winner.grounded && winner.hp > 0) winner.setState('victory');
+    }
+    const d = this.dissolve;
+    if (!d) return;
+    const pad = inputManager.snapshot(slot).pressed;
+    const skip = d.frame > 24 && (pad.light || pad.lightkick);
+    if (skip) d.frame = Math.max(d.frame, CALM_FRAMES);
+    if (d.frame >= CALM_FRAMES) {
+      this.phase = 'roundEnd';
+      this.phaseFrame = 150;
+    }
+  }
+
+  /** Empieza la disolución del mito vencido: resplandor y desenfoque (WebGL) y luces que suben. */
+  private startDissolve(slot: PlayerSlot): void {
+    const f = slot === 1 ? this.p1 : this.p2;
+    if (this.dissolve || !dissolvesOnDefeat(f.stats.id)) return;
+    const v = this.views[slot];
+    const color = CALM_COLOR[f.stats.id];
+    const key = this.textures.exists('p_mote') ? 'p_mote' : 'p_spark';
+    const motes = this.add.particles(0, 0, key, {
+      speedX: { min: -10, max: 10 }, speedY: { min: -42, max: -16 }, accelerationY: -10,
+      lifespan: { min: 900, max: 1700 }, alpha: { start: 1, end: 0, ease: 'Sine.easeIn' }, scale: { start: 1, end: 0.4 },
+      tint: [color, 0xffffff, color], blendMode: Phaser.BlendModes.ADD, emitting: false,
+    }).setDepth(v.sprite.depth + 0.5);
+    let blur: Phaser.FX.Blur | null = null;
+    let glow: Phaser.FX.Glow | null = null;
+    const fx = v.sprite.preFX;
+    if (fx) {
+      fx.setPadding(12);
+      glow = fx.addGlow(color, 0, 0, false, 0.1, 10);
+      blur = fx.addBlur(1, 1, 1, 0, 0xffffff, 4);
+    }
+    this.softenRect.setFillStyle(color);
+    this.dissolve = { slot, frame: 0, color, motes, blur, glow };
+  }
+
+  /** Un paso lógico de la disolución: avanza y suelta luces desde el cuerpo. */
+  private stepDissolve(): void {
+    const d = this.dissolve;
+    if (!d) return;
+    d.frame++;
+    const n = calmAt(d.frame).motes;
+    if (n <= 0) return;
+    const b = this.views[d.slot].sprite.getBounds();
+    for (let i = 0; i < n; i++) {
+      d.motes.emitParticleAt(b.x + 6 + Math.random() * Math.max(1, b.width - 12), b.y + b.height * (0.25 + Math.random() * 0.7), 1);
+    }
+  }
+
+  private endDissolve(): void {
+    const d = this.dissolve;
+    if (!d) return;
+    this.dissolve = null;
+    d.motes.destroy();
+    this.views[d.slot].sprite.preFX?.clear();
+    this.softenRect.setAlpha(0);
+  }
+
+  /** Aplica la disolución al luchador que se está calmando (llamado desde render). */
+  private renderDissolve(v: FighterView, f: Fighter): number {
+    const d = this.dissolve;
+    if (!d || d.slot !== f.slot) return 1;
+    const st = calmAt(d.frame);
+    const webgl = !!v.sprite.preFX;
+    v.sprite.y = Math.round(v.sprite.y - st.rise);
+    if (d.glow) { d.glow.outerStrength = 5 * st.glow; d.glow.innerStrength = 1.2 * st.glow; }
+    if (d.blur) d.blur.strength = 1.6 * st.blur;
+    if (webgl && v.flash <= 0) {
+      // se tiñe de su color de calma mientras se va (la mitad del camino hacia el color)
+      const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(0xffffff), Phaser.Display.Color.ValueToColor(d.color), 100, Math.round(50 * Math.max(st.glow, st.blur)));
+      v.sprite.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+    }
+    this.softenRect.setAlpha(st.soften * 0.35);
+    return webgl ? st.alpha : steppedAlpha(st.alpha, this.logicFrame);
+  }
+
   /** FATALIDAD: chorro de sangre, manchas, golpe de tensión y la cara del ganador. */
   private fatality(winner: Fighter, loser: Fighter, slot: PlayerSlot): void {
     this.message.setVisible(true);
@@ -606,7 +734,8 @@ export class FightScene extends Phaser.Scene {
       this.accumulator = 0;
       return;
     }
-    this.accumulator += Math.min(delta, 250);
+    // cámara lenta del KO: la lógica avanza a un tercio
+    this.accumulator += Math.min(delta, 250) * (this.slowFrames > 0 && !this.paused ? 0.33 : 1);
     let steps = 0;
     while (this.accumulator >= LOGIC_STEP_MS && steps < 5) {
       this.logicStep();
@@ -644,6 +773,8 @@ export class FightScene extends Phaser.Scene {
 
     this.logicFrame++;
     this.phaseFrame++;
+    if (this.slowFrames > 0) this.slowFrames--;
+    this.stepDissolve();
     for (let i = this.timedFx.length - 1; i >= 0; i--) {
       const fx = this.timedFx[i];
       fx.frames--;
@@ -698,6 +829,9 @@ export class FightScene extends Phaser.Scene {
       case 'finish':
         this.stepFinish();
         break;
+      case 'calm':
+        this.stepCalm();
+        break;
       case 'roundEnd':
         this.stepRoundEnd();
         break;
@@ -707,7 +841,8 @@ export class FightScene extends Phaser.Scene {
       case 'matchEnd':
         this.p1.update(EMPTY_INPUT);
         this.p2.update(EMPTY_INPUT);
-        if (this.phaseFrame >= 110) this.goToResult();
+        // el mito termina de disolverse antes de pasar al resultado
+        if (this.phaseFrame >= 110 && (!this.dissolve || this.dissolve.frame >= CALM_FRAMES)) this.goToResult();
         break;
     }
     this.hud.update(framesToDisplaySeconds(this.timerFrames, LOGIC_FPS), this.score, this.logicFrame);
@@ -991,6 +1126,11 @@ export class FightScene extends Phaser.Scene {
     this.p1.update(EMPTY_INPUT);
     this.p2.update(EMPTY_INPUT);
     const w = this.roundWinner;
+    // arcade: tras la fatalidad (o si no remató) el mito vencido también se calma y se disuelve
+    if (this.phaseFrame === 95 && this.matchWinnerSlot) {
+      const loser = this.matchWinnerSlot === 1 ? this.p2 : this.p1;
+      if (loser.hp <= 0) this.startDissolve(loser.slot);
+    }
     // remate del combate: la cara del ganador se abalanza sobre la pantalla
     if (this.phaseFrame === 35 && this.matchWinnerSlot && !this.finalScareDone && this.settings.scares && (this.p1.hp <= 0 || this.p2.hp <= 0)) {
       this.finalScareDone = true;
@@ -1247,7 +1387,11 @@ export class FightScene extends Phaser.Scene {
       this.views[e.defender.slot].flash = 4;
       this.bleed(e.x, e.y, e.attacker.facing, bloodDrops(false, e.heavy, e.result.damage), e.heavy ? 3 : 1);
       this.sparkEmitter.explode(e.heavy ? 10 : 5, e.x, e.y);
-      if (e.heavy) this.cameras.main.shake(120, 0.006);
+      if (e.heavy) {
+        this.cameras.main.shake(120, 0.006);
+        // destello breve en golpes fuertes: el impacto se siente en toda la pantalla
+        if (this.flashRect.alpha < 0.15) this.flashRect.setFillStyle(0xfff4e0).setAlpha(0.15);
+      }
       const kind = e.projectile ? e.projectile.attack.kind : e.attacker.attack?.kind;
       const spec = kind === 'special1' ? e.attacker.stats.special1 : kind === 'special2' ? e.attacker.stats.special2 : null;
       if (spec) this.emitterFor(spec.particle)?.explode(10, e.x, e.y);
@@ -1420,6 +1564,7 @@ export class FightScene extends Phaser.Scene {
           backward: f.anim === 'walk' && f.vx * f.facing < 0, rising: f.vy < -0.5, walkDistance: v.walkDist,
           vxForward: f.vx * f.facing, stateFrame: f.stateFrame, lying: f.knockdownLying, landing,
           stun: struck ? 20 : f.stun, stunStart: struck ? 20 : v.stunStart, hitstop: f.hitstop,
+          hpFrac: f.hp / MAX_HP, breathPhase: slot === 1 ? 0 : 37,
           attackProgress: f.attack && (f.state === 'attack' || f.state === 'special')
             ? { frame: f.attackFrame, startup: f.attack.startup, active: f.attack.active, recovery: f.attack.recovery }
             : undefined,
@@ -1485,12 +1630,13 @@ export class FightScene extends Phaser.Scene {
         v.sprite.setFrame(idx);
         v.sprite.setPosition(Math.round(f.x) + shake, Math.round(f.y));
       }
-      v.sprite.setAlpha(f.alpha);
       if (v.flash > 0) v.sprite.setTintFill(0xffffff);
       else if (f.invuln > 0 && f.state === 'getup') v.sprite.setTint(0xa0c0ff);
       else v.sprite.clearTint();
-      const h = Math.max(0, GROUND_Y - f.y);
-      v.shadow.setPosition(Math.round(f.x), GROUND_Y + 1).setScale(Math.max(4, 14 - h * 0.15), 2).setAlpha(f.alpha * 0.35);
+      const calm = this.renderDissolve(v, f);
+      const alpha = f.alpha * calm;
+      v.sprite.setAlpha(alpha);
+      this.placeShadow(v, f, alpha);
     }
     for (const p of this.combat.projectiles) {
       const sp = this.projectileSprites.get(p.id);
@@ -1525,6 +1671,23 @@ export class FightScene extends Phaser.Scene {
     if (this.flashRect.alpha > 0) this.flashRect.setAlpha(Math.max(0, this.flashRect.alpha - 0.08));
 
     this.renderDebug();
+  }
+
+  /**
+   * Sombra de contacto: tan ancha como el cuerpo (más larga tendido), se encoge y aclara
+   * al subir en el salto. Escala en pasos de 1/8 para que el borde no tiemble.
+   */
+  private placeShadow(v: FighterView, f: Fighter, alpha: number): void {
+    const h = Math.max(0, GROUND_Y - f.y);
+    if (v.shadow.texture.key !== 'p_shadow') {
+      v.shadow.setPosition(Math.round(f.x), GROUND_Y + 1).setScale(Math.max(4, 14 - h * 0.15), 2).setAlpha(alpha * 0.35);
+      return;
+    }
+    const lying = (f.state === 'knockdown' && f.grounded) || f.state === 'defeat';
+    const body = lying ? 1.7 : Math.min(1.3, Math.max(0.8, f.stats.pushBox.w / 22));
+    const k = Math.max(0.35, 1 - h / 90);
+    const sx = Math.round(body * k * 8) / 8;
+    v.shadow.setPosition(Math.round(f.x), GROUND_Y + 1).setScale(sx, Math.max(0.5, Math.round(k * 8) / 8)).setAlpha(alpha * (0.5 + 0.5 * k));
   }
 
   /** Giro al cambiar de lado: la figura se estrecha hasta casi cero y se vuelve a abrir ya volteada. */

@@ -45,6 +45,10 @@ export interface DrawnFrameInput {
   stun?: number;
   stunStart?: number;
   hitstop?: number;
+  /** vida restante 0..1: con poca vida jadea (respira más rápido y hondo) */
+  hpFrac?: number;
+  /** desfase del ciclo de respiración (frames): los dos luchadores no respiran a la vez */
+  breathPhase?: number;
 }
 
 /** Transformación del fotograma entero. `center`: gira alrededor del centro del cuerpo (volteretas). */
@@ -190,6 +194,43 @@ export function landSquash(n: number): { sx: number; sy: number } {
   const t = (n - LAND_TUCK) / (LAND_FRAMES - LAND_TUCK);
   const s = 0.07 * (1 - easeOut(t));
   return { sx: 1 + s, sy: 1 - s };
+}
+
+/* --------------------------- vida en reposo --------------------------- */
+
+/** Peso de cada luchador: los pesados respiran lento y hondo, los rápidos corto y ligero. */
+export type BodyWeight = 'heavy' | 'mid' | 'light';
+export const BODY_WEIGHT: Record<FighterId, BodyWeight> = {
+  madremonte: 'heavy', hombrecaiman: 'heavy', juanmachete: 'heavy',
+  llorona: 'mid', sombreron: 'mid', muelona: 'mid', bachue: 'mid',
+  patasola: 'light', mohan: 'light', silbon: 'light',
+};
+/** [periodo de respiración (frames), amplitud de estiramiento vertical, periodo del balanceo] */
+const BREATH: Record<BodyWeight, [number, number, number]> = {
+  heavy: [118, 0.026, 260], mid: [96, 0.022, 220], light: [78, 0.018, 180],
+};
+/** Vida por debajo de la cual jadea. */
+export const PANT_HP = 0.3;
+
+/**
+ * Postura viva sobre un solo fotograma (TC-04: solo transforma el fotograma entero):
+ * respiración anclada a los pies (el pecho sube ~1–2 px y el cuerpo se afina un poco),
+ * y balanceo lento del peso de un pie a otro (±1 px entero). Con poca vida jadea:
+ * más rápido y más hondo.
+ */
+export function idleLife(id: FighterId, frame: number, hpFrac = 1): { sx: number; sy: number; dx: number; dy: number } {
+  const [period0, amp0, swayPeriod] = BREATH[BODY_WEIGHT[id] ?? 'mid'];
+  const pant = hpFrac < PANT_HP;
+  const period = pant ? period0 * 0.55 : period0;
+  const amp = pant ? amp0 * 1.5 : amp0;
+  // inhalar más lento que exhalar: seno deformado (0..1)
+  const ph = ((frame % period) + period) % period / period;
+  const breath = ph < 0.6 ? easeInOut(ph / 0.6) : 1 - easeInOut((ph - 0.6) / 0.4);
+  const sy = 1 + amp * breath;
+  const sx = 1 - amp * 0.35 * breath;
+  const dx = Math.round(Math.sin((frame / swayPeriod) * Math.PI * 2));
+  // los pies no se despegan del suelo: todo el movimiento sale de los pies hacia arriba
+  return { sx, sy, dx, dy: 0 };
 }
 
 /** Velocidades verticales entre las que dura la voltereta del salto con dirección. */
@@ -368,8 +409,12 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
       if (i.landing !== undefined && i.landing < LAND_FRAMES) {
         const s = landSquash(i.landing);
         pose.sx = s.sx; pose.sy = s.sy;
-      } else if (id === 'patasola') pose.dy = -Math.abs(Math.round(Math.sin(i.frame / 13) * 2));
-      else pose.sy = 1 + Math.sin(i.frame / 11) * 0.008;
+      } else {
+        // postura viva: respira (estira desde los pies) y balancea el peso; Patasola además brinca
+        const b = idleLife(id, i.frame + (i.breathPhase ?? 0), i.hpFrac ?? 1);
+        pose.sx = b.sx; pose.sy = b.sy; pose.dx = b.dx; pose.dy = b.dy;
+        if (id === 'patasola') pose.dy = -Math.abs(Math.round(Math.sin(i.frame / 13) * 2));
+      }
       break;
     }
     case 'walk': {
@@ -400,6 +445,15 @@ export function drawnMotion(id: FighterId, i: DrawnFrameInput): DrawnPose {
     case 'crouch':
     case 'crouchblock':
       if ((i.stateFrame ?? 99) < 3) { pose.sy = 0.94; pose.sx = 1.03; }
+      else {
+        // agachado también respira, más corto
+        const b = idleLife(id, i.frame + (i.breathPhase ?? 0), i.hpFrac ?? 1);
+        pose.sy = 1 + (b.sy - 1) * 0.6; pose.sx = 1 + (b.sx - 1) * 0.6;
+      }
+      break;
+    case 'block':
+      // tenso tras la guardia: respira apenas
+      if ((i.stateFrame ?? 0) > 6) pose.sy = 1 + (idleLife(id, i.frame + (i.breathPhase ?? 0), i.hpFrac ?? 1).sy - 1) * 0.4;
       break;
     case 'hit': {
       const r = hitRecoil(i.stun ?? 0, i.stunStart ?? 0, (i.stunStart ?? 0) > 14);
