@@ -109,13 +109,56 @@ describe('paisajes de la aventura y música', () => {
     }
   });
 
-  it('la cumbia lleva el bajo en 1 y 3 y la guacharaca en cada semicorchea', () => {
+  it('la cumbia lleva el bajo en 1 y 3, la guacharaca en cada semicorchea y el llamador en el contratiempo', () => {
     const bass = MUSIC.cumbia.voices.find((v) => v.inst === 'bass')!;
     bass.steps.forEach((s, i) => {
       if (s !== 0) expect(i % 16 === 0 || i % 16 === 8).toBe(true);
     });
-    const shaker = MUSIC.cumbia.voices.find((v) => v.inst === 'shaker')!;
-    expect(shaker.steps.every((s) => (s as number) > 0)).toBe(true);
+    const guacharaca = MUSIC.cumbia.voices.find((v) => v.inst === 'guacharaca')!;
+    expect(guacharaca.steps.every((s) => (s as number) > 0)).toBe(true);
+    // raspado largo (fuerte) en cada tiempo, cortos entre medio
+    guacharaca.steps.forEach((s, i) => {
+      if (i % 4 === 0) expect(s as number).toBeGreaterThanOrEqual(0.7);
+      else expect(s as number).toBeLessThan(0.7);
+    });
+    const llamador = MUSIC.cumbia.voices.find((v) => v.inst === 'llamador')!;
+    llamador.steps.forEach((s, i) => {
+      if (s !== 0) expect(i % 8, `paso ${i}`).toBe(4);
+    });
+    const tambora = MUSIC.cumbia.voices.find((v) => v.inst === 'tambora')!;
+    for (let bar = 0; bar < tambora.steps.length; bar += 16) expect(tambora.steps[bar] as number).toBeGreaterThanOrEqual(0.9);
+  });
+
+  it('cada escenario tiene ambiente por capas y su sala', () => {
+    for (const id of SOUNDSCAPE_IDS) {
+      const t = STAGE_SOUND[id];
+      expect(t.ambience?.length, id).toBeGreaterThan(0);
+      for (const l of t.ambience!) {
+        expect(l.gain, id).toBeGreaterThan(0);
+        expect(l.gain, id).toBeLessThanOrEqual(0.1);
+        expect(l.freq, id).toBeGreaterThan(40);
+        expect(l.freq, id).toBeLessThan(8000);
+      }
+      expect(t.reverb, id).toBeGreaterThanOrEqual(0);
+      expect(t.reverb!, id).toBeLessThanOrEqual(1);
+    }
+    expect(STAGE_SOUND.infierno.ambience!.some((l) => l.kind === 'fire')).toBe(true);
+    expect(STAGE_SOUND.ribera.ambience!.some((l) => l.kind === 'river')).toBe(true);
+    expect(STAGE_SOUND.iglesia.reverb!).toBeGreaterThan(STAGE_SOUND.hogar.reverb!);
+  });
+
+  it('swing, paneo y golpes fantasma dentro de rango', () => {
+    for (const [id, tr] of Object.entries(MUSIC)) {
+      expect(tr.swing ?? 0, id).toBeLessThanOrEqual(0.5);
+      expect(tr.room ?? 0, id).toBeLessThanOrEqual(1);
+      for (const v of tr.voices) {
+        expect(Math.abs(v.pan ?? 0), id).toBeLessThanOrEqual(1);
+        if (v.ghost) {
+          expect(PERCUSSION.includes(v.inst), `${id} ${v.inst}`).toBe(true);
+          expect(v.ghost).toBeLessThan(0.3);
+        }
+      }
+    }
   });
 
   it('la segunda voz va una tercera diatónica abajo', () => {
