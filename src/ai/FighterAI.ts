@@ -23,9 +23,9 @@ interface AiParams {
 }
 
 const PARAMS: Record<Difficulty, AiParams> = {
-  easy: { reactionDelay: 20, thinkInterval: 22, thinkJitter: 10, aggression: 0.32, blockChance: 0.2, specialChance: 0.15, jumpChance: 0.12, antiAir: 0.15, punishChance: 0.2, mistakeChance: 0.25 },
-  normal: { reactionDelay: 11, thinkInterval: 13, thinkJitter: 6, aggression: 0.5, blockChance: 0.5, specialChance: 0.3, jumpChance: 0.15, antiAir: 0.45, punishChance: 0.5, mistakeChance: 0.1 },
-  hard: { reactionDelay: 5, thinkInterval: 7, thinkJitter: 3, aggression: 0.66, blockChance: 0.8, specialChance: 0.42, jumpChance: 0.15, antiAir: 0.8, punishChance: 0.85, mistakeChance: 0.03 },
+  easy: { reactionDelay: 16, thinkInterval: 18, thinkJitter: 8, aggression: 0.32, blockChance: 0.2, specialChance: 0.15, jumpChance: 0.12, antiAir: 0.15, punishChance: 0.2, mistakeChance: 0.25 },
+  normal: { reactionDelay: 8, thinkInterval: 10, thinkJitter: 5, aggression: 0.5, blockChance: 0.5, specialChance: 0.3, jumpChance: 0.15, antiAir: 0.45, punishChance: 0.5, mistakeChance: 0.1 },
+  hard: { reactionDelay: 4, thinkInterval: 6, thinkJitter: 3, aggression: 0.66, blockChance: 0.8, specialChance: 0.42, jumpChance: 0.15, antiAir: 0.8, punishChance: 0.85, mistakeChance: 0.03 },
 };
 
 type Intent =

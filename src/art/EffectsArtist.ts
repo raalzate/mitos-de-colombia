@@ -472,3 +472,117 @@ export function buildBolt(): EffectSheet {
   }
   return pack(frames);
 }
+
+/* ------------------------- impactos grandes y legibles ------------------------- */
+
+/** Estrella de puntas afiladas (rombos) alrededor de un centro, con contorno oscuro. */
+function spikeStar(pm: Pixmap, cx: number, cy: number, spikes: number, rOut: number, rIn: number, rot: number, fill: number, edge: number): void {
+  for (let i = 0; i < spikes; i++) {
+    const a = rot + (i / spikes) * Math.PI * 2;
+    const long = i % 2 === 0 ? 1 : 0.62;
+    const tipX = cx + Math.cos(a) * rOut * long;
+    const tipY = cy + Math.sin(a) * rOut * long;
+    const w = Math.PI / spikes * 0.75;
+    pm.polygon([
+      [cx + Math.cos(a - w) * rIn, cy + Math.sin(a - w) * rIn],
+      [tipX, tipY],
+      [cx + Math.cos(a + w) * rIn, cy + Math.sin(a + w) * rIn],
+    ], hexToRgba(fill));
+  }
+  pm.circle(cx, cy, rIn, hexToRgba(fill));
+  pm.outline(hexToRgba(edge), true);
+}
+
+/**
+ * Chispa de impacto estilizada (5 frames): destello blanco, estrella de 8 puntas que se abre
+ * con núcleo caliente, y fragmentos que salen despedidos. Tamaño 56 px para leerse a 1×.
+ */
+export function buildImpactStar(): EffectSheet {
+  const S = 56;
+  const c = S / 2;
+  const frames: Pixmap[] = [];
+  const shape: [number, number, number, number, number][] = [
+    // [radio exterior, radio interior, giro, relleno, contorno]
+    [12, 5, 0, 0xffffff, 0xfff0a0],
+    [24, 7, 0.12, 0xfff4c0, 0xff8020],
+    [26, 6, 0.2, 0xffc040, 0xa02818],
+  ];
+  shape.forEach(([ro, ri, rot, fill, edge], f) => {
+    const pm = new Pixmap(S, S);
+    spikeStar(pm, c, c, 8, ro, ri, rot, fill, edge);
+    if (f >= 1) pm.circle(c, c, ri - 1, hexToRgba(0xffffff));
+    frames.push(pm);
+  });
+  // fragmentos: rombos pequeños que se alejan del centro
+  for (let f = 0; f < 2; f++) {
+    const pm = new Pixmap(S, S);
+    const r = 16 + f * 7;
+    for (let i = 0; i < 8; i++) {
+      const a = 0.3 + (i / 8) * Math.PI * 2;
+      const x = c + Math.cos(a) * r;
+      const y = c + Math.sin(a) * r;
+      const s = f === 0 ? 3 : 2;
+      pm.polygon([[x - s, y], [x, y - s], [x + s, y], [x, y + s]], hexToRgba(f === 0 ? 0xffc040 : 0xff7030));
+    }
+    pm.outline(hexToRgba(0x601810));
+    frames.push(pm);
+  }
+  return pack(frames);
+}
+
+/** Chispa de bloqueo: destello azul en cruz con anillo y chispas que rebotan (4 frames). */
+export function buildGuardStar(): EffectSheet {
+  const S = 40;
+  const c = S / 2;
+  const frames: Pixmap[] = [];
+  for (let f = 0; f < 4; f++) {
+    const pm = new Pixmap(S, S);
+    if (f < 2) spikeStar(pm, c, c, 4, f === 0 ? 10 : 17, 3, Math.PI / 4 * f, 0xe8f8ff, 0x3080e0);
+    const r = 8 + f * 4;
+    for (let a = 0; a < 360; a += 45) {
+      const x = c + Math.cos((a * Math.PI) / 180) * r;
+      const y = c + Math.sin((a * Math.PI) / 180) * r;
+      pm.rect(x - 1, y - 1, f < 3 ? 2 : 1, f < 3 ? 2 : 1, hexToRgba(f < 2 ? 0xffffff : 0x80c8ff));
+    }
+    frames.push(pm);
+  }
+  return pack(frames);
+}
+
+/** Arco de un corte (filo blanco con canto de color) de a0 a a1 grados, grosor que adelgaza en las puntas. */
+function arc(pm: Pixmap, cx: number, cy: number, r: number, a0: number, a1: number, width: number, core: number, edge: number): void {
+  for (let a = a0; a <= a1; a += 2) {
+    const t = (a - a0) / Math.max(1, a1 - a0);
+    const w = width * Math.sin(Math.PI * t);
+    const x = cx + Math.cos((a * Math.PI) / 180) * r;
+    const y = cy + Math.sin((a * Math.PI) / 180) * r;
+    pm.dab(x, y, Math.max(0.6, w), hexToRgba(edge));
+    pm.dab(x, y, Math.max(0.4, w * 0.5), hexToRgba(core));
+  }
+}
+
+/** Tajo de machete: un solo arco ancho que barre en diagonal y se desvanece (4 frames, 72 px). */
+export function buildMacheteArc(): EffectSheet {
+  const S = 72;
+  const frames: Pixmap[] = [];
+  const sweep: [number, number, number][] = [[-80, -20, 3], [-80, 50, 4.5], [-40, 70, 3.5], [20, 75, 1.6]];
+  for (const [a0, a1, w] of sweep) {
+    const pm = new Pixmap(S, S);
+    arc(pm, 22, 36, 28, a0, a1, w, 0xffffff, 0xffd890);
+    frames.push(pm);
+  }
+  return pack(frames);
+}
+
+/** Zarpazo: tres arcos paralelos de garra (4 frames, 56 px). */
+export function buildClawArc(): EffectSheet {
+  const S = 56;
+  const frames: Pixmap[] = [];
+  const sweep: [number, number, number][] = [[-70, -30, 2], [-70, 30, 3], [-40, 45, 2.4], [10, 50, 1.2]];
+  for (const [a0, a1, w] of sweep) {
+    const pm = new Pixmap(S, S);
+    for (let k = 0; k < 3; k++) arc(pm, 14 + k * 5, 28 - k * 3, 20, a0, a1, w, 0xffffff, 0xff6070);
+    frames.push(pm);
+  }
+  return pack(frames);
+}

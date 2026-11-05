@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import type { FighterId } from '../combat/CombatTypes';
+import type { AttackKind, FighterId } from '../combat/CombatTypes';
 
 /**
  * Efectos de combate dibujados, extraídos de las hojas de referencia de `images/`
@@ -132,4 +132,31 @@ export function drawnFxMotion(kind: DrawnFxKind, frame: number): DrawnFxMotion {
       return { rot: 0, sx, sy: 0.9 + 0.1 * Math.sin(f * 0.8), alpha };
     }
   }
+}
+
+/* --------------------------- impacto de los golpes normales --------------------------- */
+
+/** Golpes de garra (zarpazos, arañazos): el impacto deja tres arcos de uñas. */
+const CLAW_HITS: Partial<Record<FighterId, AttackKind[]>> = {
+  madremonte: ['light'],
+  patasola: ['light', 'heavy'],
+  hombrecaiman: ['light'],
+  mohan: ['light'],
+  muelona: ['light'],
+};
+
+/** Rastro del arma en el impacto: tajo de machete, zarpazo o nada (golpe a mano limpia). */
+export function strikeTrail(id: FighterId, kind: AttackKind | undefined): 'machete' | 'claw' | null {
+  if (!kind) return null;
+  if (id === 'juanmachete' && (kind === 'heavy' || kind === 'special1')) return 'machete';
+  return CLAW_HITS[id]?.includes(kind) ? 'claw' : null;
+}
+
+/**
+ * Tamaño del destello de impacto según el daño: legible a 1× en golpes ligeros y claramente
+ * mayor en los fuertes (hasta ~1,6×). En pasos de 1/8 para no emborronar el pixel art.
+ */
+export function impactScale(damage: number, blocked: boolean): number {
+  const s = 0.8 + Math.min(14, Math.max(0, damage)) * 0.06;
+  return Math.round((blocked ? s * 0.85 : s) * 8) / 8;
 }

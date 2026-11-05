@@ -1,3 +1,4 @@
+import { JUMP_SCALE } from '../config/game-config';
 import type { AttackDef, AttackKind, FighterId, FighterStats, SpecialSpec, UltimateSpec } from '../combat/CombatTypes';
 
 /**
@@ -42,25 +43,25 @@ function normals(prefix: string, arch: Archetype, names: [string, string, string
   return {
     light: base({
       id: `${prefix}_light`, name: names[0], kind: 'light',
-      startup: r(4 * a.spd), active: 3, recovery: r(7 * a.spd),
+      startup: r(4 * a.spd), active: 3, recovery: r(5 * a.spd),
       damage: r(5 * a.dmg), hitstun: 13, blockstun: 7, knockback: 1.6 * a.kb,
       hitbox: { x: 10, y: -50, w: w(26), h: 12 }, air: true,
     }),
     heavy: base({
       id: `${prefix}_heavy`, name: names[1], kind: 'heavy',
-      startup: r(9 * a.spd), active: 4, recovery: r(15 * a.spd),
+      startup: r(8 * a.spd), active: 4, recovery: r(12 * a.spd),
       damage: r(10 * a.dmg), hitstun: 20, blockstun: 12, knockback: 3.2 * a.kb,
       hitbox: { x: 10, y: -58, w: w(30), h: 22 }, meterOnHit: 10, hitstop: 7, forwardStep: 0.7,
     }),
     lightkick: base({
       id: `${prefix}_lkick`, name: names[2], kind: 'lightkick',
-      startup: r(5 * a.spd), active: 4, recovery: r(8 * a.spd),
+      startup: r(5 * a.spd), active: 4, recovery: r(6 * a.spd),
       damage: r(6 * a.dmg), hitstun: 14, blockstun: 8, knockback: 2 * a.kb,
       hitbox: { x: 10, y: -26, w: w(30), h: 12 }, air: true,
     }),
     heavykick: base({
       id: `${prefix}_hkick`, name: names[3], kind: 'heavykick',
-      startup: r(10 * a.spd), active: 5, recovery: r(17 * a.spd),
+      startup: r(9 * a.spd), active: 5, recovery: r(14 * a.spd),
       damage: r(11 * a.dmg), hitstun: 22, blockstun: 13, knockback: 3.6 * a.kb,
       knockdown: true, hitbox: { x: 8, y: -40, w: w(36), h: 16 }, meterOnHit: 10, hitstop: 7,
     }),
@@ -112,6 +113,13 @@ interface Def {
   ultSpec: UltimateSpec;
 }
 
+/**
+ * Ritmo de pelea: los datos de cada luchador conservan sus proporciones y el ritmo
+ * global se ajusta aquí (andar ~35 % más rápido, retroceder ~30 %).
+ */
+export const WALK_PACE = 1.35;
+export const BACK_PACE = 1.3;
+
 function build(d: Def): FighterStats {
   const hw = d.height >= 64 ? 11 : 10;
   const s2 = { ...d.s2, kind: 'special2' as const };
@@ -121,9 +129,9 @@ function build(d: Def): FighterStats {
     name: d.name,
     title: d.title,
     description: d.description,
-    walkSpeed: d.walkSpeed,
-    backSpeed: d.backSpeed,
-    jumpForce: d.jumpForce,
+    walkSpeed: d.walkSpeed * WALK_PACE,
+    backSpeed: d.backSpeed * BACK_PACE,
+    jumpForce: d.jumpForce * JUMP_SCALE,
     weight: d.weight,
     hurtStand: { x: -hw, y: -d.height, w: hw * 2, h: d.height },
     hurtCrouch: { x: -hw, y: -Math.round(d.height * 0.64), w: hw * 2, h: Math.round(d.height * 0.64) },

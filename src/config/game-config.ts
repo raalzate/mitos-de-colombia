@@ -11,9 +11,11 @@ export const ARENA_WIDTH = 560;
 export const ARENA_MARGIN = 14;
 export const GROUND_Y = 196;
 
-/** Física (px por frame lógico) */
-export const GRAVITY = 0.38;
-export const MAX_FALL_SPEED = 7;
+/** Física (px por frame lógico): gravedad alta y saltos cortos y secos (~0,5 s en el aire). */
+export const GRAVITY = 0.6;
+export const MAX_FALL_SPEED = 11;
+/** Los impulsos verticales de los datos (salto, lanzamientos) se escalan con la gravedad nueva. */
+export const JUMP_SCALE = 1.22;
 
 /** Partida */
 export const ROUND_TIME_SECONDS = 99;

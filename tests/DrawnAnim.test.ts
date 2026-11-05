@@ -164,8 +164,9 @@ describe('animación dibujada', () => {
     expect(Math.abs(hitRecoil(0, 20, true).dx)).toBeLessThan(1e-9);
     expect(Math.abs(hitRecoil(10, 20, false).dx)).toBeLessThan(Math.abs(hitRecoil(10, 20, true).dx));
     expect(hitShake(0)).toBe(0);
-    expect(Math.abs(hitShake(7))).toBe(2);
-    expect(Math.abs(hitShake(3))).toBe(1);
+    // hitstop de 3 a 6 frames: tiembla 2 px en los ligeros y 3 px en los fuertes
+    expect(Math.abs(hitShake(6))).toBe(3);
+    expect(Math.abs(hitShake(3))).toBe(2);
     expect(hitShake(6)).toBe(-hitShake(7));
   });
 

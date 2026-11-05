@@ -1,6 +1,6 @@
 import { ARENA_MARGIN, ARENA_WIDTH, BODY_PUSH_DISTANCE } from '../config/game-config';
 import type { AttackDef, Facing, HitResult, PlayerSlot, WorldBox } from './CombatTypes';
-import { resolveHit, addMeter, applyDamage } from './CombatRules';
+import { resolveHit, addMeter, applyDamage, hitstopFor } from './CombatRules';
 import { boxesOverlap, intersectionCenter, overlapAmountX } from './HitboxSystem';
 import { Fighter } from '../entities/Fighter';
 import { Projectile, type ProjectileSpawn } from '../entities/Projectile';
@@ -117,7 +117,7 @@ export class CombatSystem {
       // no debería ocurrir (no bloqueable), pero se protege la lógica
       return;
     }
-    const hitstop = attack.hitstop;
+    const hitstop = hitstopFor(attack, result.blocked);
     defender.takeHit(result, pushDir, hitstop);
     if (!projectile) attacker.hitstop = hitstop;
     if (!result.blocked) {

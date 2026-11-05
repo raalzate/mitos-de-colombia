@@ -132,3 +132,13 @@ export function facingToward(selfX: number, otherX: number, current: 1 | -1): 1 
   if (otherX < selfX) return -1;
   return current;
 }
+
+/**
+ * Hitstop (frames congelados al impactar) según el daño: 3 en golpes ligeros, hasta 6 en los
+ * fuertes. Bloqueado congela un frame menos. Ataques sin hitstop (definitivo) siguen sin él.
+ */
+export function hitstopFor(attack: Pick<AttackDef, 'hitstop' | 'damage'>, blocked: boolean): number {
+  if (attack.hitstop <= 0) return 0;
+  const base = Math.min(6, Math.max(3, Math.round(2 + attack.damage * 0.35)));
+  return blocked ? Math.max(3, base - 1) : base;
+}
