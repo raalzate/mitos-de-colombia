@@ -86,6 +86,15 @@ def reach(im):
 def import_one(man, cid, action):
     d = f"{SRC}/{action}/{cid}"
     sel = json.load(open(f"{d}/keep.json")) if os.path.exists(f"{d}/keep.json") else {}
+    if sel.get("disabled"):
+        # tira rechazada: se quita del manifiesto y el juego vuelve a la tira `attack`
+        if man.get(cid, {}).pop(action, None) is not None:
+            print(cid, action, "desactivada:", sel.get("note", ""))
+        for slot in ("p1", "p2"):
+            path = f"{OUT}/{cid}_{action}_{slot}.png"
+            if os.path.exists(path):
+                os.remove(path)
+        return False
     files = sorted(glob.glob(f"{SRC}/{sel.get('source', action)}/{cid}/f*.png"))
     if not files or cid not in man:
         return False

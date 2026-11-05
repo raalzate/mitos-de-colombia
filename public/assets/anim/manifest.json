@@ -324,12 +324,6 @@
    "lying": 9,
    "air": 4,
    "airEnd": 4
-  },
-  "punch": {
-   "frames": 4,
-   "w": 96,
-   "h": 94,
-   "hit": 2
   }
  },
  "bachue": {

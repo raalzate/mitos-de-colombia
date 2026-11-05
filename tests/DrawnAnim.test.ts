@@ -275,7 +275,7 @@ describe('animación dibujada', () => {
     const p = { startup: 9, active: 4, recovery: 15 };
     expect(moveStrip('llorona', 'light')).toBe('punch');
     expect(moveStrip('llorona', 'heavykick')).toBe('kick');
-    expect(moveStrip('juanmachete', 'heavy')).toBe('punch');
+    expect(moveStrip('juanmachete', 'heavy')).toBe(DRAWN_ANIM.juanmachete.punch ? 'punch' : null);
     // sin tira de patada: la patada sigue saliendo de la tira de golpes
     if (!DRAWN_ANIM.juanmachete.kick) expect(moveStrip('juanmachete', 'lightkick')).toBeNull();
     expect(moveStrip('llorona', 'special1')).toBeNull();
