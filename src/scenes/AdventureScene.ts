@@ -47,6 +47,8 @@ import { ITEM_NAME, currentMission, items, missions, waypoint, type ItemId, type
 import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { startWithLoading } from '../ui/Loading';
+import { NightLights } from '../adventure/Lighting';
+import { NOTICE_RADIUS, breath, dogMood, dogRoam, faceToward, glance, nextBeat } from '../adventure/Life';
 
 /** Cada baldosa de 16 px del tileset se pinta al doble: los personajes de 48 px quedan a escala. */
 const CELL = 32;
@@ -115,6 +117,8 @@ const key = (x: number, y: number) => `${x},${y}`;
 
 interface NpcView {
   npc: Npc; x: number; y: number; home: [number, number]; facing: Dir; sprite: Phaser.GameObjects.Sprite; scared: boolean; talks: number;
+  /** vida propia: escala de base, fase de la respiración, fotogramas hasta la próxima ocurrencia y hasta volver a su postura */
+  scale: number; phase: number; beat: number; glancing: number;
   /** lo que tiene en la mano antes de dárselo a Juan */
   held?: Phaser.GameObjects.Image;
 }
@@ -146,6 +150,11 @@ export class AdventureScene extends Phaser.Scene {
   private dogAt = { x: -99, y: -99, facing: 'down' as Dir };
   /** pasos que faltan para que el perro pueda volver a avisar de un espanto */
   private dogWarnCd = 0;
+  /** fotogramas que lleva Juan quieto (el perro se pone a husmear) y hasta la próxima ocurrencia del perro */
+  private dogIdle = 0;
+  private dogBeat = 0;
+  /** luz con relieve sobre Juan y el Sombrerón (solo con WebGL y en el pueblo y Medellín) */
+  private lit!: NightLights;
   private trains: Phaser.GameObjects.Image[] = [];
   private blinkers: { img: Phaser.GameObjects.Image; base: string }[] = [];
   private lightImg!: Phaser.GameObjects.Image;
@@ -241,6 +250,8 @@ export class AdventureScene extends Phaser.Scene {
     this.dog = null;
     this.dogAt = { x: -99, y: -99, facing: 'down' };
     this.dogWarnCd = 0;
+    this.dogIdle = 0;
+    this.dogBeat = 0;
     this.mapView = null;
     this.belt = null;
     this.carry = null;
@@ -263,6 +274,7 @@ export class AdventureScene extends Phaser.Scene {
     this.buildGround();
     this.buildObjects();
     this.collectStatics();
+    this.lit = new NightLights(this, this.gm.id);
     this.buildActors();
     this.buildNight();
 
@@ -571,7 +583,7 @@ export class AdventureScene extends Phaser.Scene {
       this.addNpc(npc);
     }
     this.heroShadow = this.add.image(0, 0, 'av_shadow');
-    this.hero = this.add.sprite(feetX(this.st.x), feetY(this.st.y), 'av_hero', HERO_FRAMES[this.st.facing].idle).setOrigin(0.5, 47 / 48);
+    this.hero = this.lit.light(this.add.sprite(feetX(this.st.x), feetY(this.st.y), 'av_hero', HERO_FRAMES[this.st.facing].idle).setOrigin(0.5, 47 / 48));
     this.grassFront = this.add.image(0, 0, 'av_tall_0').setOrigin(0.5, 0).setScale(2).setCrop(0, 9, 16, 7).setVisible(false);
     if (hasMachete(this.st)) this.wearMachete();
     this.setHeroFrame();
@@ -605,7 +617,10 @@ export class AdventureScene extends Phaser.Scene {
     if (this.gm.kind === 'campo' && npc.key === 'pescador' && this.st.flags.includes('tono')) [x, y] = PESCADOR_REFUGIO;
     const sprite = this.add.sprite(feetX(x), feetY(y), this.npcTexture(npc.key), 0).setOrigin(0.5, 47 / 48);
     if (npc.key === 'perro') sprite.setScale(0.75);
-    const view: NpcView = { npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0 };
+    const view: NpcView = {
+      npc, x, y, home: [x, y], facing: npc.facing, sprite, scared: false, talks: 0,
+      scale: sprite.scaleX, phase: this.rnd() * Math.PI * 2, beat: nextBeat(this.rnd, 30), glancing: 0,
+    };
     const item = HELD[npc.name];
     if (item && !(items(this.st) as ItemIcon[]).includes(item)) view.held = this.add.image(0, 0, `av_item_${item}`);
     this.faceNpc(view, npc.facing);
@@ -675,6 +690,10 @@ export class AdventureScene extends Phaser.Scene {
     if (this.flying?.active && this.flying.texture.key === 'av_item_farol') eraseScaled(this.flying.x, this.flying.y, r * 0.85);
     for (const l of this.lamps) eraseScaled(l.x, l.y, l.r + Math.sin(this.frame / 9 + l.flicker) * 2);
     this.night.endDraw(true);
+    // el farol va en la mano de Juan, hacia donde mira: así le alumbra un costado y el otro queda en sombra
+    const side = this.st.facing === 'right' ? 9 : this.st.facing === 'left' ? -9 : 0;
+    const front = this.st.facing === 'down' ? 4 : this.st.facing === 'up' ? -6 : 0;
+    this.lit.update(this.hero.x + side, this.hero.y - 16 + front, this.st.flags.includes('intro') || this.lanternInHand, this.lamps, this.frame);
   }
 
   /** Lugares alegres: menos oscuridad, música de fiesta; el monte y el río: oscuro y tenso. */
@@ -726,7 +745,10 @@ export class AdventureScene extends Phaser.Scene {
     const f = HERO_FRAMES[this.st.facing];
     const seq = [1, 2, 3, 0];
     const idx = this.moving ? f.walk + seq[((this.steps % 2) * 2 + (this.progress < 0.5 ? 0 : 1)) % 4] : f.idle;
-    this.hero.setFrame(idx).setFlipX(f.flip);
+    const tex = this.lit.texture('av_hero', f.flip);
+    if (this.hero.texture.key !== tex) this.hero.setTexture(tex, idx);
+    else this.hero.setFrame(idx);
+    this.hero.setFlipX(f.flip);
     this.syncBelt();
   }
 
@@ -764,6 +786,7 @@ export class AdventureScene extends Phaser.Scene {
       const [dx, dy] = STEP[this.st.facing];
       const t = Math.min(1, this.progress);
       this.placeHero(feetX(this.from.x) + dx * CELL * t, feetY(this.from.y) + dy * CELL * t);
+      this.dogIdle = 0;
       this.setHeroFrame();
       if (this.progress >= 1) {
         this.moving = false;
@@ -775,7 +798,8 @@ export class AdventureScene extends Phaser.Scene {
     }
 
     this.idleFear();
-    if (this.frame % 90 === 0) this.wanderNpcs();
+    this.liveNpcs();
+    this.liveDog();
     if (this.menu.pressed(MENU_KEYS.confirm)) { void this.interact(); return; }
     if (this.menu.pressed(MENU_KEYS.back)) { void this.pauseMenu(); return; }
     if (this.menu.pressed(MENU_KEYS.map) && this.st.flags.includes('mapa')) { this.openMap(); return; }
@@ -825,8 +849,17 @@ export class AdventureScene extends Phaser.Scene {
     }
     for (const n of this.npcs) {
       const sx = n.scared ? (this.frame % 4 < 2 ? 1 : -1) : 0;
-      if (!this.tweens.isTweening(n.sprite)) n.sprite.setPosition(feetX(n.x) + sx, feetY(n.y));
+      if (!this.tweens.isTweening(n.sprite)) {
+        n.sprite.setPosition(feetX(n.x) + sx, feetY(n.y));
+        // respira: se estira ~1 px desde los pies, cada quien a su ritmo (el asustado, más rápido)
+        n.sprite.setScale(n.scale, n.scale * breath(this.frame, n.phase, n.scared ? 3 : 1));
+      }
       n.sprite.setDepth(n.sprite.y);
+    }
+    if (this.dog) {
+      // Firulais jadea: respira más rápido que la gente
+      if (!this.tweens.isTweening(this.dog)) this.dog.setScale(0.75, 0.75 * breath(this.frame, 1.3, 2.4));
+      this.dog.setDepth(this.dog.y);
     }
     for (const n of this.npcs) {
       if (n.npc.key === 'pescador') n.scared = this.st.flags.includes('tono') && !this.st.calmed.includes('llorona');
@@ -856,20 +889,76 @@ export class AdventureScene extends Phaser.Scene {
     else n.sprite.setFrame(f.f).setFlipX(f.flip);
   }
 
-  /** Los aldeanos inquietos dan un pasito alrededor de su sitio. */
-  private wanderNpcs(): void {
+  /**
+   * Vida propia de la gente: cuando Juan se arrima lo voltean a mirar; si no, cada quien a su ritmo
+   * da un pasito alrededor de su sitio (los inquietos) o mira para un lado y vuelve a su postura.
+   */
+  private liveNpcs(): void {
     for (const n of this.npcs) {
+      if (n.scared || !n.sprite.active || this.tweens.isTweening(n.sprite)) continue;
+      if (dist(n.x, n.y, this.st.x, this.st.y) <= NOTICE_RADIUS) {
+        const d = faceToward(n.x, n.y, this.st.x, this.st.y);
+        if (d && d !== n.facing) this.faceNpc(n, d);
+        // cuando Juan se vaya, al rato vuelve a lo suyo
+        n.glancing = 70;
+        n.beat = Math.max(n.beat, 40);
+        continue;
+      }
+      if (n.glancing > 0 && --n.glancing === 0 && !n.npc.wander) this.faceNpc(n, n.npc.facing);
+      if (--n.beat > 0) continue;
+      n.beat = nextBeat(this.rnd);
       const r = n.npc.wander ?? 0;
-      if (!r || this.rnd() < 0.5) continue;
-      const dirs: Dir[] = ['up', 'down', 'left', 'right'];
-      const d = dirs[Math.floor(this.rnd() * 4)];
-      const [dx, dy] = STEP[d];
-      const nx = n.x + dx, ny = n.y + dy;
-      this.faceNpc(n, d);
-      if (Math.abs(nx - n.home[0]) + Math.abs(ny - n.home[1]) > r || this.blocked(nx, ny) || this.occupied(nx, ny)) continue;
-      n.x = nx; n.y = ny;
-      this.tweens.add({ targets: n.sprite, x: feetX(nx), y: feetY(ny), duration: 260 });
+      if (r && this.rnd() < 0.65) this.stepNpc(n, r);
+      else {
+        this.faceNpc(n, glance(n.facing, this.rnd));
+        n.glancing = 40 + Math.floor(this.rnd() * 50);
+      }
     }
+  }
+
+  /** Un pasito de un aldeano inquieto, con un brinquito al pisar (transformación del fotograma completo). */
+  private stepNpc(n: NpcView, r: number): void {
+    const dirs: Dir[] = ['up', 'down', 'left', 'right'];
+    const d = dirs[Math.floor(this.rnd() * 4)];
+    const [dx, dy] = STEP[d];
+    const nx = n.x + dx, ny = n.y + dy;
+    this.faceNpc(n, d);
+    if (Math.abs(nx - n.home[0]) + Math.abs(ny - n.home[1]) > r || this.blocked(nx, ny) || this.occupied(nx, ny)) return;
+    n.x = nx; n.y = ny;
+    n.sprite.setScale(n.scale);
+    this.tweens.add({ targets: n.sprite, x: feetX(nx), y: feetY(ny), duration: 300 });
+    this.tweens.add({ targets: n.sprite, scaleY: n.scale * 0.94, duration: 75, yoyo: true, repeat: 1 });
+  }
+
+  /** Con Juan quieto, Firulais no se está quieto: husmea el suelo, corretea a su alrededor o lo mira contento. */
+  private liveDog(): void {
+    if (!this.dog || this.tweens.isTweening(this.dog)) return;
+    if (++this.dogIdle < 50 || --this.dogBeat > 0) return;
+    this.dogBeat = nextBeat(this.rnd, 70, 130);
+    const dog = this.dog;
+    const mood = dogMood(this.rnd);
+    if (mood === 'corretear') {
+      const free = (x: number, y: number) => walkable(this.map, x, y) && !this.occupied(x, y) && !this.spirits.some((s) => s.shown && s.x === x && s.y === y);
+      const to = dogRoam([this.st.x, this.st.y], [this.dogAt.x, this.dogAt.y], this.rnd, free);
+      if (to) {
+        this.lookDog(to[0], to[1]);
+        this.dogAt.x = to[0]; this.dogAt.y = to[1];
+        dog.setScale(0.75);
+        this.tweens.add({ targets: dog, x: feetX(to[0]), y: feetY(to[1]), duration: 200 });
+        this.tweens.add({ targets: dog, scaleY: 0.69, duration: 50, yoyo: true, repeat: 1 });
+        return;
+      }
+    }
+    if (mood === 'mirar' || mood === 'corretear') {
+      // mira a Juan y menea todo el cuerpo (giro del fotograma completo)
+      this.lookDog(this.st.x, this.st.y);
+      this.tweens.add({ targets: dog, angle: 6, duration: 70, yoyo: true, repeat: 3, onComplete: () => dog.setAngle(0) });
+      return;
+    }
+    // husmea el suelo: agacha la cabeza (se achata) y se mueve de a poquito
+    this.faceDog(this.rnd() < 0.5 ? 'down' : this.rnd() < 0.5 ? 'left' : 'right');
+    dog.setScale(0.75);
+    this.tweens.add({ targets: dog, scaleY: 0.7, x: dog.x + (this.rnd() < 0.5 ? -1 : 1), duration: 110, yoyo: true, repeat: 3 });
   }
 
   // ---------------------------------------------------------------- puertas y viajes
@@ -1196,14 +1285,15 @@ export class AdventureScene extends Phaser.Scene {
   private mythSprite(id: FighterId, x: number, y: number, anim: 'idle' | 'walk' = 'idle'): Phaser.GameObjects.Sprite {
     const k = drawnAnimKey(id, 'p1', anim);
     const sp = this.add.sprite(feetX(x), feetY(y) + 2, this.textures.exists(k) ? k : 'av_hero', 0).setOrigin(0.5, 1).setDepth(feetY(y) + 2).setScale(MYTH_MAP_SCALE);
-    if (id === 'sombreron') this.mount(sp);
+    if (id === 'sombreron') { this.lit.light(sp); this.mount(sp); }
     return sp;
   }
 
   /** El Sombrerón anda en su caballo negro: el caballo sigue al jinete en todo (aparecer, crecer, esfumarse). */
   private mount(sp: Phaser.GameObjects.Sprite): void {
     const gx = sp.x, ground = sp.y;
-    const horse = this.add.image(gx, ground, 'av_caballo_negro', 1).setOrigin(0.5, 1);
+    const horse = this.lit.light(this.add.image(gx, ground, 'av_caballo_negro', 1).setOrigin(0.5, 1));
+    const base = sp.texture.key;
     // de la cadera para abajo lo tapa el caballo: se corta ahí y se sienta en la silla
     sp.setCrop(0, 0, sp.frame.width, RIDER_SEAT.cut);
     sfx.play('galope');
@@ -1212,6 +1302,9 @@ export class AdventureScene extends Phaser.Scene {
       const k = sp.scaleY / MYTH_MAP_SCALE;
       const hy = 1.3 * k, hx = hy * (sp.scaleX / sp.scaleY);
       horse.setScale(hx, hy).setAlpha(sp.alpha).setFlipX(sp.flipX).setDepth(sp.depth + 0.5);
+      // mirando a la izquierda usa las normales al espejo para que la luz le pegue del lado correcto
+      const tex = this.lit.texture(base, sp.flipX);
+      if (sp.texture.key !== tex) sp.setTexture(tex, sp.frame.name);
       sp.x = gx + (RIDER_SEAT.saddleX - 24) * hx * (sp.flipX ? -1 : 1);
       sp.y = ground - (48 - RIDER_SEAT.seatY) * hy + (sp.frame.height - RIDER_SEAT.cut) * sp.scaleY;
     };
