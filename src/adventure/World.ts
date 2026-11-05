@@ -366,7 +366,7 @@ export interface Disguise {
 export const GUARDIANS: Guardian[] = [
   {
     // se bajó a Medellín: ronda la Plaza Botero, entre las esculturas, esperando a los que salen tarde
-    id: 'sombreron', haunts: [{ map: 'medellin', zone: R(14, 12, 40, 29), place: 'LA PLAZA BOTERO, EN MEDELLÍN' }], stage: 'pueblo', clue: 'sombrero',
+    id: 'sombreron', haunts: [{ map: 'medellin', zone: R(14, 12, 40, 29), place: 'LA PLAZA BOTERO, EN MEDELLÍN', stage: 'botero' }], stage: 'pueblo', clue: 'sombrero',
     clueText: 'UN SOMBRERO NEGRO ENORME TIRADO ENTRE LAS ESCULTURAS... ¿DE QUIÉN SERÁ? MEJOR NO LO TOCO.',
     fright: 'ESE SOMBRERO TAN GRANDE EN PLENA PLAZA BOTERO... ¡NO ME MIRE ASÍ, SEÑOR, QUE ME TIEMBLAN LAS CORVAS!',
     taunt: 'SI TE ALCANZA MI SOMBRERO, YA ERES MÍO.',

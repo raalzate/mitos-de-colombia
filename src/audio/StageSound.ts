@@ -177,13 +177,15 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     ambience: [{ kind: 'wind', gain: 0.05, freq: 380, rate: 0.08 }, { kind: 'insects', gain: 0.004, freq: 4300, rate: 20 }],
     reverb: 0.5,
   },
-  // escenarios nuevos: solo datos (zumbido y sucesos propios), sin tocar el motor de audio
+  // escenarios nuevos: solo datos (zumbido, sucesos y capas propias), sin tocar el motor de audio
   puente: {
     drone: [32.7, 34.65, 16.35], droneCutoff: 200,
     bed: { type: 'lowpass', freq: 1100, q: 0.6, gain: 0.09, lfoRate: 0.3, lfoDepth: 0.04 },
     musicBox: false,
     events: [{ name: 'splash', weight: 3 }, { name: 'creak', weight: 4 }, { name: 'drip', weight: 2 }, { name: 'owl', weight: 1 }],
     every: [3, 8],
+    ambience: [{ kind: 'river', gain: 0.08, freq: 1400, rate: 0.5 }, { kind: 'wind', gain: 0.04, freq: 600, rate: 0.12 }],
+    reverb: 0.55,
   },
   cafetal: {
     drone: [50.5, 53.5, 25.25], droneCutoff: 190,
@@ -191,6 +193,8 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'thunder', weight: 3 }, { name: 'drip', weight: 4 }, { name: 'crackle', weight: 3 }, { name: 'frog', weight: 2 }],
     every: [3, 7],
+    ambience: [{ kind: 'rain', gain: 0.08, freq: 2200, rate: 0.2 }, { kind: 'fire', gain: 0.02, freq: 400, rate: 3 }],
+    reverb: 0.3,
   },
   paramo: {
     drone: [30.87, 32.7, 15.43], droneCutoff: 140,
@@ -198,6 +202,8 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'flute', weight: 2 }, { name: 'whisper', weight: 3 }, { name: 'distantScream', weight: 1 }, { name: 'branch', weight: 2 }],
     every: [5, 11],
+    ambience: [{ kind: 'wind', gain: 0.07, freq: 900, rate: 0.06 }],
+    reverb: 0.65,
   },
   botero: {
     drone: [58.27, 61.74, 29.14], droneCutoff: 210, droneGain: 0.1,
@@ -205,6 +211,8 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: true,
     events: [{ name: 'metro', weight: 2 }, { name: 'steps', weight: 3 }, { name: 'dogHowl', weight: 2 }, { name: 'whisper', weight: 2 }],
     every: [4, 9],
+    ambience: [{ kind: 'room', gain: 0.04, freq: 150 }, { kind: 'river', gain: 0.015, freq: 1800, rate: 0.8 }],
+    reverb: 0.45,
   },
   comuna13: {
     drone: [69.3, 73.42, 34.65], droneCutoff: 220, droneGain: 0.1,
@@ -212,6 +220,8 @@ export const STAGE_SOUND: Record<SoundscapeId, StageSoundTheme> = {
     musicBox: false,
     events: [{ name: 'moto', weight: 3 }, { name: 'dogHowl', weight: 2 }, { name: 'laugh', weight: 2 }, { name: 'creak', weight: 1 }],
     every: [3, 8],
+    ambience: [{ kind: 'room', gain: 0.045, freq: 170 }, { kind: 'crowd', gain: 0.012, freq: 700, rate: 2 }],
+    reverb: 0.3,
   },
   monte: {
     drone: [43.65, 46.25, 21.83], droneCutoff: 160, droneGain: 0.2,

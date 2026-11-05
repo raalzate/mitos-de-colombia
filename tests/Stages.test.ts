@@ -4,6 +4,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../src/config/game-config';
 import { splashPose } from '../src/art/SplashPose';
 import { STAGE_SOUND } from '../src/audio/StageSound';
 import { STAGE_LURKS } from '../src/combat/Lurk';
+import { GUARDIANS } from '../src/adventure/World';
 
 describe('escenarios', () => {
   it('hay quince escenarios con nombre y subtítulo, con dos montes distintos', () => {
@@ -95,6 +96,12 @@ describe('escenarios', () => {
     expect(STAGES.cafetal.lightning).toBe(true);
     expect(STAGES.cafetal.ambient).toBe('drop');
     expect(STAGES.paramo.milkyWay).toBe(true);
+  });
+
+  it('en la aventura el Mohán pelea en el puente y el Sombrerón de Medellín en la plaza', () => {
+    const g = (id: string) => GUARDIANS.find((x) => x.id === id)!;
+    expect(g('mohan').stage).toBe('puente');
+    expect(g('sombreron').haunts.find((h) => h.map === 'medellin')?.stage).toBe('botero');
   });
 
   it('los escenarios se distinguen por su cielo', () => {
