@@ -1,5 +1,6 @@
 import type { AdventureState } from './State';
 import { GUARDIANS } from './World';
+import { MYTH_ARC, type MythId } from './Stories';
 
 /**
  * Misiones del modo aventura: qué le falta a Juan, qué paso sigue y dónde queda.
@@ -46,12 +47,12 @@ function step(s: AdventureState, id: MissionId): MissionStep {
     case 'machete':
       if (has(s, 'lena')) return { text: 'LLÉVELE LA LEÑA A DON JULIO, AL TRAPICHE: VEREDA ABAJO, ANTES DEL PUENTE.', goal: TRAPICHE };
       if (has(s, 'encargo_lena')) return { text: 'TRAIGA LEÑA SECA DEL MONTE PURO: DEL PUEBLO AL ORIENTE Y POR LA TROCHA AL NORTE.', goal: CLARO };
-      return { text: 'HABLE CON DON JULIO EN EL TRAPICHE: VEREDA ABAJO, ANTES DEL PUENTE.', goal: TRAPICHE };
+      return { text: 'LA RONDA EMPIEZA CON EL MACHETE DEL ABUELO: VAYA DONDE DON JULIO, AL TRAPICHE.', goal: TRAPICHE };
     case 'mapa':
-      return { text: 'PÍDALE EL MAPA AL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO.', goal: CABO };
+      return { text: 'EL CABO RAMÍREZ APUNTA DÓNDE VEN ESPANTOS: PÍDALE EL MAPA EN LA ENTRADA DEL PUEBLO.', goal: CABO };
     case 'escapulario':
       if (has(s, 'escapulario_perdido')) return { text: 'SE LE PERDIÓ EL ESCAPULARIO: PÍDALE OTRO AL PADRE, EN LA IGLESIA.', goal: PADRE };
-      return { text: 'PÍDALE UN ESCAPULARIO AL PADRE ANSELMO, ADENTRO DE LA IGLESIA.', goal: PADRE };
+      return { text: 'CONTRA EL DUENDE Y LOS ESPÍRITUS: PÍDALE UN ESCAPULARIO AL PADRE ANSELMO, EN LA IGLESIA.', goal: PADRE };
     case 'perro':
       if (has(s, 'arepa')) return { text: 'DELE LA AREPA AL PERRITO FLACO DE LA PLAZA.', goal: PERRO };
       if (has(s, 'perro_visto')) return { text: 'CONSIGA UNA AREPA: DOÑA GLORIA, EN LA PLAZA, O DOÑA MARINA, EN LAS FIESTAS.', goal: GLORIA };
@@ -62,9 +63,9 @@ function step(s: AdventureState, id: MissionId): MissionStep {
       return { text: 'HABLE CON DON RUBÉN, EL ARRIERO DE LA VEREDA.', goal: RUBEN };
     case 'mitos': {
       const left = GUARDIANS.length - s.calmed.length;
-      if (!left) return { text: 'LOS NUEVE MITOS ESTÁN CALMADOS. ¡VUELVA CON LA ABUELA ROSA!', goal: ABUELA };
-      if (!has(s, 'machete')) return { text: 'SIN MACHETE NO SE PUEDE. PRIMERO GÁNESE EL MACHETE DEL ABUELO.' };
-      return { text: `CALME A LOS MITOS: ${s.calmed.length} DE ${GUARDIANS.length}. SIGA SUS SEÑALES${has(s, 'mapa') ? ' Y MIRE EL MAPA (M)' : ''}.` };
+      if (!left) return { text: 'LA RONDA ESTÁ COMPLETA: LOS NUEVE MITOS CALMADOS. ¡VUELVA CON LA ABUELA ROSA!', goal: ABUELA };
+      if (!has(s, 'machete')) return { text: 'SIN MACHETE NO HAY RONDA. PRIMERO GÁNESE EL MACHETE DEL ABUELO.' };
+      return { text: `CALME A LOS ${GUARDIANS.length} MITOS ANTES DE LAS DOCE (VAN ${s.calmed.length}). SIGA SUS SEÑALES${has(s, 'mapa') ? ' Y EL MAPA (M)' : ''}.` };
     }
   }
 }
@@ -75,7 +76,7 @@ const TITLES: Record<MissionId, string> = {
   escapulario: 'EL ESCAPULARIO',
   perro: 'UN AMIGO FIEL',
   caballo: 'LUCERO, EL CABALLO',
-  mitos: 'CALMAR A LOS MITOS',
+  mitos: 'LA RONDA DEL ABUELO',
 };
 
 const DONE: Record<MissionId, (s: AdventureState) => boolean> = {
@@ -86,6 +87,22 @@ const DONE: Record<MissionId, (s: AdventureState) => boolean> = {
   caballo: (s) => has(s, 'caballo'),
   mitos: (s) => has(s, 'fin'),
 };
+
+/**
+ * Lo que Juan sabe de su propósito: por qué está haciendo esto y qué le han contado los mitos ya calmados.
+ * La primera línea siempre dice qué le toca; las demás, lo aprendido.
+ */
+export function purpose(s: AdventureState): string[] {
+  const n = s.calmed.length, total = GUARDIANS.length;
+  const lessons = s.calmed.map((id) => MYTH_ARC[id as MythId]?.lesson).filter((l): l is string => !!l);
+  let head: string;
+  if (has(s, 'fin')) head = 'SAN AGUSTÍN DUERME EN PAZ. EL AÑO ENTRANTE ME TOCA OTRA VEZ LA RONDA, COMO AL ABUELO.';
+  else if (n >= total) head = 'LA RONDA ESTÁ COMPLETA. ME FALTA CONTÁRSELO A LA ABUELA ROSA.';
+  else if (!has(s, 'machete')) head = 'ESTA NOCHE ME TOCA HACER LA RONDA DEL ABUELO JOAQUÍN. PRIMERO, SU MACHETE: LO TIENE DON JULIO, EN EL TRAPICHE.';
+  else if (!n) head = `TENGO HASTA LAS DOCE PA' CALMAR A LOS ${total} MITOS. NO ES ACABARLOS: ES HACERME RESPETAR Y RESPETARLOS, COMO EL ABUELO.`;
+  else head = `VAN ${n} DE ${total}. SI A LAS DOCE QUEDA UNO SUELTO, LA NOCHE SE REPITE. CADA MITO ME CUENTA ALGO DEL ABUELO.`;
+  return lessons.length ? [head, `LO QUE HE APRENDIDO: ${lessons.join(' ')}`] : [head];
+}
 
 export function missions(s: AdventureState): Mission[] {
   return MISSION_IDS.map((id) => ({ id, title: TITLES[id], done: DONE[id](s), step: step(s, id) }));

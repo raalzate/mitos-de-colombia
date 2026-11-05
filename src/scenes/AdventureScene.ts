@@ -17,7 +17,7 @@ import {
   areaIn, soundIn, buildingFootprint, buildingName, campoSpot, cellsOf, doorCell, getMap, interiorOf, moodIn, propFootprint,
   type GameMap, type MapBuilding, type MapProp, type Sound,
 } from '../adventure/Maps';
-import { STORIES, STORY_IDS } from '../adventure/Stories';
+import { ABUELA_INTRO, STORIES, STORY_IDS, abuelaNudge, calmedWords, juanAfterCalm, mythTaunt, roundTally } from '../adventure/Stories';
 import {
   LAST_HOUR, MS_PER_MINUTE, TRIP_MINUTES, addSighting, allCalmed, applyOutcome, clearAdventure, clockText, nightOver, fightDifficulty, hasEscapulario, hasMachete, homeOf, loadAdventure, newAdventure, reportSightings, saveAdventure,
   escapularioWornOut, giveEscapulario, loseEscapulario, losesEscapularioInFight,
@@ -43,7 +43,7 @@ import {
   WALL_HUNG, buildBackWall, buildDoorMat, buildFloor, buildFurniture, buildWallEdge, furnitureLights, type FurnitureKind,
 } from '../adventure/InteriorArt';
 import { HORSE_GALLOP_FIRST, HORSE_GALLOP_FRAMES, RIDER_SEAT, buildDog, buildHorse, buildItemIcon, buildMacheteCinto, type ItemIcon } from '../adventure/OverworldArt';
-import { ITEM_NAME, currentMission, items, missions, waypoint, type ItemId, type Spot } from '../adventure/Missions';
+import { ITEM_NAME, currentMission, items, missions, purpose, waypoint, type ItemId, type Spot } from '../adventure/Missions';
 import { wrap } from '../adventure/text';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { startWithLoading } from '../ui/Loading';
@@ -1596,7 +1596,7 @@ export class AdventureScene extends Phaser.Scene {
       this.locked = false;
       return;
     }
-    await this.dialog.say([v.g.taunt], { speaker: FIGHTERS[v.g.id].name });
+    await this.dialog.say([mythTaunt(v.g.id, this.rnd())], { speaker: FIGHTERS[v.g.id].name });
     await this.startFight(v.g);
   }
 
@@ -1807,33 +1807,17 @@ export class AdventureScene extends Phaser.Scene {
     const abuela = this.npcs.find((n) => n.npc.key === 'abuela')!;
     this.faceNpc(abuela, 'down');
     await this.bubble(abuela.sprite, 1);
-    await this.dialog.say(['¡JUAN! ¡JUAN MACHETE! ¡QUÉ BUENO QUE BAJÓ DE MEDELLÍN, MIJO! Y A ESTAS HORAS DE LA NOCHE...'], { speaker: 'ABUELA ROSA' });
+    await this.dialog.say(ABUELA_INTRO.greet, { speaker: 'ABUELA ROSA' });
     abuela.scared = true;
     sfx.play('whisper');
-    await this.dialog.say([
-      'LOS ESPANTOS ANDAN ALBOROTADOS... DE NOCHE SE OYEN SILBIDOS, LLANTOS EN EL RÍO Y PASOS DE UNA SOLA PATA EN EL MONTE.',
-      'ANDAN SUELTOS TODOS LOS MITOS: EL SOMBRERÓN SE BAJÓ A MEDELLÍN, A LA PLAZA BOTERO (DON EVELIO LO LLEVA EN EL YIPAO), LA MUELONA METIDA EN ALGUNA DE LAS DOS CANTINAS, EL SILBÓN EN EL LLANO Y EL MOHÁN EN EL RÍO GRANDE...',
-      '...LA PATASOLA Y LA MADREMONTE SE REPARTEN LOS DOS MONTES, LA LLORONA Y EL HOMBRE CAIMÁN SE REPARTEN LA CIÉNAGA Y RÍO ABAJO, Y BACHUÉ VIVE EN LA LAGUNA DEL SUR.',
-      'Y CADA NOCHE CAMBIAN DE SITIO, MIJO. ¡YA NADIE SE ATREVE A SALIR!',
-    ], { speaker: 'ABUELA ROSA', shake: true });
+    await this.dialog.say(ABUELA_INTRO.scared, { speaker: 'ABUELA ROSA', shake: true });
     abuela.scared = false;
-    await this.dialog.say([
-      'PERO OJO, MIJO: A LOS ESPANTOS NO LOS VA A VER ASÍ NO MÁS. SE ESCONDEN, SE MUEVEN Y SALEN DE LA NADA.',
-      'BUSQUE LAS SEÑALES QUE DEJAN: HUELLAS, HUESOS, LÁGRIMAS... Y PARE BIEN LA OREJA. PREGÚNTELE A LA GENTE DEL PUEBLO.',
-      'Y EN LA PLAZA ANDA UN PERRITO FLACO, SIN DUEÑO. DICEN QUE ESOS PERROS HUELEN A LOS ESPANTOS ANTES QUE NADIE... SI SE LO GANA, NO LO DEJA SOLO NUNCA.',
-    ], { speaker: 'ABUELA ROSA' });
-    await this.dialog.say(['¡AVE MARÍA, ABUELA! MIEDO SÍ ME DA... PERO UN PAISA NO SE ARRUGA. ¡DEME ESE FAROL... Y EL MACHETE DEL ABUELO, PUES!'], { speaker: 'JUAN MACHETE' });
+    await this.dialog.say(ABUELA_INTRO.calm, { speaker: 'ABUELA ROSA' });
+    await this.dialog.say(ABUELA_INTRO.juan, { speaker: 'JUAN MACHETE' });
     await this.giveFrom(abuela, 'farol');
     this.lanternInHand = true;
     sfx.play('ultimate');
-    await this.dialog.say([
-      'EL FAROL TÓMELO. EL MACHETE DE SU ABUELO LO TIENE GUARDADO DON JULIO, EL DEL TRAPICHE.',
-      'EL TRAPICHE QUEDA AQUÍ ABAJITO: COJA EL CAMINO DE LA VEREDA PA\'BAJO, HACIA EL RÍO. ES LA CASONA DE MADERA DE LA IZQUIERDA, JUSTO ANTES DEL PUENTE.',
-      'PERO ESE MACHETE NO SE REGALA, MIJO: SE GANA. Y SIN MACHETE NI SE LE ARRIME A UN ESPANTO.',
-      'Y PASE DONDE EL CABO RAMÍREZ, EN LA ENTRADA DEL PUEBLO: ÉL TIENE EL MAPA DE DÓNDE HAN VISTO A CADA ESPANTO.',
-      'SON LAS SEIS DE LA TARDE. TIENE HASTA LA MEDIANOCHE: SI A LAS DOCE QUEDAN ESPANTOS SUELTOS, LA NOCHE VUELVE A EMPEZAR.',
-      'SI LO TUMBAN, SE ACABÓ TODO Y TOCA EMPEZAR DE NUEVO. Y SI EL ESPANTO SE LE VUELA, TOCA IR A BUSCARLO OTRA VEZ. ¡VAYA CON DIOS!',
-    ], { speaker: 'ABUELA ROSA' });
+    await this.dialog.say(ABUELA_INTRO.farol, { speaker: 'ABUELA ROSA' });
     this.st.flags.push('intro');
     saveAdventure(this.st);
     this.locked = false;
@@ -1901,8 +1885,11 @@ export class AdventureScene extends Phaser.Scene {
       return;
     }
     sfx.play('ultimate');
-    await this.dialog.say([g.defeat, `MITOS CALMADOS: ${this.st.calmed.length} DE ${GUARDIANS.length}.${allCalmed(this.st) ? ' ¡VUELVE CON LA ABUELA ROSA!' : ''}`]);
-    await this.dialog.say(['¡QUÉ PELEA TAN BERRACA, PUES! ¡SIGAMOS!'], { speaker: 'JUAN MACHETE' });
+    // calmado: el mito cuenta su pedazo de la historia del abuelo, y Juan va entendiendo
+    await this.dialog.say([g.defeat]);
+    await this.dialog.say(calmedWords(fight.id, allCalmed(this.st)), { speaker: name });
+    await this.dialog.say([roundTally(this.st.calmed.length, GUARDIANS.length)]);
+    await this.dialog.say([juanAfterCalm(this.st.calmed.length, this.rnd())], { speaker: 'JUAN MACHETE' });
     if (losesEscapularioInFight(this.st, this.rnd)) await this.escapularioLost('pelea');
     await this.offerSave();
     this.locked = false;
@@ -2298,9 +2285,8 @@ export class AdventureScene extends Phaser.Scene {
     else if (!this.st.flags.includes('mapa')) await this.dialog.say(['¿Y EL MAPA DEL CABO RAMÍREZ? ÉL SABE DÓNDE HAN VISTO A CADA ESPANTO. ESTÁ EN LA ENTRADA DEL PUEBLO.'], { speaker: 'ABUELA ROSA' });
     else if (!this.hasDog) await this.dialog.say(['¿Y YA CONOCIÓ AL PERRITO FLACO DE LA PLAZA? A LOS PERROS SE LOS GANA UNO CON COMIDA Y CARIÑO.'], { speaker: 'ABUELA ROSA' });
     else if (!this.st.flags.includes('caballo')) await this.dialog.say(['¡QUÉ PERRO TAN BONITO SE CONSIGUIÓ! ...DON RUBÉN, EL ARRIERO, ANDA BUSCANDO A ALGUIEN QUE LE CALME EL LLANO. PREGÚNTELE.'], { speaker: 'ABUELA ROSA' });
-    const left = GUARDIANS.length - this.st.calmed.length;
     n.scared = true;
-    await this.dialog.say([`TODAVÍA QUEDAN ${left} MITOS SUELTOS... ACUÉRDESE: SIGA LAS SEÑALES Y PARE LA OREJA.`], { speaker: 'ABUELA ROSA', shake: true });
+    await this.dialog.say([abuelaNudge(this.st.calmed.length, GUARDIANS.length)], { speaker: 'ABUELA ROSA', shake: true });
     n.scared = false;
     saveAdventure(this.st);
   }
@@ -2321,6 +2307,8 @@ export class AdventureScene extends Phaser.Scene {
     await this.dialog.say([
       '¡LO LOGRÓ, JUAN! LOS NUEVE MITOS SE CALMARON: YA NO ASUSTAN A NADIE EN EL PUEBLO, EN EL LLANO, EN EL RÍO, EN EL MONTE NI EN LA LAGUNA.',
       'LOS MITOS SON PARTE DE ESTA TIERRA. NO HAY QUE ACABARLOS: HAY QUE RESPETARLOS.',
+      // la ronda cumplida rompe la noche que se repetía (ver Stories.ts)
+      'SU ABUELO ESTARÍA ORGULLOSO, MIJO: LA PROMESA SIGUE VIVA. Y MIRE PA\'L ORIENTE... ¡POR FIN VA A AMANECER!',
     ], { speaker: 'ABUELA ROSA' });
     await this.dialog.say(['¡GRACIAS, ABUELA! CON EL MACHETE DEL ABUELO, FIRULAIS Y LUCERO... ¡ESTO FUE UNA NOCHE BERRACA!', '...¿Y SÍ QUEDÓ CALDITO, PUES?'], { speaker: 'JUAN MACHETE' });
     this.st.flags.push('fin');
@@ -2708,6 +2696,7 @@ export class AdventureScene extends Phaser.Scene {
   /** La lista de misiones, y cuál seguir en pantalla. */
   private async missionMenu(): Promise<void> {
     const all = missions(this.st);
+    await this.dialog.say(purpose(this.st), { speaker: 'JUAN MACHETE' });
     await this.dialog.say(all.map((m) => `${m.done ? '[HECHA]' : '[  ]'} ${m.title}${m.done ? '' : ': ' + m.step.text}`));
     const open = all.filter((m) => !m.done);
     if (!open.length) return;

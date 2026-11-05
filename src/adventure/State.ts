@@ -90,6 +90,17 @@ export function newAdventure(rnd: () => number = Math.random): AdventureState {
   return { calmed: [], map: 'campo', x: HERO_START[0], y: HERO_START[1], facing: 'up', flags: [], escapes: {}, stories: [], sightings: {}, homes: rollHomes(rnd), minutes: 0, taken: [] };
 }
 
+/** Bandera del cuento de entrada (IntroScene): se narra una sola vez por partida nueva. */
+export const INTRO_FLAG = 'cuento';
+
+/** ¿Falta contarle a Juan la historia del abuelo? */
+export const needsIntro = (s: AdventureState) => !s.flags.includes(INTRO_FLAG);
+
+/** Marca el cuento como contado: no se vuelve a narrar en esta partida. */
+export function markIntroSeen(s: AdventureState): void {
+  if (needsIntro(s)) s.flags.push(INTRO_FLAG);
+}
+
 export function loadAdventure(): AdventureState | null {
   try {
     const raw = localStorage.getItem(KEY);
