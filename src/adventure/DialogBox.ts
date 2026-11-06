@@ -6,6 +6,7 @@ import { paginate } from './text';
 
 const BOX_Y = 170;
 const BOX_H = 50;
+const BOX_TEXTURE = 'dlg_box';
 /** fotogramas que dura cada posición del temblor de la caja cuando alguien está asustado */
 const SHAKE_FRAMES = 8;
 
@@ -37,10 +38,18 @@ export class DialogBox {
   private cancelIndex = -1;
 
   constructor(private scene: Phaser.Scene) {
-    const box = scene.add.graphics();
-    box.fillStyle(0x283048, 1).fillRoundedRect(2, BOX_Y - 2, GAME_WIDTH - 4, BOX_H + 4, 4);
-    box.fillStyle(0xf8f8f0, 1).fillRoundedRect(5, BOX_Y + 1, GAME_WIDTH - 10, BOX_H - 2, 3);
-    box.lineStyle(1, 0x88a0c8, 1).strokeRoundedRect(7, BOX_Y + 3, GAME_WIDTH - 14, BOX_H - 6, 2);
+    // el marco se pinta una vez en una textura: una figura con esquinas redondas se vuelve a triangular
+    // en cada cuadro mientras la caja está abierta, y en el celular eso se notaba
+    if (!scene.textures.exists(BOX_TEXTURE)) {
+      const g = scene.make.graphics({}, false);
+      g.fillStyle(0x283048, 1).fillRoundedRect(2, BOX_Y - 2, GAME_WIDTH - 4, BOX_H + 4, 4);
+      g.fillStyle(0xf8f8f0, 1).fillRoundedRect(5, BOX_Y + 1, GAME_WIDTH - 10, BOX_H - 2, 3);
+      g.lineStyle(1, 0x88a0c8, 1).strokeRoundedRect(7, BOX_Y + 3, GAME_WIDTH - 14, BOX_H - 6, 2);
+      // con el mismo renderizador del juego (no el lienzo 2D): los bordes salen idénticos, sin suavizado
+      scene.textures.addDynamicTexture(BOX_TEXTURE, GAME_WIDTH, BOX_Y + BOX_H + 2)?.draw(g);
+      g.destroy();
+    }
+    const box = scene.add.image(0, 0, BOX_TEXTURE).setOrigin(0);
     this.body = scene.add.bitmapText(14, BOX_Y + 8, 'font_plain', '').setTint(0x303038);
     this.body.setLineSpacing(5);
     this.arrow = scene.add.triangle(GAME_WIDTH - 16, BOX_Y + BOX_H - 9, 0, 0, 7, 0, 3.5, 4, 0xd83030).setOrigin(0);

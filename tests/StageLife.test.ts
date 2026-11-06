@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { STAGE_IDS } from '../src/art/StageArtist';
 import { LIFE_ART, EMISSIVE_ALPHA } from '../src/art/LifeArtist';
-import { LIFE_MAX_ACTORS, LifeSim, buildLifeSheets, lifeSpecs } from '../src/art/StageLife';
+import { LIFE_MAX_ACTORS, LIFE_MAX_ACTORS_LITE, LifeSim, buildLifeSheets, lifeSpecs } from '../src/art/StageLife';
 import { seededRandom } from '../src/art/PixelPainter';
 
 describe('vida del fondo de los escenarios', () => {
@@ -91,5 +91,19 @@ describe('vida del fondo de los escenarios', () => {
     expect(kinds).toEqual(expect.arrayContaining(['bartender', 'dancers', 'jukebox']));
     sim.scare('ultimate');
     expect(sim.actors.find((a) => a.kind === 'bartender')!.mode).toBe('flinch');
+  });
+
+  it('en calidad ligera nunca hay más figuritas que el tope ligero', () => {
+    for (const id of STAGE_IDS) {
+      const sim = new LifeSim(id, seededRandom(7));
+      sim.maxActors = LIFE_MAX_ACTORS_LITE;
+      let max = 0;
+      for (let i = 0; i < 60 * 40; i++) {
+        sim.update(1 / 60, 88);
+        max = Math.max(max, sim.actors.length);
+      }
+      expect(max, id).toBeLessThanOrEqual(LIFE_MAX_ACTORS_LITE);
+      expect(max, id).toBeGreaterThan(0);
+    }
   });
 });

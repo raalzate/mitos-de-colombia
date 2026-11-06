@@ -8,10 +8,26 @@ import { buildCursor, buildLogo, buildWhite } from '../art/UiArtist';
 import { FIGHTER_IDS } from '../data/fighters';
 import { DRAWN_ANIM } from '../art/drawnAnimManifest';
 import { drawnAnimFile, drawnAnimKey } from '../art/DrawnAnim';
+import type { DrawnAction } from '../art/drawnAnimManifest';
+import type { FighterId } from '../combat/CombatTypes';
 import { preloadDrawnFx } from '../art/DrawnFx';
 import { addPixmap, addRetroFont, addSheet, ensureCharacterSheet, ensureStage } from '../utils/textures';
 import { setLoadingProgress } from '../ui/Loading';
 import { preloadNormals } from '../adventure/Lighting';
+
+/** Tiras que solo se ven en la pelea: se bajan al entrar a una y solo de los dos que pelean (ver FightScene.preload). */
+export const FIGHT_ONLY_STRIPS: readonly DrawnAction[] = ['punch', 'kick'];
+const BOOT_STRIPS: readonly DrawnAction[] = ['walk', 'attack', 'hurt', 'idle', 'trans', 'fall'];
+
+/** Pone en la cola de carga las tiras dibujadas de un luchador que existan y aún no estén cargadas. */
+export function queueDrawnStrips(scene: Phaser.Scene, id: FighterId, slot: 'p1' | 'p2', actions: readonly DrawnAction[]): void {
+  for (const action of actions) {
+    const m = DRAWN_ANIM[id][action];
+    const key = drawnAnimKey(id, slot, action);
+    if (!m || scene.textures.exists(key)) continue;
+    scene.load.spritesheet(key, drawnAnimFile(id, slot, action), { frameWidth: m.w, frameHeight: m.h });
+  }
+}
 
 /**
  * Genera todos los recursos gráficos de forma procedimental (pixel art en memoria).
@@ -30,11 +46,7 @@ export class BootScene extends Phaser.Scene {
         for (const size of [24, 48, 64, 96]) this.load.image(`face_${id}_${slot}_${size}`, `portraits/${id}_${slot}_${size}.png`);
         for (const size of [72, 128]) this.load.image(`splash_${id}_${slot}_${size}`, `splash/${id}_${slot}_${size}.png`);
         for (let n = 0; n < 4; n++) this.load.image(`splash_${id}_${slot}_pose${n}_72`, `splash/${id}_${slot}_pose${n}_72.png`);
-        for (const action of ['walk', 'attack', 'hurt', 'idle', 'trans', 'fall', 'punch', 'kick'] as const) {
-          const m = DRAWN_ANIM[id][action];
-          if (!m) continue;
-          this.load.spritesheet(drawnAnimKey(id, slot, action), drawnAnimFile(id, slot, action), { frameWidth: m.w, frameHeight: m.h });
-        }
+        queueDrawnStrips(this, id, slot, BOOT_STRIPS);
       }
     }
     preloadDrawnFx(this.load);

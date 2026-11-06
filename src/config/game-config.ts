@@ -5,6 +5,8 @@ export const GAME_HEIGHT = 224;
 /** Lógica a paso fijo de 60 Hz. */
 export const LOGIC_FPS = 60;
 export const LOGIC_STEP_MS = 1000 / LOGIC_FPS;
+/** Pasos de lógica que se ponen al día en un solo cuadro; más atraso se descarta (sin espiral en equipos lentos). */
+export const MAX_CATCHUP_STEPS = 5;
 
 /** Arena */
 export const ARENA_WIDTH = 560;

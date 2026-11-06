@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../config/game-config';
+import { GAME_HEIGHT, GAME_WIDTH, LOGIC_STEP_MS, MAX_CATCHUP_STEPS } from '../config/game-config';
 import { sfx, type SfxName } from '../audio/Sfx';
 import { MENU_KEYS, MenuInput, inputManager, toggleFullscreen } from '../utils/game';
 import { touchActive } from '../ui/TouchControls';
@@ -201,6 +201,8 @@ export class AdventureScene extends Phaser.Scene {
   private turnDelay = 0;
   private locked = false;
   private frame = 0;
+  /** tiempo de pantalla aún sin pasar a pasos de lógica (ms) */
+  private stepAcc = 0;
   private area = '';
   private areaLabel!: Phaser.GameObjects.Container;
   private rnd = Math.random;
@@ -257,6 +259,7 @@ export class AdventureScene extends Phaser.Scene {
     }
     this.registry.set('adventure', this.st);
     this.menu = new MenuInput();
+    this.stepAcc = 0;
     this.moving = false;
     this.locked = false;
     this.npcs = [];
@@ -839,15 +842,32 @@ export class AdventureScene extends Phaser.Scene {
     return null;
   }
 
+  /**
+   * La lógica del mapa va a 60 pasos por segundo pase lo que pase con la pantalla, como la pelea:
+   * en un celular que pinta a 40 cuadros Juan no camina más despacio, y en una pantalla de 120 Hz
+   * no anda al doble. Lo que solo pinta (la noche y el recorte de lo que no se ve) va una vez por cuadro.
+   */
   override update(_time: number, delta: number): void {
+    this.stepAcc += Math.min(delta, 250);
+    let steps = 0;
+    while (this.stepAcc >= LOGIC_STEP_MS && steps < MAX_CATCHUP_STEPS) {
+      this.stepAcc -= LOGIC_STEP_MS;
+      steps++;
+      this.logicStep(LOGIC_STEP_MS);
+    }
+    // sin espiral: si el equipo no da, se pierde el atraso en vez de acumularlo
+    if (steps >= MAX_CATCHUP_STEPS) this.stepAcc = 0;
+    this.cullStatics();
+    this.drawNight();
+  }
+
+  private logicStep(delta: number): void {
     this.bot?.tick(this.botView());
     inputManager.update();
     this.frame++;
     if (this.menu.pressed(MENU_KEYS.fullscreen)) toggleFullscreen(this);
     this.animateWorld();
     this.syncHeld();
-    this.cullStatics();
-    this.drawNight();
     this.updateHud();
     this.dialog.update(this.menu);
     if (this.mapView) {
