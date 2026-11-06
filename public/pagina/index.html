@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Mitos de Colombia</title>
-<meta name="description" content="Juan Machete sale de noche a buscar a los nueve espantos de Colombia. Juego de lucha y aventura en pixel art, gratis en el navegador." />
+<meta name="description" content="Juan Machete sale de noche a hacer la ronda de su abuelo y calmar a los nueve mitos de Colombia. Juego de lucha y aventura en pixel art, gratis en el navegador." />
 <meta property="og:title" content="Mitos de Colombia: Sangre de leyenda" />
 <meta property="og:description" content="Nueve espantos andan sueltos esta noche. Juego gratis en el navegador." />
 <meta property="og:image" content="https://raalzate.github.io/mitos-de-colombia/capturas/05-combate.png" />
@@ -18,7 +18,7 @@
     --noche-honda: #0c0a1a;
     --monte: #1f3a2c;
     --vela: #f4b046;
-    --calabaza: #e06a1e;
+    --fogon: #e06a1e;
     --hueso: #efe6d2;
     --hueso-tenue: #b9ae98;
     --sangre: #a3192e;
@@ -145,7 +145,7 @@
     line-height: 1;
     text-decoration: none;
     color: #1b0e04;
-    background: var(--calabaza);
+    background: var(--fogon);
     border: 0;
     border-radius: 4px;
     box-shadow: 0 4px 0 #8a3a0b, 0 0 32px rgba(224, 106, 30, .45);
@@ -207,7 +207,7 @@
 
   /* Cuaderno de avistamientos */
   .cuaderno { background: var(--noche); }
-  .avistamientos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr)); gap: 0 48px; }
+  .avistamientos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 460px), 1fr)); gap: 0 56px; }
   .avistamiento {
     display: grid; grid-template-columns: 112px 1fr; gap: 20px; align-items: start;
     padding: 28px 0;
@@ -222,32 +222,41 @@
   .avistamiento h3 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 2rem; line-height: 1; color: var(--hueso); }
   .avistamiento .apodo { margin: .25em 0 .6em; font-style: italic; color: var(--vela); }
   .avistamiento p { font-size: 1.0625rem; line-height: 1.55; }
-  .avistamiento dl { margin: .4em 0 0; font-size: 1rem; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; color: var(--hueso-tenue); }
+  .avistamiento dl { margin: .6em 0 0; font-size: 1rem; color: var(--hueso-tenue); }
   .avistamiento dt { font-weight: 700; color: var(--hueso); }
-  .avistamiento dd { margin: 0; }
+  .avistamiento dd { margin: 0 0 .5em; }
+  .avistamiento .abuelo { margin: .9em 0 0; padding-left: .8rem; border-left: 2px solid var(--sangre); font-style: italic; font-size: 1rem; color: var(--hueso); }
+  .avistamiento .abuelo b { font-style: normal; color: var(--vela); font-weight: 500; }
+  .avistamiento .origen { margin: -.4em 0 .6em; font-size: .95rem; color: var(--hueso-tenue); }
 
-  /* Triqui triqui */
-  .triqui {
+  /* La ronda del abuelo */
+  .ronda {
     position: relative; overflow: hidden;
     background:
-      radial-gradient(ellipse 40% 60% at 85% 50%, rgba(224, 106, 30, .22), transparent 70%),
+      radial-gradient(ellipse 40% 60% at 85% 40%, rgba(244, 176, 70, .14), transparent 70%),
       var(--noche-honda);
     border-block: 2px solid #2b2350;
   }
-  .triqui .ancho { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; align-items: center; }
+  .pasos { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr)); gap: 28px 32px; counter-reset: paso; }
+  .pasos li { position: relative; padding-top: 3.2rem; counter-increment: paso; }
+  .pasos li::before {
+    content: counter(paso);
+    position: absolute; top: 0; left: 0;
+    font-family: var(--display); font-weight: 900; font-size: 2.8rem; line-height: 1;
+    color: var(--vela); text-shadow: 0 0 18px rgba(244, 176, 70, .35);
+  }
+  .pasos h3 { margin: 0 0 .3em; font-family: var(--display); font-weight: 700; font-size: 1.7rem; line-height: 1; color: var(--hueso); }
+  .pasos p { font-size: 1.0625rem; color: var(--hueso-tenue); }
   .copla {
-    margin: 0;
+    margin: 3rem 0 0;
     font-family: var(--display);
     font-weight: 700;
-    font-size: clamp(2rem, 4.6vw, 3.4rem);
-    line-height: 1.05;
-    color: var(--calabaza);
-    text-shadow: 0 0 26px rgba(224, 106, 30, .35);
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    line-height: 1.1;
+    color: var(--vela);
+    text-align: center;
   }
-  .copla em { display: block; font-style: normal; color: var(--hueso); font-size: .62em; margin-top: .5em; }
-  .cuenta { text-align: center; }
-  .cuenta .numero { display: block; font-family: var(--display); font-weight: 900; font-size: clamp(6rem, 16vw, 10rem); line-height: .85; color: var(--hueso); }
-  .cuenta .que { color: var(--hueso-tenue); font-style: italic; }
+  .copla em { display: block; font-style: normal; font-family: var(--texto); color: var(--hueso-tenue); font-size: .45em; margin-top: .6em; }
 
   /* Capturas */
   .capturas-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
@@ -280,7 +289,7 @@
   footer p { max-width: 46em; margin-inline: auto; }
 
   @media (max-width: 820px) {
-    .historia .ancho, .triqui .ancho, .controles .ancho { grid-template-columns: 1fr; }
+    .historia .ancho, .controles .ancho { grid-template-columns: 1fr; }
     .fogon { min-height: 260px; }
     .fogon img { height: 230px; }
     .capturas-grid { grid-template-columns: 1fr 1fr; }
@@ -326,7 +335,7 @@
 
   <div class="cartel">
     <h1 class="titulo">Mitos de Colombia<span>Sangre de leyenda</span></h1>
-    <p class="bajada">Esta noche andan sueltos nueve espantos por la vereda San Agustín. Juan Machete, campesino paisa de carne y hueso, sale con su linterna a buscarlos.</p>
+    <p class="bajada">Durante cincuenta años Don Joaquín hizo la ronda: una noche al año salía con su farol a visitar a los nueve mitos. Ahora él no está, y le toca a su nieto, Juan Machete, campesino paisa de carne y hueso.</p>
     <div class="acciones">
       <a class="boton" href="https://mitos-de-colombia.vercel.app/">Jugar en el navegador</a>
       <button class="boton secundario" id="prender" type="button">Prender todas las velas</button>
@@ -343,9 +352,10 @@
       </div>
       <div>
         <h2 id="h-historia">Lo que le contó la abuela Rosa</h2>
-        <p>Juan baja de Medellín a visitar a su abuela y la encuentra con las puertas trancadas. Los mitos andan sueltos: el Sombrerón en la Plaza Botero de Medellín, la Muelona en el pueblo, el Silbón en el llano, la Llorona y el Mohán en el río, el Hombre Caimán en la ciénaga, la Patasola y la Madremonte en el monte, y Bachué allá en la laguna del sur, detrás de un barrizal que solo se pasa a caballo.</p>
-        <blockquote>No los vaya a matar, mijo. Son parte de esta tierra, hay que respetarlos. Calmelos y verá que la gente vuelve a dormir tranquila.<cite>La abuela Rosa</cite></blockquote>
-        <p>Los mitos no se ven en el mapa. Dejan señales, se oyen de lejos y saltan encima cuando uno menos piensa. Ahí el juego cambia a una pelea uno contra uno, al mejor de tres rondas. Si gana, el espanto se calma. Si pierde, se acaba la partida y toca empezar de nuevo.</p>
+        <p>Hace nueve días enterraron a Don Joaquín, el abuelo de Juan. Este año nadie hizo la ronda, el pueblo se olvidó del trato y los mitos se alborotaron. La última noche de la novena se repite una y otra vez: mientras quede un mito suelto, no amanece.</p>
+        <p>Juan baja de Medellín y encuentra a la abuela Rosa con las puertas trancadas. El Sombrerón ronda la Plaza Botero de Medellín, la Muelona la cantina, el Silbón el llano, la Llorona la orilla del río, el Mohán el puente colgante, el Hombre Caimán la ciénaga, la Patasola y la Madremonte el monte, y Bachué la laguna del sur, detrás de un barrizal que solo se pasa a caballo.</p>
+        <blockquote>No los vaya a matar, mijo. Son parte de esta tierra, hay que respetarlos. Cálmelos como hacía su abuelo y verá que por fin amanece.<cite>La abuela Rosa</cite></blockquote>
+        <p>Los mitos no se ven en el mapa. Dejan señales, se oyen de lejos y saltan encima cuando uno menos piensa. Ahí el juego cambia a una pelea uno contra uno, al mejor de tres rondas. Si gana, el mito se calma, le cuenta qué lo hirió y qué hacía el abuelo con él, y se deshace en luz. Si pierde, se acaba la partida y toca empezar de nuevo.</p>
         <p>En el camino Juan se gana un machete, un perro callejero que ladra cuando hay peligro y un caballo para viajar a Santa Fe de Antioquia.</p>
       </div>
     </div>
@@ -354,18 +364,23 @@
   <section class="cuaderno" aria-labelledby="h-cuaderno">
     <div class="ancho">
       <h2 id="h-cuaderno">Cuaderno de avistamientos</h2>
-      <p class="entrada">Lo que el cabo Ramírez ha ido apuntando de cada espanto: quién es, por dónde ronda y qué deja tirado para que uno sepa que anduvo por ahí.</p>
+      <p class="entrada">Lo que el cabo Ramírez ha ido apuntando de cada mito: de dónde viene la leyenda, qué cuentan los viejos, cómo librarse de él, por dónde ronda y qué deja tirado para que uno sepa que anduvo por ahí. Al final, lo que el mito recuerda de Don Joaquín.</p>
       <ol class="avistamientos" id="avistamientos"></ol>
     </div>
   </section>
 
-  <section class="triqui" aria-labelledby="h-triqui">
+  <section class="ronda" aria-labelledby="h-ronda">
     <div class="ancho">
-      <div>
-        <h2 id="h-triqui" class="copla">¡Triqui triqui Halloween, quiero dulces para mí!<em>Y si no me los da, le mando la Llorona a la ventana.</em></h2>
-        <p style="margin-top:1.4rem;color:var(--hueso-tenue);max-width:30em">El 31 de octubre los niños salen disfrazados a pedir dulces. En la vereda nadie se disfraza de vampiro: los que asustan de verdad son estos nueve.</p>
-      </div>
-      <p class="cuenta" id="cuenta"><span class="numero" id="cuenta-numero">31</span><span class="que" id="cuenta-que">de octubre, noche de brujas</span></p>
+      <h2 id="h-ronda">La ronda del abuelo</h2>
+      <p class="entrada">Los mitos no son enemigos. Son la memoria de esta tierra: cuando la gente los olvida, se vuelven espanto; cuando los respeta, vuelven a ser cuento.</p>
+      <ol class="pasos">
+        <li><h3>El trato</h3><p>Hace cincuenta años un muchacho llamado Joaquín llegó a la laguna de Bachué y prometió que, mientras viviera, esta tierra tendría quien la respetara.</p></li>
+        <li><h3>La ronda</h3><p>Cada año prendía una vela en la orilla para la Llorona, le llevaba tabaco y sal al Mohán, le silbaba de vuelta al Silbón y dejaba un aguardiente servido en la cantina para la Muelona.</p></li>
+        <li><h3>El olvido</h3><p>Este año nadie fue. Tumbaron monte para potrero, envenenaron el río buscando oro, llenaron la ciénaga de basura y las fiestas se volvieron trompada.</p></li>
+        <li><h3>La noche que no acaba</h3><p>Los nueve se alborotaron y la última noche de la novena se repite. La abuela Rosa se acuerda de todo; los demás solo sienten que ya vivieron esto.</p></li>
+        <li><h3>El nieto</h3><p>Juan no es brujo ni tiene pacto con nadie. Tiene el farol del abuelo, un machete y a Firulais. Le toca calmar a los nueve antes de la medianoche.</p></li>
+      </ol>
+      <p class="copla">Cuando nos olvidan, nos volvemos espanto.<em>Bachué, madre de la laguna</em></p>
     </div>
   </section>
 
@@ -411,7 +426,7 @@
   <section class="cierre" aria-labelledby="h-cierre">
     <div class="ancho">
       <div class="fila" id="fila" aria-hidden="true"></div>
-      <h2 id="h-cierre">¿Se le mide a salir esta noche?</h2>
+      <h2 id="h-cierre">¿Se le mide a hacer la ronda?</h2>
       <p class="entrada" style="margin-inline:auto">Es gratis y corre en el navegador. No hay que instalar nada.</p>
       <a class="boton" href="https://mitos-de-colombia.vercel.app/">Jugar en el navegador</a>
 
@@ -426,32 +441,59 @@
 <script>
   const MITOS = [
     { id: 'sombreron', nombre: 'El Sombrerón', apodo: 'Jinete de la noche', x: 10, y: 92,
-      cuento: 'Un hombre de negro con un sombrero enorme que sale en caballo azabache detrás de los borrachos, los tahúres y los que maltratan a la mujer. Les tira el sombrero encima y los deja enredados hasta el amanecer.',
-      ronda: 'La Plaza Botero, en Medellín', senal: 'Un sombrero negro tirado en el suelo' },
+      origen: 'Antioquia y el Eje Cafetero; también lo nombran en Tolima y Boyacá.',
+      cuento: 'Un hombre vestido de negro, con un sombrero enorme, que sale a medianoche en un caballo azabache acompañado de dos perros con cadenas. Persigue a los borrachos pendencieros, a los tahúres, a los vagos y a los que maltratan a la mujer. Les grita «¡Si te alcanzo, te lo pongo!» y les tira el sombrero, que va creciendo en el aire hasta taparlos. Los que despiertan al otro día no se acuerdan de nada y pierden las ganas de buscar pelea.',
+      proteger: 'Portarse bien en la fiesta y no levantarle la mano a nadie. Dicen que no le hace nada a la gente de bien.',
+      ronda: 'La Plaza Botero, en Medellín', senal: 'Un sombrero negro tirado en el suelo',
+      abuelo: 'Tu abuelo pasaba por las fiestas y con solo mirar apaciguaba. Este año, sin él, todo fue trompada.' },
     { id: 'muelona', nombre: 'La Muelona', apodo: 'Sonrisa devoradora', x: 26, y: 98,
-      cuento: 'Espera a la salida de las cantinas con cara de mujer bonita. Cuando el parrandero se le arrima, abre una boca llena de dientes enormes. Sus mordiscos le devuelven la vida.',
-      ronda: 'Junto a la cantina', senal: 'Un diente más grande que un dedo' },
+      origen: 'Pueblos de Antioquia, Caldas y el Cauca.',
+      cuento: 'Cuentan que fue una mujer que regentaba una casa de juego y que, al morir, se volvió espanto. Espera a la salida de las cantinas con cara de mujer bonita, perfume y abanico. Cuando el parrandero que se bebió la plata del mercado se le arrima, abre una boca llena de dientes enormes y lo muerde hasta dejarlo pálido. Sus mordiscos le devuelven la juventud.',
+      proteger: 'Llegar temprano a la casa con la plata completa. A los que van rezando, dicen, ni los mira.',
+      ronda: 'La cantina que le toca esa noche', senal: 'Un diente más grande que un dedo',
+      abuelo: 'Tu abuelo pedía dos aguardientes y dejaba uno servido en la mesa del rincón, «pa\' que la señora no se ponga brava».' },
     { id: 'silbon', nombre: 'El Silbón', apodo: 'El que silba en la llanura', x: 44, y: 90, voltear: true,
-      cuento: 'Alma en pena del llano que carga en un costal los huesos de su papá. Si el silbido suena cerquita, está lejos. Si suena lejos, ya lo tiene encima.',
-      ronda: 'El llano', senal: 'Huesos regados' },
+      origen: 'Los Llanos Orientales, de Colombia y Venezuela.',
+      cuento: 'Un muchacho malcriado que mató a su papá porque no le trajo la comida que quería. Su abuelo lo maldijo, lo azotó y le echó ají en las heridas, y desde entonces vaga por la sabana cargando en un costal los huesos de su papá. Silba las notas do, re, mi, fa, sol, la, si. Si el silbido suena cerquita, está lejos; si suena lejos, ya lo tiene encima. A veces se sienta en la puerta de las casas a contar los huesos.',
+      proteger: 'Le tiene miedo a los perros, al ají y al látigo. Si uno lo oye contar los huesos y no le pasa nada, es buena señal.',
+      ronda: 'El llano', senal: 'Huesos regados',
+      abuelo: 'Todos los años tu abuelo me silbaba de vuelta desde la vereda. Así yo sabía que alguien estaba despierto, cuidando el llano.' },
     { id: 'hombrecaiman', nombre: 'El Hombre Caimán', apodo: 'Bestia del Magdalena', x: 62, y: 99,
-      cuento: 'Saúl Montenegro, pescador de Plato, Magdalena, se untaba una pócima para volverse caimán y espiar a las muchachas que se bañaban en el río. Un día se le regó el frasco y se quedó mitad bestia.',
-      ronda: 'La ciénaga', senal: 'Huellas de caimán… y de pie' },
+      origen: 'Plato, Magdalena, a orillas del río grande. Lo canta el vallenato «Se va el caimán».',
+      cuento: 'Saúl Montenegro, pescador de Plato, consiguió con un brujo de La Guajira dos frascos: uno rojo para volverse caimán y espiar a las muchachas que se bañaban en el río, y uno blanco para volver a ser hombre. Un día el amigo que le echaba el segundo frasco se asustó y le regó casi todo. Solo le alcanzó para la cabeza, y Saúl se quedó con cara de hombre y cuerpo de caimán, solo y escondido en la ciénaga.',
+      proteger: 'No es malo: es un sapo castigado. Basta con no burlarse de él ni cantarle la canción en la cara.',
+      ronda: 'La ciénaga', senal: 'Huellas de caimán… y de pie',
+      abuelo: 'Tu abuelo era el único que no se burlaba. Me traía bocachico y me echaba cuento: «Saúl, hermano, eso le pasa por sapo».' },
     { id: 'llorona', nombre: 'La Llorona', apodo: 'Alma en pena del río', x: 78, y: 93, voltear: true,
-      cuento: 'Una madre que perdió a sus hijos en el río y desde entonces los busca de noche por la orilla. Su lamento le hiela la sangre a quien lo oye: «¡Ay, mis hijos!»',
-      ronda: 'La orilla del río', senal: 'Charquitos de lágrimas' },
+      origen: 'Se cuenta en toda América Latina; en Colombia, en la orilla de cualquier río.',
+      cuento: 'Una mujer que, por despecho o desesperación, ahogó a sus hijos en el río y se arrepintió en el acto. Desde entonces vaga de noche por la orilla con un vestido blanco y el pelo largo tapándole la cara, buscándolos. Su lamento, «¡Ay, mis hijos!», le hiela la sangre a quien lo oye, y dicen que se lleva a los niños que andan solos cerca del agua confundiéndolos con los suyos.',
+      proteger: 'No dejar a los niños solos en la orilla de noche y no seguir el llanto. Una vela prendida la tranquiliza.',
+      ronda: 'La orilla del río', senal: 'Charquitos de lágrimas',
+      abuelo: 'Cada año tu abuelo prendía una vela en la orilla por mis niños. No decía nada: la prendía y se quedaba un rato conmigo.' },
     { id: 'patasola', nombre: 'La Patasola', apodo: 'Terror de la espesura', x: 93, y: 86, voltear: true,
-      cuento: 'Mujer de una sola pierna que caza a los leñadores y cazadores que se meten al monte. A veces se deja ver acostada, como una mujer herida, esperando a que alguien se acerque.',
-      ronda: 'El norte del monte', senal: 'Huellas de un solo pie' },
+      origen: 'Las montañas de Antioquia, Tolima y el Viejo Caldas.',
+      cuento: 'Una mujer infiel a la que su marido, al descubrirla, le cortó una pierna con el hacha. Murió desangrada y quedó convertida en espanto del monte. Salta en una sola pata con una fuerza que no es de este mundo y caza a los leñadores, cazadores y mineros que se meten al bosque. Se deja ver como una mujer hermosa o acostada como una mujer herida, y cuando alguien se acerca a ayudar, muestra su cara de fiera.',
+      proteger: 'Entrar al monte pidiendo permiso, sin hacha, y no tumbar lo que está vivo. Dicen que le huye al tabaco y a las oraciones.',
+      ronda: 'El norte del monte', senal: 'Huellas de un solo pie',
+      abuelo: 'Tu abuelo entraba sin hacha, pidiendo permiso, y solo cogía lo caído.' },
     { id: 'madremonte', nombre: 'La Madremonte', apodo: 'Guardiana del monte', x: 17, y: 80,
-      cuento: 'Cubierta de musgo y hojas, castiga a quien tumba árboles, ensucia las quebradas o corre los linderos. Cuando se enoja, manda crecientes y deja a la gente perdida en el monte.',
-      ronda: 'El sur del monte', senal: 'Ramas partidas y musgo' },
+      origen: 'Toda la zona andina y las selvas de Antioquia y Chocó.',
+      cuento: 'Una mujer enorme y elegante, vestida de musgo y hojas, con un sombrero de ramas que le tapa la cara. Vive en lo más tupido del bosque y se baña en los nacimientos de agua, y por eso las quebradas se enturbian cuando anda brava. Castiga a quien tumba árboles, ensucia el agua, corre los linderos o roba ganado ajeno: manda crecientes, enferma a los animales y deja a la gente perdida dando vueltas en el monte.',
+      proteger: 'Respetar el monte y el agua. Si uno se pierde, dicen que hay que voltearse la ropa al revés para que lo suelte.',
+      ronda: 'El sur del monte', senal: 'Ramas partidas y musgo',
+      abuelo: 'Eres de la sangre de Joaquín. Él sembraba un árbol por cada palo que necesitaba.' },
     { id: 'mohan', nombre: 'El Mohán', apodo: 'Señor de las aguas', x: 70, y: 82, voltear: true,
-      cuento: 'Brujo peludo y barbado que vive en las cuevas del río Magdalena. Fuma tabaco, toca tiple, guarda oro y voltea las canoas de los pescadores que no le dejan su parte.',
-      ronda: 'Río abajo', senal: 'Pepitas de oro en la orilla' },
+      origen: 'El río Magdalena, en Tolima y Huila. Se dice que fue un mohán, un sabio indígena, que no se dejó bautizar.',
+      cuento: 'Un hombre peludo y barbado, de ojos brillantes, que vive en las cuevas del río grande rodeado de oro. Fuma tabaco, toca tiple y enamora a las muchachas que lavan ropa en la orilla. Es dueño de la subienda: si los pescadores le dejan su parte, el río les da pescado; si no, les rompe las atarrayas, voltea las canoas y alborota los remolinos.',
+      proteger: 'Dejarle tabaco, sal o aguardiente en la orilla antes de pescar, y no ser ambicioso con el oro que aparece regado.',
+      ronda: 'El puente colgante del río', senal: 'Pepitas de oro en la orilla',
+      abuelo: 'Tu abuelo me traía tabaco y sal, y yo les dejaba la subienda a los pescadores. Ese era el trato.' },
     { id: 'bachue', nombre: 'Bachué', apodo: 'Madre de la laguna', x: 34, y: 82,
-      cuento: 'La madre de los muiscas, que salió de la laguna de Iguaque con un niño en brazos para poblar la tierra. Ya viejos, volvieron juntos al agua convertidos en serpientes.',
-      ronda: 'La laguna del sur', senal: 'Escamas doradas' },
+      origen: 'El pueblo muisca, en el altiplano de Boyacá y Cundinamarca. La laguna de Iguaque queda cerca de Villa de Leyva.',
+      cuento: 'La madre de los muiscas. Salió de la laguna de Iguaque con un niño de tres años en brazos y, cuando él creció, se casaron y poblaron la tierra. Les enseñaron a sembrar, a tejer, a hacer vasijas y a respetar las leyes. Ya viejos, volvieron juntos a la laguna, se convirtieron en serpientes y se hundieron en el agua. Por eso las lagunas del altiplano son sagradas.',
+      proteger: 'No hay que protegerse de ella: hay que cuidar el agua. Es la única de los nueve que no es espanto, sino madre.',
+      ronda: 'La laguna del sur', senal: 'Escamas doradas',
+      abuelo: 'Hace cincuenta años un muchacho llamado Joaquín prometió aquí: «Mientras yo viva, esta tierra tendrá quien la respete». Y cumplió.' },
   ];
 
   const $ = (id) => document.getElementById(id);
@@ -477,8 +519,10 @@
       <div>
         <h3>${m.nombre}</h3>
         <p class="apodo">${m.apodo}</p>
+        <p class="origen">${m.origen}</p>
         <p>${m.cuento}</p>
-        <dl><dt>Ronda</dt><dd>${m.ronda}</dd><dt>Señal</dt><dd>${m.senal}</dd></dl>
+        <dl><dt>Cómo librarse</dt><dd>${m.proteger}</dd><dt>Ronda</dt><dd>${m.ronda}</dd><dt>Señal</dt><dd>${m.senal}</dd></dl>
+        <p class="abuelo"><b>Lo que recuerda del abuelo:</b> «${m.abuelo}»</p>
       </div>`;
     lista.appendChild(li);
   }
@@ -559,20 +603,6 @@
       : 'Mueva la linterna por el monte. Algo se está escondiendo entre los árboles.';
   });
 
-  // Cuenta de noches hasta el 31 de octubre.
-  (function () {
-    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
-    let brujas = new Date(hoy.getFullYear(), 9, 31);
-    if (hoy > brujas) brujas = new Date(hoy.getFullYear() + 1, 9, 31);
-    const noches = Math.round((brujas - hoy) / 86400000);
-    if (noches === 0) {
-      $('cuenta-numero').textContent = '¡Hoy!';
-      $('cuenta-que').textContent = 'Es noche de brujas. Cierre bien la ventana.';
-    } else {
-      $('cuenta-numero').textContent = noches;
-      $('cuenta-que').textContent = noches === 1 ? 'noche falta para la noche de brujas' : 'noches faltan para la noche de brujas';
-    }
-  })();
 </script>
 </body>
 </html>
