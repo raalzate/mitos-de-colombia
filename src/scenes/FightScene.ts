@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_HP, MAX_ROUNDS, ROUND_TIME_SECONDS,
+  ARENA_WIDTH, GAME_HEIGHT, GAME_WIDTH, GROUND_Y, LOGIC_FPS, LOGIC_STEP_MS, MAX_CATCHUP_STEPS, MAX_HP, MAX_ROUNDS, ROUND_TIME_SECONDS,
 } from '../config/game-config';
 import type { Facing, FighterId, InputState, PowerSound, MatchSettings, PlayerSlot, RoundWinner, UltimateStyle } from '../combat/CombatTypes';
 import { EMPTY_INPUT } from '../combat/CombatTypes';
@@ -45,6 +45,8 @@ import { addSheet } from '../utils/textures';
 import { startWithLoading } from '../ui/Loading';
 import { StageLifeView } from '../art/StageLifeView';
 import { DEMO, DEMO_HERO_DAMAGE, DEMO_LURK_AFTER, DEMO_MYTH_DAMAGE } from '../demo/Demo';
+import { perf } from '../config/perf';
+import { FIGHT_ONLY_STRIPS, queueDrawnStrips } from './BootScene';
 
 /** fotogramas de la presentación VS y de cada frase de la charla de reto */
 const VS_FRAMES = 70;
@@ -216,6 +218,21 @@ export class FightScene extends Phaser.Scene {
 
   constructor() {
     super('FightScene');
+  }
+
+  /**
+   * Las tiras de puño y patada solo se usan aquí: se bajan al entrar a la pelea (las de los dos que
+   * pelean, con el aviso de carga ya puesto) en vez de todas en el arranque. Si alguna no llega, el
+   * golpe se dibuja como antes (la lógica no depende de que esté la imagen).
+   */
+  preload(): void {
+    const s = getSettings(this);
+    this.load.setPath('assets');
+    queueDrawnStrips(this, s.p1, 'p1', FIGHT_ONLY_STRIPS);
+    queueDrawnStrips(this, s.p2, s.p1 === s.p2 ? 'p2' : 'p1', FIGHT_ONLY_STRIPS);
+    this.load.once(Phaser.Loader.Events.FILE_LOAD_ERROR, (file: Phaser.Loader.File) => {
+      console.warn(`Recurso no disponible, se usa arte procedimental: ${file.key}`);
+    });
   }
 
   create(): void {
@@ -658,7 +675,8 @@ export class FightScene extends Phaser.Scene {
     }).setDepth(v.sprite.depth + 0.5);
     let blur: Phaser.FX.Blur | null = null;
     let glow: Phaser.FX.Glow | null = null;
-    const fx = v.sprite.preFX;
+    // resplandor y desenfoque son dos pasadas extra por cuadro: en calidad ligera basta el tinte y la transparencia
+    const fx = perf.low ? null : v.sprite.preFX;
     if (fx) {
       fx.setPadding(12);
       glow = fx.addGlow(color, 0, 0, false, 0.1, 10);
@@ -750,12 +768,12 @@ export class FightScene extends Phaser.Scene {
     // cámara lenta del KO: la lógica avanza a un tercio
     this.accumulator += Math.min(delta, 250) * (this.slowFrames > 0 && !this.paused ? KO_SLOWMO_RATE : 1);
     let steps = 0;
-    while (this.accumulator >= LOGIC_STEP_MS && steps < 5) {
+    while (this.accumulator >= LOGIC_STEP_MS && steps < MAX_CATCHUP_STEPS) {
       this.logicStep();
       this.accumulator -= LOGIC_STEP_MS;
       steps++;
     }
-    if (steps >= 5) this.accumulator = 0;
+    if (steps >= MAX_CATCHUP_STEPS) this.accumulator = 0;
     this.render();
   }
 

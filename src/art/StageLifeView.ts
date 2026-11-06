@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { packSheet } from './PixelPainter';
-import { LIFE_LAYERS, LIFE_MAX_ACTORS, LifeSim, buildLifeSheets, lifeKey, lifeSpecs, type ScareLevel } from './StageLife';
+import { perf } from '../config/perf';
+import { LIFE_LAYERS, LIFE_MAX_ACTORS, LIFE_MAX_ACTORS_LITE, LifeSim, buildLifeSheets, lifeKey, lifeSpecs, type ScareLevel } from './StageLife';
 import type { StageId } from './StageArtist';
 import { addSheet } from '../utils/textures';
 
@@ -30,6 +31,7 @@ export class StageLifeView {
 
   /** `dtMs` = 0 congela todo (pausa). */
   update(camScrollX: number, dtMs: number): void {
+    this.sim.maxActors = perf.low ? LIFE_MAX_ACTORS_LITE : LIFE_MAX_ACTORS;
     this.sim.update(dtMs / 1000, camScrollX);
     const draws = this.sim.draws();
     for (let i = 0; i < draws.length && i < LIFE_MAX_ACTORS; i++) {

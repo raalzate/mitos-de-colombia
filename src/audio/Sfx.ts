@@ -15,6 +15,7 @@ import { heartbeatBpm } from '../combat/Fear';
 import type { FighterId } from '../combat/CombatTypes';
 import type { SoundLayer } from '../combat/CombatTypes';
 import { jitter, makeImpulse, makeNoise, softClipCurve, swingOffset, type NoiseColor } from './Dsp';
+import { onLowSpec, perf } from '../config/perf';
 import { MONSTER_VOICES, SAMPLE_IDS, canVoice, pickVoice, sampleUrl, type SampleId, type VoiceKind } from './Samples';
 import {
   MUSIC, PERCUSSION, STAGE_SOUND, effectiveTension, midiToFreq, musicDuck, pickStageEvent, stepSeconds,
@@ -35,6 +36,17 @@ type Ramp = [number, number][];
 
 /** Volumen base de la mezcla (antes del limitador). */
 const MASTER = 0.35;
+/** El paneo de los canales compartidos se redondea a este paso (inaudible): así hay pocos buses fijos. */
+const PAN_STEP = 0.05;
+/** Tasa del sintetizador en calidad ligera (Hz). */
+const LITE_SAMPLE_RATE = 24000;
+/** Sala ligera: [retardo s, realimentación, corte del apagado Hz] de cada eco (tiempos sin múltiplos comunes). */
+const LITE_ROOM: readonly (readonly [number, number, number])[] = [[0.0437, 0.62, 2600], [0.0713, 0.55, 1900]];
+/**
+ * Entrada de la sala ligera: con esto su energía queda como la de la convolución (que el navegador
+ * normaliza), calculado con la respuesta al impulso de los dos ecos; la mezcla no se seca en el celular.
+ */
+const LITE_ROOM_GAIN = 0.65;
 
 /** Golpe por capas; cada campo se varía al azar en cada toque. */
 interface Impact {
@@ -73,6 +85,18 @@ class Synth {
   /** reverberación de convolución compartida: lo que se manda aquí suena "en el lugar" */
   private roomSend: GainNode | null = null;
   private roomOut: GainNode | null = null;
+  /** lo que hoy procesa la sala (convolución o, en calidad ligera, ecos realimentados) */
+  private roomCore: AudioNode[] = [];
+  private roomLite = false;
+  /**
+   * Buses de canal compartidos (seco con paneo + envío a la sala) por paneo y envío: los sonidos se
+   * conectan a uno ya armado en vez de crear hasta tres nodos de ruteo por cada golpe.
+   */
+  private buses = new Map<string, GainNode>();
+  /** paneos compartidos de los sucesos lejanos (van a `reverbIn`) */
+  private spots = new Map<number, StereoPannerNode>();
+  /** calidad ligera (celulares): sala barata, música sin adornos ni golpes fantasma */
+  private lite = perf.low;
   private shaperCurve: Float32Array<ArrayBuffer> | null = null;
   private musicTimer: number | null = null;
   private musicGain: GainNode | null = null;
@@ -120,7 +144,14 @@ class Synth {
     }
     const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
-    const ctx = new Ctor();
+    // en calidad ligera el sintetizador trabaja a 24 kHz: la mitad de muestras que calcular en cada nodo,
+    // y un parlante de celular no da más de eso; si el navegador no acepta la tasa, la de siempre
+    let ctx: AudioContext;
+    try {
+      ctx = this.lite ? new Ctor({ sampleRate: LITE_SAMPLE_RATE }) : new Ctor();
+    } catch {
+      ctx = new Ctor();
+    }
     this.ctx = ctx;
     // limitador final: los gritos y los golpes fuertes se aplastan antes de recortar
     const limiter = ctx.createDynamicsCompressor();
@@ -140,18 +171,65 @@ class Synth {
       this.noiseBuffers.set(color, b);
     }
     this.shaperCurve = softClipCurve(2.5) as Float32Array<ArrayBuffer>;
-    // sala: cola de 2,4 s que se oscurece, con un par de primeras reflexiones
-    const [l, r] = makeImpulse(sr, { seconds: 2.4, decay: 2.8, preDelay: 0.012, damping: 0.75, early: [0.017, 0.029, 0.043] });
-    const ir = ctx.createBuffer(2, l.length, sr);
-    ir.getChannelData(0).set(l);
-    ir.getChannelData(1).set(r);
-    const conv = ctx.createConvolver();
-    conv.buffer = ir;
     this.roomSend = ctx.createGain();
     this.roomOut = ctx.createGain();
     this.roomOut.gain.value = this.roomLevel();
-    this.roomSend.connect(conv).connect(this.roomOut).connect(this.master);
+    this.roomOut.connect(this.master);
+    this.buildRoom();
     this.loadSamples();
+    onLowSpec(() => this.setLite(true));
+  }
+
+  /**
+   * Arma la sala entre `roomSend` y `roomOut`. Completa: convolución estéreo con cola de 2,4 s que se
+   * oscurece. Ligera (celulares): dos ecos realimentados y apagados en mono, que suenan a sala y cuestan
+   * una fracción (la convolución larga era lo que más pesaba en el hilo de audio).
+   */
+  private buildRoom(): void {
+    const ctx = this.ctx, send = this.roomSend, out = this.roomOut;
+    if (!ctx || !send || !out) return;
+    send.disconnect();
+    for (const n of this.roomCore) n.disconnect();
+    this.roomCore = [];
+    this.roomLite = this.lite;
+    if (!this.lite) {
+      const sr = ctx.sampleRate;
+      const [l, r] = makeImpulse(sr, { seconds: 2.4, decay: 2.8, preDelay: 0.012, damping: 0.75, early: [0.017, 0.029, 0.043] });
+      const ir = ctx.createBuffer(2, l.length, sr);
+      ir.getChannelData(0).set(l);
+      ir.getChannelData(1).set(r);
+      const conv = ctx.createConvolver();
+      conv.buffer = ir;
+      send.connect(conv).connect(out);
+      this.roomCore = [conv];
+      return;
+    }
+    // la sala ligera trabaja en mono: el envío se mezcla a un canal antes de entrar
+    const mono = ctx.createGain();
+    mono.channelCount = 1;
+    mono.channelCountMode = 'explicit';
+    mono.gain.value = LITE_ROOM_GAIN;
+    send.connect(mono);
+    this.roomCore = [mono];
+    for (const [time, fb, cut] of LITE_ROOM) {
+      const d = ctx.createDelay(0.2);
+      d.delayTime.value = time;
+      const damp = this.biquad();
+      damp.type = 'lowpass';
+      damp.frequency.value = cut;
+      const g = ctx.createGain();
+      g.gain.value = fb;
+      mono.connect(d);
+      d.connect(damp).connect(g).connect(d);
+      damp.connect(out);
+      this.roomCore.push(d, damp, g);
+    }
+  }
+
+  /** Pasa a calidad ligera (o vuelve): rehace la sala; la música pierde adornos desde el próximo compás. */
+  setLite(on: boolean): void {
+    this.lite = on;
+    if (this.ctx && this.roomLite !== on) this.buildRoom();
   }
 
   /** Volumen general 0..1 (además de `enabled`, que calla los efectos). */
@@ -242,9 +320,36 @@ class Synth {
 
   /**
    * Canal de un sonido: entrada con paneo opcional que va seco a `dest` (o al maestro) y
-   * con un envío `wet` a la reverberación. Se arma por sonido y se recicla solo.
+   * con un envío `wet` a la reverberación. Los que van al maestro se arman una vez y se comparten.
    */
   private chan(wet: number, pan = 0, dest?: AudioNode): GainNode {
+    if (!dest) {
+      // los canales al maestro son solo ruteo (nadie les cambia el volumen): se comparten
+      const p = Math.round(Math.max(-1, Math.min(1, pan)) / PAN_STEP) * PAN_STEP;
+      const key = `${wet}|${p}`;
+      const hit = this.buses.get(key);
+      if (hit) return hit;
+      const bus = this.makeChan(wet, p);
+      this.buses.set(key, bus);
+      return bus;
+    }
+    return this.makeChan(wet, pan, dest);
+  }
+
+  /**
+   * Filtro con sus parámetros a ritmo de bloque (k-rate): con un barrido o un LFO encima, el navegador
+   * recalcula los coeficientes una vez cada 128 muestras y no en cada muestra (hay decenas de notas y
+   * golpes filtrados por segundo). En barridos de decenas de ms el oído no lo nota.
+   */
+  private biquad(): BiquadFilterNode {
+    const f = this.ctx!.createBiquadFilter();
+    for (const p of [f.frequency, f.Q, f.detune, f.gain]) {
+      try { p.automationRate = 'k-rate'; } catch { /* navegador sin automationRate: se queda a-rate */ }
+    }
+    return f;
+  }
+
+  private makeChan(wet: number, pan: number, dest?: AudioNode): GainNode {
     const ctx = this.ctx!;
     const g = ctx.createGain();
     let o: AudioNode = g;
@@ -267,9 +372,14 @@ class Synth {
   private spot(spread = 0.75): AudioNode | undefined {
     if (!this.ctx || !this.reverbIn) return undefined;
     if (typeof this.ctx.createStereoPanner !== 'function') return this.reverbIn;
-    const p = this.ctx.createStereoPanner();
-    p.pan.value = (Math.random() * 2 - 1) * spread;
-    p.connect(this.reverbIn);
+    const pan = Math.round(((Math.random() * 2 - 1) * spread) / PAN_STEP) * PAN_STEP;
+    let p = this.spots.get(pan);
+    if (!p) {
+      p = this.ctx.createStereoPanner();
+      p.pan.value = pan;
+      p.connect(this.reverbIn);
+      this.spots.set(pan, p);
+    }
     return p;
   }
 
@@ -312,7 +422,7 @@ class Synth {
     const src = this.noiseSrc(color);
     if (!src) return;
     const t = this.ctx.currentTime + delay;
-    const f = this.ctx.createBiquadFilter();
+    const f = this.biquad();
     f.type = type;
     if (q !== undefined) f.Q.value = q;
     f.frequency.setValueAtTime(filterFrom, t);
@@ -402,7 +512,7 @@ class Synth {
       if (k <= 0) continue;
       const src = this.noiseSrc(lo < 600 ? 'pink' : 'white');
       if (!src) return;
-      const f = ctx.createBiquadFilter();
+      const f = this.biquad();
       f.type = 'bandpass';
       f.Q.value = q;
       f.frequency.setValueAtTime(lo, t);
@@ -435,7 +545,7 @@ class Synth {
   private blip(f: number, dur: number, vol: number, delay = 0, dest?: AudioNode): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime + delay;
-    const lp = this.ctx.createBiquadFilter();
+    const lp = this.biquad();
     lp.type = 'lowpass';
     lp.frequency.setValueAtTime(4200, t);
     lp.frequency.exponentialRampToValueAtTime(1200, t + dur);
@@ -497,7 +607,7 @@ class Synth {
     this.shaped('noise', t, [[0, 600], [0.22, 5000]], [[0.22, 0.18], [0.24, 0]], out, { type: 'bandpass', freq: 600, q: 0.9 });
     const hit = 0.24;
     this.impact({ body: 70, bodyEnd: 28, bodyVol: 0.75, bodyDur: 0.9, crack: 900, crackVol: 0.35, crackDur: 0.4, sub: 38, drive: 1.6, wet: 0.5 }, hit);
-    const lp = ctx.createBiquadFilter();
+    const lp = this.biquad();
     lp.type = 'lowpass';
     lp.Q.value = 3;
     lp.frequency.setValueAtTime(4500, t + hit);
@@ -524,7 +634,7 @@ class Synth {
         [[1, 1], [2, 0.18], [3.01, 0.08], [4.2, 0.03]]);
     });
     // coro: Do mayor con séptima, sierra filtrada y desafinada que entra despacio
-    const lp = ctx.createBiquadFilter();
+    const lp = this.biquad();
     lp.type = 'lowpass';
     lp.frequency.setValueAtTime(500, t);
     lp.frequency.linearRampToValueAtTime(1600, t + 1.5);
@@ -770,7 +880,7 @@ class Synth {
       }
       case 'victoria': {
         // victoria: acorde mayor de cuerdas que se abre despacio y un golpe grave, sin trompetica
-        const lp = this.ctx.createBiquadFilter();
+        const lp = this.biquad();
         lp.type = 'lowpass';
         lp.frequency.setValueAtTime(700, now);
         lp.frequency.linearRampToValueAtTime(2200, now + 1.2);
@@ -849,7 +959,7 @@ class Synth {
       param = o.frequency;
     }
     if (filter) {
-      const f = ctx.createBiquadFilter();
+      const f = this.biquad();
       f.type = filter.type;
       f.frequency.value = filter.freq;
       f.Q.value = filter.q ?? 0.7;
@@ -920,7 +1030,7 @@ class Synth {
   /** Nota que pasa por un filtro que se cierra (cuerda pulsada, bajo con mordida). */
   private filtNote(type: OscillatorType, f: number, t: number, dur: number, vol: number, from: number, to: number, q: number, dest: AudioNode, detune = 0): void {
     if (!this.ctx) return;
-    const lp = this.ctx.createBiquadFilter();
+    const lp = this.biquad();
     lp.type = 'lowpass';
     lp.Q.value = q;
     lp.frequency.setValueAtTime(from, t);
@@ -942,19 +1052,20 @@ class Synth {
         this.filtNote('sawtooth', f, t, dur * 0.7, vol * 0.35, Math.min(1400, f * 10), f * 2, 2, dest);
         break;
       case 'brass': {
-        for (const det of [-5, 5]) {
+        // en calidad ligera una sola voz (un poco más fuerte) en vez de dos desafinadas
+        for (const det of this.lite ? [0] : [-5, 5]) {
           const o = this.ctx.createOscillator();
           o.type = 'square';
           o.frequency.value = f;
           o.detune.value = det;
-          const lp = this.ctx.createBiquadFilter();
+          const lp = this.biquad();
           lp.type = 'lowpass';
           lp.Q.value = 2;
           lp.frequency.setValueAtTime(600, t);
           lp.frequency.linearRampToValueAtTime(2800, t + 0.04);
           lp.frequency.exponentialRampToValueAtTime(1200, t + dur);
           const g = this.ctx.createGain();
-          const v = vol * 0.6;
+          const v = vol * (this.lite ? 0.85 : 0.6);
           g.gain.setValueAtTime(0, t);
           g.gain.linearRampToValueAtTime(v, t + 0.015);
           g.gain.setValueAtTime(v * 0.8, t + dur * 0.7);
@@ -968,13 +1079,14 @@ class Synth {
       case 'pluck':
         // tiple/requinto: triángulo y una cuadrada que brilla un instante
         this.note('triangle', f, t, dur, vol, 0.002, dest);
-        this.filtNote('square', f, t, Math.min(dur, 0.35), vol * 0.3, 3200, 500, 1, dest);
+        if (!this.lite) this.filtNote('square', f, t, Math.min(dur, 0.35), vol * 0.3, 3200, 500, 1, dest);
         break;
       case 'strum':
         if (Array.isArray(val)) {
           // rasgueo: cuerdas una tras otra, hacia abajo o hacia arriba
           const up = Math.random() < 0.35;
-          const ns = up ? [...val].reverse() : val;
+          const all = up ? [...val].reverse() : val;
+          const ns = this.lite ? all.slice(0, 3) : all;
           ns.forEach((n, i) => this.filtNote('sawtooth', midiToFreq(n), t + i * jitter(0.013, 0.3), dur, vol * (up ? 0.8 : 1), 2600, 500, 0.8, dest));
         }
         break;
@@ -982,24 +1094,24 @@ class Synth {
         // piano eléctrico: seno con un brillo de campana que se va pronto
         this.note('sine', f, t, dur, vol * 1.2, 0.003, dest);
         this.note('sine', f * 2, t, dur * 0.4, vol * 0.4, 0.002, dest);
-        this.note('triangle', f * 4, t, 0.05, vol * 0.2, 0.001, dest);
+        if (!this.lite) this.note('triangle', f * 4, t, 0.05, vol * 0.2, 0.001, dest);
         break;
       case 'organ':
         for (const n of Array.isArray(val) ? val : [val]) {
           const nf = midiToFreq(n);
           this.note('sine', nf, t, dur, vol, 0.25, dest, true);
           this.note('sine', nf * 2, t, dur, vol * 0.45, 0.25, dest, true);
-          this.note('triangle', nf * 4, t, dur, vol * 0.12, 0.3, dest, true);
+          if (!this.lite) this.note('triangle', nf * 4, t, dur, vol * 0.12, 0.3, dest, true);
         }
         break;
       case 'choir': {
         // coro: sierras desafinadas por un filtro suave (sin zumbido de abeja)
-        const lp = this.ctx.createBiquadFilter();
+        const lp = this.biquad();
         lp.type = 'lowpass';
         lp.frequency.value = 1300;
         lp.Q.value = 0.8;
         lp.connect(dest);
-        for (const n of Array.isArray(val) ? val : [val]) for (const det of [-7, 7]) this.note('sawtooth', midiToFreq(n), t, dur, vol * 1.3, 0.6, lp, true, det);
+        for (const n of Array.isArray(val) ? val : [val]) for (const det of this.lite ? [0] : [-7, 7]) this.note('sawtooth', midiToFreq(n), t, dur, vol * (this.lite ? 1.8 : 1.3), 0.6, lp, true, det);
         break;
       }
       case 'shaker':
@@ -1019,7 +1131,7 @@ class Synth {
         this.tone('triangle', 1250, 1200, 0.03, vol * lvl * 0.5, d, dest);
         break;
       case 'cowbell': {
-        const bp = this.ctx.createBiquadFilter();
+        const bp = this.biquad();
         bp.type = 'bandpass';
         bp.frequency.value = 800;
         bp.Q.value = 1.5;
@@ -1034,7 +1146,7 @@ class Synth {
         const src = this.noiseSrc();
         if (!src) break;
         const len = long ? jitter(0.12, 0.1) : jitter(0.035, 0.15);
-        const bp = this.ctx.createBiquadFilter();
+        const bp = this.biquad();
         bp.type = 'bandpass';
         bp.frequency.value = jitter(long ? 4200 : 5200, 0.06);
         bp.Q.value = 1.4;
@@ -1122,7 +1234,7 @@ class Synth {
     bus.gain.linearRampToValueAtTime(track.gain, start + fadeIn);
     let post: AudioNode = bus;
     if (track.muffle) {
-      const lp = this.ctx.createBiquadFilter();
+      const lp = this.biquad();
       lp.type = 'lowpass';
       lp.frequency.value = track.muffle;
       bus.connect(lp);
@@ -1164,7 +1276,7 @@ class Synth {
         let val = v.steps[p.step % v.steps.length];
         const perc = PERCUSSION.includes(v.inst);
         if (val === 0 || (Array.isArray(val) && val.length === 0)) {
-          if (!perc || !v.ghost || Math.random() >= v.ghost) return;
+          if (!perc || !v.ghost || this.lite || Math.random() >= v.ghost) return;
           val = 0.15 + Math.random() * 0.25;
         }
         const human = Math.random() * (perc ? 0.006 : 0.004);
@@ -1220,7 +1332,8 @@ class Synth {
 
     // lo que suena "lejos": un poco seco y apagado, casi todo a la sala y un eco suave
     this.reverbIn = ctx.createGain();
-    const dryLp = ctx.createBiquadFilter();
+    this.spots.clear();
+    const dryLp = this.biquad();
     dryLp.type = 'lowpass';
     dryLp.frequency.value = 3200;
     const dry = ctx.createGain();
@@ -1237,7 +1350,7 @@ class Synth {
     fb.gain.value = 0.4;
     const wet = ctx.createGain();
     wet.gain.value = 0.3;
-    const damp = ctx.createBiquadFilter();
+    const damp = this.biquad();
     damp.type = 'lowpass';
     damp.frequency.value = 1800;
     this.reverbIn.connect(delay);
@@ -1245,7 +1358,7 @@ class Synth {
     damp.connect(wet).connect(this.musicGain);
 
     // zumbido: La y Si bemol graves (segunda menor), con filtro que oscila lento
-    this.droneFilter = ctx.createBiquadFilter();
+    this.droneFilter = this.biquad();
     this.droneFilter.type = 'lowpass';
     this.droneFilter.frequency.value = 220;
     this.droneFilter.Q.value = 6;
@@ -1383,6 +1496,7 @@ class Synth {
     this.fading = [];
     this.trackId = null;
     this.reverbIn = null;
+    this.spots.clear();
   }
 
   /**
@@ -1434,7 +1548,7 @@ class Synth {
   }
 
   private filter(type: BiquadFilterType, freq: number, q = 0.7): BiquadFilterNode {
-    const f = this.ctx!.createBiquadFilter();
+    const f = this.biquad();
     f.type = type;
     f.frequency.value = freq;
     f.Q.value = q;

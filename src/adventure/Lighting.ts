@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
 import { drawnAnimKey } from '../art/DrawnAnim';
+import { perf } from '../config/perf';
 
 /**
  * Luz con relieve (Light2D de Phaser) para los muñecos del mapa de noche: piloto con Juan y el Sombrerón.
  * Los mapas de normales salen de tools/generar_normales.sh y tienen la misma rejilla que la hoja de color.
  * La oscuridad sigue siendo la capa de noche con agujeros; esto solo sombrea los muñecos según de dónde
  * les llega la luz (farol de Juan y faroles cercanos). Sin WebGL no se hace nada y todo se ve como antes.
+ * En calidad ligera (celulares) tampoco: la noche con sus agujeros de luz queda igual y se ahorra el
+ * sombreado por píxel y los cambios de programa en cada cuadro.
  */
 
 /** Textura del juego → imagen de normales que se carga en el arranque. */
@@ -73,14 +76,16 @@ function flipNormalX(img: HTMLImageElement): HTMLCanvasElement {
 interface Lamp { x: number; y: number; r: number; flicker: number }
 
 export class NightLights {
-  readonly on: boolean;
+  on: boolean;
+  /** lo que recibe luz, para devolverlo al pintado normal si se apaga en plena partida */
+  private lit: Phaser.GameObjects.Components.Pipeline[] = [];
   private scene: Phaser.Scene;
   private lantern: Phaser.GameObjects.Light | null = null;
   private pool: Phaser.GameObjects.Light[] = [];
 
   constructor(scene: Phaser.Scene, mapId: string) {
     this.scene = scene;
-    this.on = LIT_MAPS.has(mapId) && isWebGL(scene);
+    this.on = LIT_MAPS.has(mapId) && isWebGL(scene) && !perf.low;
     // al reiniciar la escena (otro mapa) Phaser ya borró las luces de antes; si este mapa no lleva, se apagan
     if (!this.on) { scene.lights.disable(); return; }
     attachNormals(scene);
@@ -91,8 +96,19 @@ export class NightLights {
 
   /** Pone al objeto a recibir luz con relieve (si hay WebGL y el mapa lleva luces). */
   light<T extends Phaser.GameObjects.Components.Pipeline>(obj: T): T {
-    if (this.on) obj.setPipeline('Light2D');
+    if (this.on) {
+      obj.setPipeline('Light2D');
+      this.lit.push(obj);
+    }
     return obj;
+  }
+
+  /** El vigía del ritmo bajó la calidad: todo vuelve al pintado normal y las luces se apagan. */
+  private off(): void {
+    this.on = false;
+    for (const o of this.lit) if ((o as unknown as Phaser.GameObjects.GameObject).active) o.resetPipeline();
+    this.lit = [];
+    this.scene.lights.disable();
   }
 
   /** Textura que debe usar un sprite con normales según mire a la izquierda (volteado) o no. */
@@ -107,6 +123,7 @@ export class NightLights {
    * (no más de MAX_LAMPS, para no pasarse del máximo del shader).
    */
   update(lx: number, ly: number, lantern: boolean, lamps: readonly Lamp[], frame: number): void {
+    if (this.on && perf.low) this.off();
     if (!this.on || !this.lantern) return;
     this.lantern.setPosition(lx, ly).setIntensity(lantern ? 0.42 + Math.sin(frame / 7) * 0.03 : 0);
     if (frame % 10 !== 0) return;

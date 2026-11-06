@@ -23,6 +23,8 @@ export const LIFE_LAYERS: Record<LifeLayer, { sf: number; ox: number; depth: num
 
 /** Tope de figuritas vivas a la vez (sprites del pool). */
 export const LIFE_MAX_ACTORS = 36;
+/** En calidad ligera (celulares) la mitad: el fondo sigue vivo con menos figuritas que mover y pintar. */
+export const LIFE_MAX_ACTORS_LITE = 18;
 
 export type LifeMove = 'walk' | 'fly' | 'flutter' | 'perch' | 'event' | 'stay' | 'path';
 
@@ -292,6 +294,8 @@ export class LifeSim {
   readonly actors: LifeActor[] = [];
   private timers: number[];
   private viewScroll = 0;
+  /** tope de figuritas a la vez (baja en calidad ligera; las que ya están terminan su paso) */
+  maxActors = LIFE_MAX_ACTORS;
   /** ya pasó el primer cuadro: lo que aparece de aquí en adelante entra despacio */
   private started = false;
 
@@ -329,7 +333,7 @@ export class LifeSim {
   }
 
   spawn(s: LifeSpec): void {
-    const room = Math.min(s.max - this.count(s), LIFE_MAX_ACTORS - this.actors.length);
+    const room = Math.min(s.max - this.count(s), this.maxActors - this.actors.length);
     if (room <= 0) return;
     const r = this.rnd;
     const n = Math.min(room, s.group ? Math.round(between(r, s.group)) : 1);
